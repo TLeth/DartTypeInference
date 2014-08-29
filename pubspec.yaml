@@ -1,0 +1,4 @@
+name: DartTypeInference
+description: DartTypeInfernce
+dependencies:
+  analyzer: any
