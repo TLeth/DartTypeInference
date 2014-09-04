@@ -1,3 +1,0 @@
-[submodule "lib/dart"]
-	path = lib/dart
-	url = https://github.com/dart-lang/bleeding_edge.git

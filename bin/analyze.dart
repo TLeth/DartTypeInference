@@ -8,6 +8,7 @@ import 'package:analyzer/src/generated/source_io.dart';
 import 'package:analyzer/src/analyzer_impl.dart';
 import 'package:analyzer/src/generated/constant.dart';
 import 'package:analyzer/src/generated/element.dart';
+import 'constraints.dart';
 
 DartSdk sdk;
 const int _MAX_CACHE_SIZE = 512;
@@ -94,8 +95,7 @@ _TypeAnnotate(CommandLineOptions options){
       }
       
       LibraryElement libraryElement = context.computeLibraryElement(librarySource);
+      libraryElement.unit.visitChildren(new ConstraintVisitor());
       
-      
-      print("FISSE");
   }
 }
