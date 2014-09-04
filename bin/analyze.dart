@@ -94,8 +94,10 @@ _TypeAnnotate(CommandLineOptions options){
         return;
       }
       
+      ConstraintGeneratorVisitor cv = new ConstraintGeneratorVisitor();
       LibraryElement libraryElement = context.computeLibraryElement(librarySource);
-      libraryElement.unit.visitChildren(new ConstraintVisitor());
+      libraryElement.unit.visitChildren(cv);
+      print(cv.constraints);
       
   }
 }
