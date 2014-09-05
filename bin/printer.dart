@@ -1,9 +1,8 @@
-library typeanalysis.verbose;
+library typeanalysis.printer;
 
-import 'dart:mirrors';
 import 'package:analyzer/src/generated/ast.dart';
 
-class VerboseVisitor implements GeneralizingAstVisitor {
+class PrintVisitor implements GeneralizingAstVisitor {
   
   visitAnnotatedNode(AnnotatedNode node) {
     print('AnnotatedNode');
@@ -621,8 +620,6 @@ class VerboseVisitor implements GeneralizingAstVisitor {
     visitPrefixedIdentifier(PrefixedIdentifier node) {
     print('PrefixedIdentifier');
     print('  ${node}');
-    print('     ${node.identifier}');
-    print('     ${node.prefix}');
     visitIdentifier(node);
   }
 
@@ -662,10 +659,10 @@ class VerboseVisitor implements GeneralizingAstVisitor {
   }
 
   @override
-    visitScriptTag(ScriptTag scriptTag) {
+    visitScriptTag(ScriptTag node) {
     print('ScriptTag');
     print('  ${node}');
-    visitNode(scriptTag);
+    visitNode(node);
   }
 
   @override

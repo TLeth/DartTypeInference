@@ -12,7 +12,6 @@ import 'package:analyzer/src/analyzer_impl.dart';
 import 'element.dart';
 import 'dart:io';
 
-import 'VerboseVisitor.dart';
 import 'LocalVariableVisitor.dart';
 
 const int MAX_CACHE_SIZE = 512;
@@ -118,12 +117,12 @@ class Engine {
   }
   
   _elementAnalysis() {
-    //ElementVisitor ev = new ElementVisitor();
-    //ConstraintGeneratorVisitor cv = new ConstraintGeneratorVisitor();
+    GeneralizingAstVisitor visitor = new GeneralizingAstVisitor();
+    CompilationUnit unit = this.getCompilationUnit(_entrySource);
+    visitor.visitCompilationUnit(unit);
+    
     ElementAnalysis elementAnalysis = new ElementAnalysis();
     new ElementGenerator(this, _entrySource, elementAnalysis);
-    //resolveUnit.compilationUnit.visitChildren(cv);
-    //print(cv.constraints);
   }
   
 
