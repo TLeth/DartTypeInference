@@ -14,12 +14,12 @@ void main(args){
   CommandLineOptions options = CommandLineOptions.parse(args);
   sdk = new DirectoryBasedDartSdk(new JavaFile(options.dartSdkPath));
   
-  _TypeAnnotate(options);
+  _typeAnnotate(options);
 }
 
 
 
-_TypeAnnotate(CommandLineOptions options){
+_typeAnnotate(CommandLineOptions options){
   for (String sourcePath in options.sourceFiles) {
       
       sourcePath = sourcePath.trim();
@@ -41,4 +41,5 @@ _TypeAnnotate(CommandLineOptions options){
       e.analyze(source, sourceFile);
       
   }
+
 }

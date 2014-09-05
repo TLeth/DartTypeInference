@@ -8,9 +8,12 @@ import 'package:analyzer/src/generated/constant.dart';
 import 'package:analyzer/src/generated/source_io.dart';
 import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/analyzer_impl.dart';
+
 import 'element.dart';
 import 'dart:io';
 
+import 'VerboseVisitor.dart';
+import 'LocalVariableVisitor.dart';
 
 const int MAX_CACHE_SIZE = 512;
 const String DART_EXT_SCHEME = "dart-ext:";

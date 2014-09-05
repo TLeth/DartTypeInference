@@ -1,3 +1,5 @@
+library typeanalysis.verbose;
+
 import 'dart:mirrors';
 import 'package:analyzer/src/generated/ast.dart';
 
@@ -619,6 +621,8 @@ class VerboseVisitor implements GeneralizingAstVisitor {
     visitPrefixedIdentifier(PrefixedIdentifier node) {
     print('PrefixedIdentifier');
     print('  ${node}');
+    print('     ${node.identifier}');
+    print('     ${node.prefix}');
     visitIdentifier(node);
   }
 

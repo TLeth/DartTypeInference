@@ -10,9 +10,24 @@ class ElementAnalysis {
   SourceElement getSource(Source source) => sources[source];
 }
 
-class SourceElement {
+
+class Element {}
+class Block {
+  Map<SimpleIdentifier, Element> scope = <SimpleIdentifier, Element>{};
+  
+  /*
+  VariableElement lookupVariableElement(SimpleIdentifier ident) => 
+      variables.firstWhere((VariableElement v) => v.doesReference(ident)); 
+
+ */
+}
+
+
+class SourceElement extends Block {
+
   Source source;
   CompilationUnit ast;
+
   List<Source> imports = <Source>[];
   List<ClassElement> classes = <ClassElement>[];
   List<FunctionElement> functions = <FunctionElement>[];
@@ -22,40 +37,37 @@ class SourceElement {
   
 }
 
-class ClassElement {
+class ClassElement implements Element{
   List<FieldElement> fields = <FieldElement>[];
   List<MethodElement> methods = <MethodElement>[];
 }
 
-class VariableElement {
+class VariableElement implements Element {
   List<SimpleIdentifier> references = <SimpleIdentifier>[];
   Block parent_block;
   
   bool doesReference(SimpleIdentifier ident) => references.contains(ident);
 }
 
-class FieldElement {
+
+class ClassMember {
+  ClassElement classDecl;
+  ClassMember (ClassElement this.classDecl);
+}
+
+class FieldElement extends ClassMember {
+  FieldElement(ClassElement classDecl):super(classDecl);
   List<Identifier> references = <Identifier>[];
-  
   bool doesReference(Identifier ident) => references.contains(ident);
 }
 
-class Block {
-  
+
+class MethodElement extends ClassMember with Block implements Element {
+  MethodElement(ClassElement classDecl):super(classDecl); 
 }
 
-class MethodElement implements Block {
-  
-  ClassElement parent_class;
-  
-  MethodElement(ClassElement this.parent_class);
-}
 
-class FunctionElement implements Block {
-  List<VariableElement> variables = <VariableElement>[];
-  
-  VariableElement lookupVariableElement(SimpleIdentifier ident) => 
-      variables.firstWhere((VariableElement v) => v.doesReference(ident));
+class FunctionElement extends Block implements Element {
 }
 
 class ElementGenerator extends GeneralizingAstVisitor {
@@ -83,3 +95,4 @@ class ElementGenerator extends GeneralizingAstVisitor {
     super.visitImportDirective(node);
   }
 }
+
