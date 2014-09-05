@@ -18,7 +18,7 @@ class SourceElement {
   List<FunctionElement> functions = <FunctionElement>[];
   List<VariableElement> top_variables = <VariableElement>[];
   
-  SourceElement(Source this.source, CompilationUnit ast);
+  SourceElement(Source this.source, CompilationUnit this.ast);
   
 }
 
@@ -69,6 +69,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
     if (!analysis.containsSource(source)) {
       CompilationUnit unit = engine.getCompilationUnit(source); 
       element = new SourceElement(source, unit);
+      analysis.addSource(source, element);
       this.visitCompilationUnit(unit);
     } else {
       element = analysis.getSource(source);
@@ -76,6 +77,9 @@ class ElementGenerator extends GeneralizingAstVisitor {
   }
   
   visitImportDirective(ImportDirective node) {
-    engine.getSource(source, node);
+    Source source = engine.getSource(this.source, node);
+    ElementGenerator generator = new ElementGenerator(engine, source, analysis);
+    element.addImport(source);
+    super.visitImportDirective(node);
   }
 }
