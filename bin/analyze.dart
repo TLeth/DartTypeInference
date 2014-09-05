@@ -5,10 +5,7 @@ import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/sdk_io.dart';
 import 'package:analyzer/src/generated/java_io.dart';
 import 'package:analyzer/src/generated/source_io.dart';
-import 'package:analyzer/src/analyzer_impl.dart';
-import 'package:analyzer/src/generated/constant.dart';
-import 'package:analyzer/src/generated/element.dart';
-import 'constraints.dart';
+import 'engine.dart';
 
 DartSdk sdk;
 const int _MAX_CACHE_SIZE = 512;
@@ -34,6 +31,7 @@ Uri getUri(JavaFile file) {
 
 _TypeAnnotate(CommandLineOptions options){
   for (String sourcePath in options.sourceFiles) {
+      
       sourcePath = sourcePath.trim();
       // check that file exists
       if (!new File(sourcePath).existsSync()) {
@@ -46,58 +44,11 @@ _TypeAnnotate(CommandLineOptions options){
         return;
       }
       
+      Engine e = new Engine(options, sdk);
       JavaFile sourceFile = new JavaFile(sourcePath);
       Uri uri = getUri(sourceFile);
-      Source librarySource = new FileBasedSource.con2(uri, sourceFile);
-      List<UriResolver> resolvers = [new DartUriResolver(sdk), new FileUriResolver()];
-      {
-        JavaFile packageDirectory;
-        if (options.packageRootPath != null) {
-          packageDirectory = new JavaFile(options.packageRootPath);
-        } else {
-          packageDirectory = AnalyzerImpl.getPackageDirectoryFor(sourceFile);
-        }
-        if (packageDirectory != null) {
-          resolvers.add(new PackageUriResolver([packageDirectory]));
-        }
-      }
-      SourceFactory sourceFactory = new SourceFactory(resolvers);
-      AnalysisContext context = AnalysisEngine.instance.createAnalysisContext();
-      context.sourceFactory = sourceFactory;
-      Map<String, String> definedVariables = options.definedVariables;
-      if (!definedVariables.isEmpty) {
-        DeclaredVariables declaredVariables = context.declaredVariables;
-        definedVariables.forEach((String variableName, String value) {
-          declaredVariables.define(variableName, value);
-        });
-      }
-      
-      // Uncomment the following to have errors reported on stdout and stderr
-      AnalysisEngine.instance.logger = new StdLogger(options.log);
-
-      // set options for context
-      AnalysisOptionsImpl contextOptions = new AnalysisOptionsImpl();
-      contextOptions.cacheSize = _MAX_CACHE_SIZE;
-      contextOptions.hint = !options.disableHints;
-      contextOptions.enableAsync = options.enableAsync;
-      contextOptions.enableEnum = options.enableEnum;
-      context.analysisOptions = contextOptions;
-
-      // Create and add a ChangeSet
-      ChangeSet changeSet = new ChangeSet();
-      changeSet.addedSource(librarySource);
-      context.applyChanges(changeSet);
-      
-      if (context.computeKindOf(librarySource) == SourceKind.PART) {
-        print("Only libraries can be analyzed.");
-        print("$sourcePath is a part and can not be analyzed.");
-        return;
-      }
-      
-      ConstraintGeneratorVisitor cv = new ConstraintGeneratorVisitor();
-      LibraryElement libraryElement = context.computeLibraryElement(librarySource);
-      libraryElement.unit.visitChildren(cv);
-      print(cv.constraints);
+      Source source = new FileBasedSource.con2(uri, sourceFile);
+      e.analyze(source, sourceFile);
       
   }
 }
