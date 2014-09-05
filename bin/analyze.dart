@@ -17,17 +17,7 @@ void main(args){
   _typeAnnotate(options);
 }
 
-Uri getUri(JavaFile file) {
-   // may be file in SDK
-   {
-     Source source = sdk.fromFileUri(file.toURI());
-     if (source != null) {
-       return source.uri;
-     }
-   }
-   // some generic file
-   return file.toURI();
- }
+
 
 _typeAnnotate(CommandLineOptions options){
   for (String sourcePath in options.sourceFiles) {
@@ -46,7 +36,7 @@ _typeAnnotate(CommandLineOptions options){
       
       Engine e = new Engine(options, sdk);
       JavaFile sourceFile = new JavaFile(sourcePath);
-      Uri uri = getUri(sourceFile);
+      Uri uri = UriUtil.GetUri(sourceFile, sdk);
       Source source = new FileBasedSource.con2(uri, sourceFile);
       e.analyze(source, sourceFile);
       
