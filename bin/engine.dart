@@ -6,24 +6,25 @@ import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/java_io.dart';
 import 'package:analyzer/src/generated/constant.dart';
 import 'package:analyzer/src/generated/source_io.dart';
+import 'package:analyzer/src/generated/parser.dart';
+import 'package:analyzer/src/generated/scanner.dart';
 import 'package:analyzer/src/generated/ast.dart';
+import 'package:analyzer/src/generated/error.dart';
 import 'package:analyzer/src/analyzer_impl.dart';
 
 import 'element.dart';
 import 'dart:io';
 
-import 'LocalVariableVisitor.dart';
-
 const int MAX_CACHE_SIZE = 512;
 const String DART_EXT_SCHEME = "dart-ext:";
 
-class Error {
+class EngineError {
   String msg;
   Source file;
   int offset;
   int length;
   
-  Error(this.msg, [this.file = null, this.offset = null, this.length]);
+  EngineError(this.msg, [this.file = null, this.offset = null, this.length = null]);
   
   String toString() {
     if (this.file == null || this.offset == null || this.length == null)
@@ -34,9 +35,9 @@ class Error {
 }
 
 class ErrorCollector {
-  List<Error> _errors = <Error>[];
+  List<EngineError> _errors = <EngineError>[];
   
-  addError(Error err, [bool faliure = false]) {
+  addError(EngineError err, [bool faliure = false]) {
     _errors.add(err);
     if (faliure) {
       print(this);
@@ -112,11 +113,39 @@ class Engine {
   
   /** Creates a new compilation unit, given a source **/
   CompilationUnit getCompilationUnit(Source source) {
-    ResolvableCompilationUnit resolveUnit = _analysisContext.computeResolvableCompilationUnit(_entrySource);
-    return resolveUnit.compilationUnit;
+    RecordingErrorListener errorListener = new RecordingErrorListener();
+    
+    String content = source.contents.data;
+    AnalysisOptions options = _analysisContext.analysisOptions;
+    Scanner scanner = new Scanner(source, new CharSequenceReader(content), errorListener);
+    scanner.preserveComments = options.preserveComments;
+    Token tokenStream= scanner.tokenize();
+    LineInfo lineInfo = new LineInfo(scanner.lineStarts);
+    List<AnalysisError> errors = errorListener.getErrorsForSource(source);
+    
+    if (errors.length > 0) {
+      print(errors);
+      exit(0);
+    }
+    
+    Parser parser = new Parser(source, errorListener);
+    parser.parseFunctionBodies = options.analyzeFunctionBodies;
+    parser.parseAsync = options.enableAsync;
+    parser.parseDeferredLibraries = options.enableDeferredLoading;
+    parser.parseEnum = options.enableEnum;
+    CompilationUnit unit = parser.parseCompilationUnit(tokenStream);
+    unit.lineInfo = lineInfo;
+    
+    errors = errorListener.getErrorsForSource(source);
+    if (errors.length > 0) {
+      print(errors);
+      exit(0);
+    }
+    return unit;
   }
   
   _elementAnalysis() {
+    
     GeneralizingAstVisitor visitor = new GeneralizingAstVisitor();
     CompilationUnit unit = this.getCompilationUnit(_entrySource);
     visitor.visitCompilationUnit(unit);
@@ -126,25 +155,34 @@ class Engine {
   }
   
 
-  Source getSource(Source source, UriBasedDirective directive) {
+  Source resolveDirective(Source entrySource, UriBasedDirective directive) {
     StringLiteral uriLiteral = directive.uri;
-    if (uriLiteral is StringInterpolation) 
-      errors.addError(new Error("StringInterprolation used in a UriBasedDirective.", source, uriLiteral.offset, uriLiteral.length), true);
+    String uriContent = uriLiteral.stringValue;
+    if (uriContent != null) {
+      uriContent = uriContent.trim();
+      directive.uriContent = uriContent;
+    }
+    UriValidationCode code = directive.validate();
+    if (code == null) {
+      String encodedUriContent = Uri.encodeFull(uriContent);
+      Source source = _sourceFactory.resolveUri(entrySource, encodedUriContent);
+      directive.source = source;
+      return source;
+    }
+    if (code == UriValidationCode.URI_WITH_DART_EXT_SCHEME) {
+      return null;
+    }
+    if (code == UriValidationCode.URI_WITH_INTERPOLATION) {
+      errors.addError(new EngineError("StringInterprolation used in a UriBasedDirective.", entrySource, uriLiteral.offset, uriLiteral.length), true);
+      return null;
+    }
+    if (code == UriValidationCode.INVALID_URI) {
+      errors.addError(new EngineError("Faliure parsing Uri", entrySource, uriLiteral.offset, uriLiteral.length), true);
+      return null;
+    }
     
-    String uriContent = uriLiteral.stringValue.trim();
-    uriContent = Uri.encodeFull(uriContent);
-    
-    if (directive is ImportDirective && uriContent.startsWith(DART_EXT_SCHEME)) 
-      errors.addError(new Error("Import directive of extension scheme", source, uriLiteral.offset, uriLiteral.length), true);
-  
-    if (UriUtil.ParseUriWithException(uriContent) == null)
-      errors.addError(new Error("Faliure parsing Uri", source, uriLiteral.offset, uriLiteral.length), true);
-    
-    Source res = _sourceFactory.resolveUri(source, uriContent);
-    if (res.exists())
-      errors.addError(new Error("Source was found: ${res} but didn't exists", source, uriLiteral.offset, uriLiteral.length), true);
-       
-    return res;
+    errors.addError(new EngineError("Unable to resolve directive, with uriValidationCode ${code}.", entrySource, uriLiteral.offset, uriLiteral.length), true);
+    return null;
   }
 }
 
