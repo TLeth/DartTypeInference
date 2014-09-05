@@ -7,8 +7,9 @@ import 'package:analyzer/src/generated/java_io.dart';
 import 'package:analyzer/src/generated/constant.dart';
 import 'package:analyzer/src/generated/source_io.dart';
 import 'package:analyzer/src/analyzer_impl.dart';
-import 'element.dart';
 
+import 'VerboseVisitor.dart';
+import 'LocalVariableVisitor.dart';
 
 const int MAX_CACHE_SIZE = 512;
 
@@ -74,7 +75,7 @@ class Engine {
     //ElementVisitor ev = new ElementVisitor();
     //ConstraintGeneratorVisitor cv = new ConstraintGeneratorVisitor();
     ResolvableCompilationUnit resolveUnit = _analysisContext.computeResolvableCompilationUnit(_entrySource);
-    //resolveUnit.compilationUnit.visitChildren(cv);
+    resolveUnit.compilationUnit.visitChildren(new VariableVisitor());
     //print(cv.constraints);
   }
 }
