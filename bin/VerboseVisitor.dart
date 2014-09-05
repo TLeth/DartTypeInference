@@ -2,7 +2,7 @@ import 'dart:mirrors';
 import 'package:analyzer/src/generated/ast.dart';
 
 class VerboseVisitor implements GeneralizingAstVisitor {
-
+  
   visitAnnotatedNode(AnnotatedNode node) {
     print('AnnotatedNode');
     print('  ${node}');
