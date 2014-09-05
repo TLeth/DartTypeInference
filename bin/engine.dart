@@ -6,11 +6,48 @@ import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/java_io.dart';
 import 'package:analyzer/src/generated/constant.dart';
 import 'package:analyzer/src/generated/source_io.dart';
+import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/analyzer_impl.dart';
 import 'element.dart';
+import 'dart:io';
 
 
 const int MAX_CACHE_SIZE = 512;
+const String DART_EXT_SCHEME = "dart-ext:";
+
+class Error {
+  String msg;
+  Source file;
+  int offset;
+  int length;
+  
+  Error(this.msg, [this.file = null, this.offset = null, this.length]);
+  
+  String toString() {
+    if (this.file == null || this.offset == null || this.length == null)
+      return "Error msg: ${this.msg}.";
+    
+    return "Error msg: ${this.msg}. (File: ${this.file}, offset: ${this.offset}, length: ${this.length})"; 
+  }
+}
+
+class ErrorCollector {
+  List<Error> _errors = <Error>[];
+  
+  addError(Error err, [bool faliure = false]) {
+    _errors.add(err);
+    if (faliure) {
+      print(this);
+      exit(0);
+    }
+  }
+  
+  String toString() {
+    StringBuffer sb = new StringBuffer();
+    _errors.forEach((err) => sb.writeln(err));
+    return sb.toString();
+  }
+}
 
 class Engine {
   
@@ -20,6 +57,7 @@ class Engine {
   CommandLineOptions _options;
   SourceFactory _sourceFactory;
   AnalysisContextImpl _analysisContext;
+  ErrorCollector errors = new ErrorCollector();
   
   Engine(CommandLineOptions this._options, DartSdk this._sdk);
   
@@ -70,11 +108,59 @@ class Engine {
     _analysisContext.analysisOptions = contextOptions;
   }
   
+  /** Creates a new compilation unit, given a source **/
+  CompilationUnit getCompilationUnit(Source source) {
+    ResolvableCompilationUnit resolveUnit = _analysisContext.computeResolvableCompilationUnit(_entrySource);
+    return resolveUnit.compilationUnit;
+  }
+  
   _elementAnalysis() {
     //ElementVisitor ev = new ElementVisitor();
     //ConstraintGeneratorVisitor cv = new ConstraintGeneratorVisitor();
-    ResolvableCompilationUnit resolveUnit = _analysisContext.computeResolvableCompilationUnit(_entrySource);
+    CompilationUnit unit = getCompilationUnit(_entrySource);
     //resolveUnit.compilationUnit.visitChildren(cv);
     //print(cv.constraints);
   }
+  
+
+  Source getSource(Source source, UriBasedDirective directive) {
+    StringLiteral uriLiteral = directive.uri;
+    if (uriLiteral is StringInterpolation) 
+      errors.addError(new Error("StringInterprolation used in a UriBasedDirective.", source, uriLiteral.offset, uriLiteral.length), true);
+    
+    String uriContent = uriLiteral.stringValue.trim();
+    uriContent = Uri.encodeFull(uriContent);
+    
+    if (directive is ImportDirective && uriContent.startsWith(DART_EXT_SCHEME)) 
+      errors.addError(new Error("Import directive of extension scheme", source, uriLiteral.offset, uriLiteral.length), true);
+  
+    if (UriUtil.ParseUriWithException(uriContent) == null)
+      errors.addError(new Error("Faliure parsing Uri", source, uriLiteral.offset, uriLiteral.length), true);
+    
+    Source res = _sourceFactory.resolveUri(source, uriContent);
+    if (res.exists())
+      errors.addError(new Error("Source was found: ${res} but didn't exists", source, uriLiteral.offset, uriLiteral.length), true);
+       
+    return res;
+  }
+}
+
+class UriUtil {
+  static Uri ParseUriWithException(String str) {
+    Uri uri = Uri.parse(str);
+    if (uri.path.isEmpty) return null;
+    return uri;
+  }
+  
+  static Uri GetUri(JavaFile file) {
+     // may be file in SDK
+     {
+       Source source = sdk.fromFileUri(file.toURI());
+       if (source != null) {
+         return source.uri;
+       }
+     }
+     // some generic file
+     return file.toURI();
+   }
 }
