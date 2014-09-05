@@ -76,6 +76,6 @@ class ElementGenerator extends GeneralizingAstVisitor {
   }
   
   visitImportDirective(ImportDirective node) {
-    
+    engine.getSource(source, node);
   }
 }

@@ -117,7 +117,8 @@ class Engine {
   _elementAnalysis() {
     //ElementVisitor ev = new ElementVisitor();
     //ConstraintGeneratorVisitor cv = new ConstraintGeneratorVisitor();
-    CompilationUnit unit = getCompilationUnit(_entrySource);
+    ElementAnalysis elementAnalysis = new ElementAnalysis();
+    new ElementGenerator(this, _entrySource, elementAnalysis);
     //resolveUnit.compilationUnit.visitChildren(cv);
     //print(cv.constraints);
   }
@@ -152,7 +153,7 @@ class UriUtil {
     return uri;
   }
   
-  static Uri GetUri(JavaFile file) {
+  static Uri GetUri(JavaFile file, DartSdk sdk) {
      // may be file in SDK
      {
        Source source = sdk.fromFileUri(file.toURI());

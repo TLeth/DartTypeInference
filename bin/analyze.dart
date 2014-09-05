@@ -36,7 +36,7 @@ _TypeAnnotate(CommandLineOptions options){
       
       Engine e = new Engine(options, sdk);
       JavaFile sourceFile = new JavaFile(sourcePath);
-      Uri uri = UriUtil.GetUri(sourceFile);
+      Uri uri = UriUtil.GetUri(sourceFile, sdk);
       Source source = new FileBasedSource.con2(uri, sourceFile);
       e.analyze(source, sourceFile);
       
