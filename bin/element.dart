@@ -2,10 +2,8 @@ library typeanalysis.element;
 
 import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/ast.dart';
+import 'package:analyzer/src/generated/sdk.dart';
 import 'engine.dart';
-
-
-import 'printer.dart';
 
 /**
  * Instances of the class `ElementAnalysis` is the collection of all the `SourceElement`s 
@@ -65,6 +63,8 @@ class SourceElement extends Block {
   Map<Source, SourceElement> parts = <Source, SourceElement>{};
   List<Source> exports = <Source>[];
   List<ClassElement> classes = <ClassElement>[];
+  
+  bool implicitImportedDartCore = false;
 
   Map<SimpleIdentifier, VariableElement> get top_variables => declaredVariables;
   
@@ -135,7 +135,7 @@ class VariableElement implements Element {
   String toString() {
     return "Var [${isConst ? ' const ' : ''}"+
             "${isFinal ? ' final ' : ''}"+
-            "${isSynthetic ? ' synthetic ' : ''}, ${ast.metadata}] ${ident}";
+            "${isSynthetic ? ' synthetic ' : ''}] ${ident}";
   }
 }
 
@@ -174,7 +174,7 @@ class FieldElement extends ClassMember {
     return "Field [${isConst ? ' const ' : ''}"+
             "${isStatic ? ' static ' : ''}"+
             "${isFinal ? ' final ' : ''}"+
-            "${isSynthetic ? ' synthetic ' : ''}, ${ast.metadata}] ${ident}";
+            "${isSynthetic ? ' synthetic ' : ''}] ${ident}";
   }
 }
 
@@ -202,7 +202,7 @@ class MethodElement extends ClassMember with Block implements Element {
             "${isSetter ? ' setter ' : ''}"+
             "${isOperator ? ' oper ' : ''}"+
             "${isStatic ? ' static ' : ''}"+
-            "${isSynthetic ? ' synthetic ' : ''}, ${ast.metadata}] ${ast.returnType} ${ast.name}(${ast.parameters})";
+            "${isSynthetic ? ' synthetic ' : ''}] ${ast.returnType} ${ast.name}(${ast.parameters})";
   }
 }
 
@@ -225,7 +225,7 @@ class FunctionElement extends Block implements Element {
   String toString(){
     return "Func [${isGetter ? ' getter ' : ''}"+
             "${isSetter ? ' setter ' : ''}"+
-            "${isSynthetic ? ' synthetic ' : ''}, ${ast.metadata}] ${ast.returnType} ${ast.name}(${ast.functionExpression.parameters})";
+            "${isSynthetic ? ' synthetic ' : ''}] ${ast.returnType} ${ast.name}(${ast.functionExpression.parameters})";
   }
 }
 
@@ -313,12 +313,15 @@ class ElementGenerator extends GeneralizingAstVisitor {
       element = new SourceElement(source, unit);
       analysis.addSource(source, element);
       
-      //PrintAstVisitor printer = new PrintAstVisitor();
-      //printer.visitCompilationUnit(unit);
-      
       Block oldBlock = _currentBlock; 
       _currentBlock = element;
-      _currentBlock.parent_block = oldBlock;
+      
+      element.implicitImportedDartCore = _checkForImplicitDartCoreImport(unit);
+      if (element.implicitImportedDartCore){
+        Source dart_core = engine.resolveUri(source, DartSdk.DART_CORE);
+        new ElementGenerator(engine, dart_core, analysis);
+        element.addImport(dart_core);
+      }
       
       this.visitCompilationUnit(unit);
       
@@ -329,8 +332,28 @@ class ElementGenerator extends GeneralizingAstVisitor {
     }
   }
   
+  bool _checkForImplicitDartCoreImport(CompilationUnit unit){
+    //Determine if the 'dart:core' library needs to be implicitly imported.
+    bool isPartOf = false;
+    bool importsCore = false;
+    
+    Source coreSource = engine.resolveUri(source, DartSdk.DART_CORE);
+    bool isCore = (source == coreSource);
+    
+    if (!isCore){
+      unit.directives.forEach((d) {
+        if (d is ImportDirective) {
+          Source importSource = engine.resolveDirective(source, d);
+          if (importSource == coreSource) importsCore = true;
+        }
+        if (d is PartOfDirective) isPartOf = true;
+      });
+    }
+    
+    return !isCore && !isPartOf && !importsCore;
+  }
+  
   visitImportDirective(ImportDirective node) {
-    //TODO (jln) dart:core is always imported, either explicit or implicit, this should be made.
     Source import_source = engine.resolveDirective(source, node);
     ElementGenerator generator = new ElementGenerator(engine, import_source, analysis);
     element.addImport(import_source);
@@ -353,14 +376,12 @@ class ElementGenerator extends GeneralizingAstVisitor {
   }
   
   visitPartOfDirective(PartOfDirective node){
-    //print(node.libraryName);
     element.library = node.libraryName;
     super.visitPartOfDirective(node);
   }
   
   visitLibraryDirective(LibraryDirective node) {
     analysis.addLibrary(node.name, element);
-    //print(node.name);
     element.library = node.name;
     super.visitLibraryDirective(node);
   }

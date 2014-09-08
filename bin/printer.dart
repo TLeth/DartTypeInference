@@ -1,8 +1,95 @@
 library typeanalysis.printer;
 
 import 'package:analyzer/src/generated/ast.dart';
+import 'element.dart' as analysis;
 
-class PrintVisitor implements GeneralizingAstVisitor {
+class PrintElementVisitor extends analysis.RecursiveElementVisitor {
+  int _ident = 0;
+  
+  visitElementAnalysis(analysis.ElementAnalysis node) {
+    node.libraries.values.forEach(visitSourceElement);
+  }
+  
+  visitFieldElement(analysis.FieldElement node) {
+    print(("-" * _ident) + node.toString());
+  }
+  
+  visitMethodElement(analysis.MethodElement node){
+    print(("-" * _ident) + node.toString());
+    _ident++;
+    if (node.declaredVariables.values.length > 0){
+      print(("-" * _ident) + "variables: ");
+      node.declaredVariables.values.forEach(visitVariableElement);
+    }
+    _ident--;
+  }
+  
+  visitVariableElement(analysis.VariableElement node){
+    print(("-" * _ident) + node.toString());
+  }
+  
+
+  visitClassElement(analysis.ClassElement node) {
+    print(("-" * _ident) + node.toString());
+    _ident++;
+    if (node.methods.length > 0){
+      print(("-" * _ident) + "methods: ");
+      node.methods.forEach(visitMethodElement);
+    }
+    if (node.fields.length > 0){
+      print(("-" * _ident) + "fields: ");
+      node.fields.forEach(visitFieldElement);
+    }
+    _ident--;
+  }
+  
+  visitFunctionElement(analysis.FunctionElement node){
+    print(("-" * _ident) + node.toString());
+    _ident++;
+    if (node.declaredVariables.values.length > 0){
+      print(("-" * _ident) + "variables: ");
+      node.declaredVariables.values.forEach(visitVariableElement);
+    }
+    _ident--; 
+  }
+  
+  visitSourceElement(analysis.SourceElement node) {
+    print(("-" * _ident) + node.toString());
+    _ident++;
+    if (node.parts.length > 0){
+      print(("-" * _ident) + "parts: ");
+      node.parts.values.forEach(visitSourceElement);
+    }
+    if (node.imports.length >0){
+      print(("-" * _ident) + "imports: ");
+      node.imports.forEach(print);
+    }
+    if (node.exports.length >0){
+      print(("-" * _ident) + "exports: ");
+      node.exports.forEach(print);
+    }
+    
+    _ident++;    
+    if (node.declaredVariables.values.length > 0){
+      print(("-" * _ident) + "top variables: ");
+      node.declaredVariables.values.forEach(visitVariableElement);
+    }
+    if (node.functions.values.length > 0){
+      print(("-" * _ident) + "functions: ");
+      node.functions.values.forEach(visitFunctionElement);
+    }
+    if (node.classes.length > 0){
+      print(("-" * _ident) + "classes: ");
+      node.classes.forEach(visitClassElement);
+    }
+    print(" ");
+    
+    _ident--;
+    _ident--;
+  }
+}
+
+class PrintAstVisitor implements GeneralizingAstVisitor {
   
   visitAnnotatedNode(AnnotatedNode node) {
     print('AnnotatedNode');

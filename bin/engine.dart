@@ -13,6 +13,7 @@ import 'package:analyzer/src/generated/error.dart';
 import 'package:analyzer/src/analyzer_impl.dart';
 
 import 'element.dart';
+import 'printer.dart';
 import 'dart:io';
 
 const int MAX_CACHE_SIZE = 512;
@@ -152,8 +153,12 @@ class Engine {
     
     ElementAnalysis elementAnalysis = new ElementAnalysis();
     new ElementGenerator(this, _entrySource, elementAnalysis);
+    elementAnalysis.accept(new PrintElementVisitor());
   }
   
+  Source resolveUri(Source entrySource, String uri) {
+    return _sourceFactory.resolveUri(entrySource, uri);
+  }
 
   Source resolveDirective(Source entrySource, UriBasedDirective directive) {
     StringLiteral uriLiteral = directive.uri;
@@ -165,7 +170,7 @@ class Engine {
     UriValidationCode code = directive.validate();
     if (code == null) {
       String encodedUriContent = Uri.encodeFull(uriContent);
-      Source source = _sourceFactory.resolveUri(entrySource, encodedUriContent);
+      Source source = resolveUri(entrySource, encodedUriContent);
       directive.source = source;
       return source;
     }
