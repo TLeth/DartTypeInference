@@ -4,10 +4,19 @@ import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/ast.dart';
 import 'engine.dart';
 
+
 import 'printer.dart';
 
+/**
+ * Instances of the class `ElementAnalysis` is the collection of all the `SourceElement`s 
+ * used in the entry file.
+ **/
 class ElementAnalysis {
+  // Mapping from a source to the SourceElement.
   Map<Source, SourceElement> sources = <Source, SourceElement>{};
+  
+  // Mapping from a library identifier to the main `SourceElement`. If the library uses part/part of. 
+  // the part header source is the SourceElement.  
   Map<LibraryIdentifier, SourceElement> libraries = <LibraryIdentifier, SourceElement>{};
   
   bool containsSource(Source source) => sources.containsKey(source);
@@ -21,6 +30,9 @@ class ElementAnalysis {
 
 
 class Element {}
+/** 
+ * Instances of the class `Block` represents a static scope of the program. it could be a Library, a Class, a Method etc.
+ * **/ 
 class Block {
   Map<SimpleIdentifier, VariableElement> variables = <SimpleIdentifier, VariableElement>{};
   
@@ -30,10 +42,14 @@ class Block {
 }
 
 
+/**
+ * Instances of the class `SourceElement` represents a source file and contains all the the information reguarding its content
+ **/
 class SourceElement extends Block {
   Source source;
   CompilationUnit ast;
   
+  //If library is `null` it means that the library is implicit named. This means the library name is: ''.
   LibraryIdentifier library = null;
   
   List<Source> partOf = <Source>[];
@@ -61,6 +77,9 @@ class SourceElement extends Block {
   void addFunction(FunctionElement func) => functions.add(func);
 }
 
+/** 
+ * Instance of a `ClassElement` is our abstract representation of the class.
+ **/
 class ClassElement implements Element{
   List<FieldElement> fields = <FieldElement>[];
   List<MethodElement> methods = <MethodElement>[];
@@ -77,6 +96,10 @@ class ClassElement implements Element{
   void addMethod(MethodElement method) => methods.add(method);
 }
 
+
+/** 
+ * Instance of a `VariableElement` is our abstract representation of a variable.
+ **/
 class VariableElement implements Element {
   List<SimpleIdentifier> references = <SimpleIdentifier>[];
   
@@ -90,12 +113,18 @@ class VariableElement implements Element {
   bool doesReference(SimpleIdentifier ident) => references.contains(ident);
 }
 
-
+/**
+ * Instances of a class `ClassMember` is a our abstract representation of class members
+ **/
 class ClassMember {
   ClassElement classDecl;
   ClassMember (ClassElement this.classDecl);
 }
 
+
+/**
+ * Instances of a class`FieldElement` is a our abstract representation of fields
+ **/
 class FieldElement extends ClassMember {
   
   List<Identifier> references = <Identifier>[];
@@ -111,7 +140,9 @@ class FieldElement extends ClassMember {
   FieldElement(FieldDeclaration this.ast,VariableDeclaration this.varDecl, ClassElement classDecl): super(classDecl); 
 }
 
-
+/**
+ * Instances of a class`MethodElement` is a our abstract representation of methods
+ **/
 class MethodElement extends ClassMember with Block implements Element {
   MethodDeclaration ast;
   
@@ -127,6 +158,9 @@ class MethodElement extends ClassMember with Block implements Element {
 }
 
 
+/**
+ * Instances of a class`FunctionElement` is a our abstract representation of functions
+ **/
 class FunctionElement extends Block implements Element {
   SourceElement source;
   FunctionDeclaration ast;
@@ -147,7 +181,7 @@ abstract class ElementVisitior<R> {
   R visitMethodElement(MethodElement node);
 }
 
-abstract class RecursiveElementVisitor<A> implements ElementVisitior<A> {
+class RecursiveElementVisitor<A> implements ElementVisitior<A> {
   A visitElementAnalysis(ElementAnalysis node) {
     A res = null;
     node.libraries.values.forEach((SourceElement source) => res = this.visitSourceElement(source));
@@ -155,30 +189,34 @@ abstract class RecursiveElementVisitor<A> implements ElementVisitior<A> {
   }
   
   A visitSourceElement(SourceElement node) {
-    A res = null;
-    node.variables.values.forEach((VariableElement varDecl) => res = this.visitVariableElement(varDecl));
-    node.functions.forEach((FunctionElement func) => res = this.visitFunctionElement(func));
-    node.classes.forEach((ClassElement classDecl) => res = this.visitClassElement(classDecl));
-    return res;
+    node.variables.values.forEach(this.visitVariableElement);
+    node.functions.forEach(this.visitFunctionElement);
+    node.classes.forEach(this.visitClassElement);
+    return null;
   }
   
   A visitClassElement(ClassElement node) {
-    A res = null;
-    node.fields.forEach((FieldElement field) => res = this.visitFieldElement(field));
-    node.methods.forEach((MethodElement method) => res = this.visitMethodElement(method));
-    return res;
+    node.fields.forEach(this.visitFieldElement);
+    node.methods.forEach(this.visitMethodElement);
+    return null;
   }
   
   A visitFunctionElement(FunctionElement node) {
-    A res = null;
-    node.variables.values.forEach((VariableElement varDecl) => res = this.visitVariableElement(varDecl));
-    return res;
+    node.variables.values.forEach(this.visitVariableElement);
+    return null;
+  }
+  
+  A visitVariableElement(VariableElement node) {
+    return null;
   }
   
   A visitMethodElement(MethodElement node) {
-    A res = null;
-    node.variables.values.forEach((VariableElement varDecl) => res = this.visitVariableElement(varDecl));
-    return res;
+    node.variables.values.forEach(this.visitVariableElement);
+    return null;
+  }
+  
+  A visitFieldElement(FieldElement node) {
+    return null;
   }
 }
 
