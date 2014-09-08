@@ -17,15 +17,16 @@ class ElementAnalysis {
   bool containsLibrary(LibraryIdentifier lib) => libraries.containsKey(lib);
   SourceElement addLibrary(LibraryIdentifier lib, SourceElement element) => libraries[lib] = element;
   SourceElement getLibrary(LibraryIdentifier lib) => libraries[lib];
+
+  dynamic accept(ElementVisitor visitor) => visitor.visitElementAnalysis(this);
 }
 
 
 class Element {}
 class Block {
   Map<SimpleIdentifier, VariableElement> variables = <SimpleIdentifier, VariableElement>{};
-  
+
   VariableElement addVariable(SimpleIdentifier ident, VariableElement variable) => variables[ident] = variable; 
-  
   VariableElement lookupVariableElement(SimpleIdentifier ident) => variables[ident];
 }
 
@@ -33,11 +34,8 @@ class Block {
 class SourceElement extends Block {
   Source source;
   CompilationUnit ast;
-  
   LibraryIdentifier library = null;
-  
   List<Source> partOf = <Source>[];
-
   List<Source> imports = <Source>[];
   List<Source> parts = <Source>[];
   List<Source> exports = <Source>[];
@@ -49,16 +47,12 @@ class SourceElement extends Block {
   SourceElement(Source this.source, CompilationUnit this.ast);
   
   void addImport(Source source) => imports.add(source);
-  
   void addExport(Source source) => exports.add(source);
-  
   void addPart(Source source) => parts.add(source);
-  
   void addPartOf(Source source) => partOf.add(source);
-  
   void addClass(ClassElement classDecl) => classes.add(classDecl);
-  
   void addFunction(FunctionElement func) => functions.add(func);
+  dynamic accept(ElementVisitor visitor) => visitor.visitSourceElement(this);
 }
 
 class ClassElement implements Element{
@@ -73,6 +67,8 @@ class ClassElement implements Element{
   
   ClassElement(ClassDeclaration this.ast, SourceElement this.source);
   
+  dynamic accept(ElementVisitor visitor) => visitor.visitClassElement(this);
+
   void addField(FieldElement field) => fields.add(field);
   void addMethod(MethodElement method) => methods.add(method);
 }
@@ -85,6 +81,8 @@ class VariableElement implements Element {
   
   SimpleIdentifier get ident => ast.name;
   
+  dynamic accept(ElementVisitor visitor) => visitor.visitVariableElement(this);
+
   VariableElement(VariableDeclaration this.ast, Block this.parent_block);
   
   bool doesReference(SimpleIdentifier ident) => references.contains(ident);
@@ -108,6 +106,8 @@ class FieldElement extends ClassMember {
   bool get isConst => varDecl.isConst;
   bool get isFinal => varDecl.isFinal;
   
+  dynamic accept(ElementVisitor visitor) => visitor.visitFieldElement(this);
+
   FieldElement(FieldDeclaration this.ast,VariableDeclaration this.varDecl, ClassElement classDecl): super(classDecl); 
 }
 
@@ -123,6 +123,8 @@ class MethodElement extends ClassMember with Block implements Element {
   bool get isStatic => ast.isStatic;
   bool get isSynthetic => ast.isSynthetic;
     
+  dynamic accept(ElementVisitor visitor) => visitor.visitMethodElement(this);
+
   MethodElement(MethodDeclaration this.ast, ClassElement classDecl): super(classDecl);
 }
 
@@ -130,6 +132,8 @@ class MethodElement extends ClassMember with Block implements Element {
 class FunctionElement extends Block implements Element {
   SourceElement source;
   FunctionDeclaration ast;
+
+  dynamic accept(ElementVisitor visitor) => visitor.visitFunctionElement(this);
   
   FunctionElement(FunctionDeclaration this.ast, SourceElement this.source);
 }
