@@ -40,8 +40,15 @@ class Block {
   Map<SimpleIdentifier, Element> references = <SimpleIdentifier, Element>{};
   Map<SimpleIdentifier, VariableElement> declaredVariables = <SimpleIdentifier, VariableElement>{};
 
+  Block parent_block = null;
+
+  Map<FunctionDeclaration, FunctionElement> functions = <FunctionDeclaration, FunctionElement>{};
+
   VariableElement addVariable(SimpleIdentifier ident, VariableElement variable) => declaredVariables[ident] = variable; 
   VariableElement lookupVariableElement(SimpleIdentifier ident) => declaredVariables[ident];
+
+  FunctionElement addFunction(FunctionDeclaration funcDecl, FunctionElement func) => functions[funcDecl] = func; 
+  FunctionElement lookupFunctionElement(FunctionDeclaration funcDecl) => functions[funcDecl];
 }
 
 
@@ -53,12 +60,11 @@ class SourceElement extends Block {
   CompilationUnit ast;
   //If library is `null` it means that the library is implicit named. This means the library name is: ''.
   LibraryIdentifier library = null;
-  List<Source> partOf = <Source>[];
+  SourceElement partOf = null;
   List<Source> imports = <Source>[];
-  List<Source> parts = <Source>[];
+  Map<Source, SourceElement> parts = <Source, SourceElement>{};
   List<Source> exports = <Source>[];
   List<ClassElement> classes = <ClassElement>[];
-  List<FunctionElement> functions = <FunctionElement>[];
 
   Map<SimpleIdentifier, VariableElement> get top_variables => declaredVariables;
   
@@ -66,11 +72,15 @@ class SourceElement extends Block {
   
   void addImport(Source source) => imports.add(source);
   void addExport(Source source) => exports.add(source);
-  void addPart(Source source) => parts.add(source);
-  void addPartOf(Source source) => partOf.add(source);
+  void addPart(Source source, SourceElement element){ parts[source] = element; }
   void addClass(ClassElement classDecl) => classes.add(classDecl);
-  void addFunction(FunctionElement func) => functions.add(func);
   dynamic accept(ElementVisitor visitor) => visitor.visitSourceElement(this);
+  
+  String toString() {
+    if (partOf != null) return "Part of '${partOf}'";
+    else if (library == null) return "Library ''";
+    else return "Library '${library}'";
+  }
 }
 
 /** 
@@ -85,6 +95,7 @@ class ClassElement implements Element {
   
   SimpleIdentifier get ident => ast.name;
   bool get isAbstract => ast.isAbstract;
+  bool get isSynthetic => ast.isSynthetic;
   
   ClassElement(ClassDeclaration this.ast, SourceElement this.source);
   
@@ -92,6 +103,11 @@ class ClassElement implements Element {
 
   void addField(FieldElement field) => fields.add(field);
   void addMethod(MethodElement method) => methods.add(method);
+
+  String toString() {
+    return "Class [${isAbstract ? ' abstract ' : ''}"+
+            "${isSynthetic ? ' synthetic ' : ''}] ${ident}";
+  }
 }
 
 
@@ -104,6 +120,10 @@ class VariableElement implements Element {
   Block parent_block;
   VariableDeclaration ast;
   
+  bool get isSynthetic => ast.isSynthetic;
+  bool get isConst => ast.isConst;
+  bool get isFinal => ast.isFinal;
+  
   SimpleIdentifier get ident => ast.name;
   
   dynamic accept(ElementVisitor visitor) => visitor.visitVariableElement(this);
@@ -111,6 +131,12 @@ class VariableElement implements Element {
   VariableElement(VariableDeclaration this.ast, Block this.parent_block);
   
   bool doesReference(SimpleIdentifier ident) => references.contains(ident);
+  
+  String toString() {
+    return "Var [${isConst ? ' const ' : ''}"+
+            "${isFinal ? ' final ' : ''}"+
+            "${isSynthetic ? ' synthetic ' : ''}, ${ast.metadata}] ${ident}";
+  }
 }
 
 /**
@@ -136,10 +162,20 @@ class FieldElement extends ClassMember {
   bool get isSynthetic => ast.isSynthetic;
   bool get isConst => varDecl.isConst;
   bool get isFinal => varDecl.isFinal;
+
+  
+  SimpleIdentifier get ident => varDecl.name;
   
   dynamic accept(ElementVisitor visitor) => visitor.visitFieldElement(this);
 
-  FieldElement(FieldDeclaration this.ast,VariableDeclaration this.varDecl, ClassElement classDecl): super(classDecl); 
+  FieldElement(FieldDeclaration this.ast,VariableDeclaration this.varDecl, ClassElement classDecl): super(classDecl);
+  
+  String toString() {
+    return "Field [${isConst ? ' const ' : ''}"+
+            "${isStatic ? ' static ' : ''}"+
+            "${isFinal ? ' final ' : ''}"+
+            "${isSynthetic ? ' synthetic ' : ''}, ${ast.metadata}] ${ident}";
+  }
 }
 
 /**
@@ -159,6 +195,15 @@ class MethodElement extends ClassMember with Block implements Element {
   dynamic accept(ElementVisitor visitor) => visitor.visitMethodElement(this);
 
   MethodElement(MethodDeclaration this.ast, ClassElement classDecl): super(classDecl);
+  
+  String toString() {
+    return "Method [${isAbstract ? ' abstract ' : ''}"+
+            "${isGetter ? ' getter ' : ''}"+
+            "${isSetter ? ' setter ' : ''}"+
+            "${isOperator ? ' oper ' : ''}"+
+            "${isStatic ? ' static ' : ''}"+
+            "${isSynthetic ? ' synthetic ' : ''}, ${ast.metadata}] ${ast.returnType} ${ast.name}(${ast.parameters})";
+  }
 }
 
 
@@ -168,10 +213,20 @@ class MethodElement extends ClassMember with Block implements Element {
 class FunctionElement extends Block implements Element {
   SourceElement source;
   FunctionDeclaration ast;
+  
+  bool get isGetter => ast.isGetter;
+  bool get isSetter => ast.isSetter;
+  bool get isSynthetic => ast.isSynthetic;
 
   dynamic accept(ElementVisitor visitor) => visitor.visitFunctionElement(this);
   
   FunctionElement(FunctionDeclaration this.ast, SourceElement this.source);
+  
+  String toString(){
+    return "Func [${isGetter ? ' getter ' : ''}"+
+            "${isSetter ? ' setter ' : ''}"+
+            "${isSynthetic ? ' synthetic ' : ''}, ${ast.metadata}] ${ast.returnType} ${ast.name}(${ast.functionExpression.parameters})";
+  }
 }
 
 abstract class ElementVisitor<R> {
@@ -179,10 +234,12 @@ abstract class ElementVisitor<R> {
   
   R visitSourceElement(SourceElement node);
   
+  R visitBlock(Block node);
   R visitClassElement(ClassElement node);
   R visitFunctionElement(FunctionElement node);
   R visitVariableElement(VariableElement node);
   
+  R visitClassMember(ClassMember node);
   R visitFieldElement(FieldElement node);
   R visitMethodElement(MethodElement node);
 }
@@ -195,8 +252,7 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   }
   
   A visitSourceElement(SourceElement node) {
-    node.declaredVariables.values.forEach(this.visitVariableElement);
-    node.functions.forEach(this.visitFunctionElement);
+    visitBlock(node);
     node.classes.forEach(this.visitClassElement);
     return null;
   }
@@ -208,20 +264,32 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   }
   
   A visitFunctionElement(FunctionElement node) {
-    node.declaredVariables.values.forEach(this.visitVariableElement);
+    visitBlock(node);
     return null;
   }
   
-  A visitVariableElement(VariableElement node) {
+  A visitVariableElement(VariableElement node) {    
+    return null;
+  }
+  
+  A visitClassMember(ClassMember node) {
+    return null;
+  }
+  
+  A visitBlock(Block node){
+    node.declaredVariables.values.forEach(this.visitVariableElement);
+    node.functions.values.forEach(this.visitFunctionElement);
     return null;
   }
   
   A visitMethodElement(MethodElement node) {
-    node.declaredVariables.values.forEach(this.visitVariableElement);
+    visitBlock(node);
+    visitClassMember(node);
     return null;
   }
   
   A visitFieldElement(FieldElement node) {
+    visitClassMember(node);
     return null;
   }
 }
@@ -245,11 +313,12 @@ class ElementGenerator extends GeneralizingAstVisitor {
       element = new SourceElement(source, unit);
       analysis.addSource(source, element);
       
-      //PrintVisitor printer = new PrintVisitor();
+      //PrintAstVisitor printer = new PrintAstVisitor();
       //printer.visitCompilationUnit(unit);
       
       Block oldBlock = _currentBlock; 
       _currentBlock = element;
+      _currentBlock.parent_block = oldBlock;
       
       this.visitCompilationUnit(unit);
       
@@ -271,8 +340,8 @@ class ElementGenerator extends GeneralizingAstVisitor {
   visitPartDirective(PartDirective node){
     Source part_source = engine.resolveDirective(source, node);
     ElementGenerator generator = new ElementGenerator(engine, part_source, analysis);
-    generator.element.addPartOf(source);
-    element.addPart(part_source);
+    generator.element.partOf = element;
+    element.addPart(part_source, generator.element);
     super.visitPartDirective(node);
   }
   
@@ -315,6 +384,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
 
     Block oldBlock = _currentBlock;
     _currentBlock = _currentMethodElement;
+    _currentBlock.parent_block = oldBlock;
     
     super.visitMethodDeclaration(node);
     
@@ -352,10 +422,11 @@ class ElementGenerator extends GeneralizingAstVisitor {
   visitFunctionDeclaration(FunctionDeclaration node) {
     FunctionElement oldFunctionElement = _currentFunctionElement;
     _currentFunctionElement = new FunctionElement(node, element);
-    element.addFunction(_currentFunctionElement);
+    element.addFunction(node, _currentFunctionElement);
     
     Block oldBlock = _currentBlock;
     _currentBlock = _currentFunctionElement;
+    _currentBlock.parent_block = oldBlock;
     
     super.visitFunctionDeclaration(node);
     
