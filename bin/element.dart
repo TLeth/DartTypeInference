@@ -22,17 +22,15 @@ class ElementAnalysis {
 
 class Element {}
 class Block {
-  Map<SimpleIdentifier, Element> scope = <SimpleIdentifier, Element>{};
+  Map<SimpleIdentifier, VariableElement> variables = <SimpleIdentifier, VariableElement>{};
   
-  /*
-  VariableElement lookupVariableElement(SimpleIdentifier ident) => 
-      variables.firstWhere((VariableElement v) => v.doesReference(ident));
- */
+  VariableElement addVariable(SimpleIdentifier ident, VariableElement variable) => variables[ident] = variable; 
+  
+  VariableElement lookupVariableElement(SimpleIdentifier ident) => variables[ident];
 }
 
 
 class SourceElement extends Block {
-
   Source source;
   CompilationUnit ast;
   
@@ -45,7 +43,8 @@ class SourceElement extends Block {
   List<Source> exports = <Source>[];
   List<ClassElement> classes = <ClassElement>[];
   List<FunctionElement> functions = <FunctionElement>[];
-  List<VariableElement> top_variables = <VariableElement>[];
+
+  Map<SimpleIdentifier, VariableElement> get top_variables => variables;
   
   SourceElement(Source this.source, CompilationUnit this.ast);
   
@@ -80,7 +79,13 @@ class ClassElement implements Element{
 
 class VariableElement implements Element {
   List<SimpleIdentifier> references = <SimpleIdentifier>[];
+  
   Block parent_block;
+  VariableDeclaration ast;
+  
+  SimpleIdentifier get ident => ast.name;
+  
+  VariableElement(VariableDeclaration this.ast, Block this.parent_block);
   
   bool doesReference(SimpleIdentifier ident) => references.contains(ident);
 }
@@ -129,6 +134,54 @@ class FunctionElement extends Block implements Element {
   FunctionElement(FunctionDeclaration this.ast, SourceElement this.source);
 }
 
+abstract class ElementVisitior<R> {
+  R visitElementAnalysis(ElementAnalysis node);
+  
+  R visitSourceElement(SourceElement node);
+  
+  R visitClassElement(ClassElement node);
+  R visitFunctionElement(FunctionElement node);
+  R visitVariableElement(VariableElement node);
+  
+  R visitFieldElement(FieldElement node);
+  R visitMethodElement(MethodElement node);
+}
+
+abstract class RecursiveElementVisitor<A> implements ElementVisitior<A> {
+  A visitElementAnalysis(ElementAnalysis node) {
+    A res = null;
+    node.libraries.values.forEach((SourceElement source) => res = this.visitSourceElement(source));
+    return res;
+  }
+  
+  A visitSourceElement(SourceElement node) {
+    A res = null;
+    node.variables.values.forEach((VariableElement varDecl) => res = this.visitVariableElement(varDecl));
+    node.functions.forEach((FunctionElement func) => res = this.visitFunctionElement(func));
+    node.classes.forEach((ClassElement classDecl) => res = this.visitClassElement(classDecl));
+    return res;
+  }
+  
+  A visitClassElement(ClassElement node) {
+    A res = null;
+    node.fields.forEach((FieldElement field) => res = this.visitFieldElement(field));
+    node.methods.forEach((MethodElement method) => res = this.visitMethodElement(method));
+    return res;
+  }
+  
+  A visitFunctionElement(FunctionElement node) {
+    A res = null;
+    node.variables.values.forEach((VariableElement varDecl) => res = this.visitVariableElement(varDecl));
+    return res;
+  }
+  
+  A visitMethodElement(MethodElement node) {
+    A res = null;
+    node.variables.values.forEach((VariableElement varDecl) => res = this.visitVariableElement(varDecl));
+    return res;
+  }
+}
+
 class ElementGenerator extends GeneralizingAstVisitor {
   
   SourceElement element;
@@ -147,13 +200,17 @@ class ElementGenerator extends GeneralizingAstVisitor {
       CompilationUnit unit = engine.getCompilationUnit(source); 
       element = new SourceElement(source, unit);
       analysis.addSource(source, element);
-      //print("Analyzing: " + this.source.toString());
-      if (source.toString() == '/Applications/dart/dart-sdk/lib/internal/lists.dart') {
-        PrintVisitor printer = new PrintVisitor();
-        printer.visitCompilationUnit(unit);
-      }
+      
+      //PrintVisitor printer = new PrintVisitor();
+      //printer.visitCompilationUnit(unit);
+      
+      Block oldBlock = _currentBlock; 
+      _currentBlock = element;
+      
       this.visitCompilationUnit(unit);
-      //print("Finish analyzing: " + this.source.toString());
+      
+      _currentBlock = oldBlock;
+      
     } else {
       element = analysis.getSource(source);
     }
@@ -231,7 +288,6 @@ class ElementGenerator extends GeneralizingAstVisitor {
   }
   
   visitVariableDeclaration(VariableDeclaration node){
-    
     if (_currentFieldDeclaration != null) {
       if (_currentClassElement == null)
          engine.errors.addError(new EngineError("Visited variable decl inside a field declaration, but currentClass was null.", source, node.offset, node.length), true);
@@ -243,9 +299,10 @@ class ElementGenerator extends GeneralizingAstVisitor {
     }
     
     if (_currentBlock != null) {
-      
+      VariableElement variable = new VariableElement(node, _currentBlock);
+      _currentBlock.addVariable(variable.ident, variable);
+      return;
     }
-    
   }
   
   visitFunctionDeclaration(FunctionDeclaration node) {
