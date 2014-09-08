@@ -24,10 +24,12 @@ class ElementAnalysis {
 
 class Element {}
 class Block {
-  Map<SimpleIdentifier, VariableElement> variables = <SimpleIdentifier, VariableElement>{};
 
-  VariableElement addVariable(SimpleIdentifier ident, VariableElement variable) => variables[ident] = variable; 
-  VariableElement lookupVariableElement(SimpleIdentifier ident) => variables[ident];
+  Map<SimpleIdentifier, Element> references = <SimpleIdentifier, Element>{};
+  Map<SimpleIdentifier, VariableElement> declaredVariables = <SimpleIdentifier, VariableElement>{};
+
+  VariableElement addVariable(SimpleIdentifier ident, VariableElement variable) => declaredVariables[ident] = variable; 
+  VariableElement lookupVariableElement(SimpleIdentifier ident) => declaredVariables[ident];
 }
 
 
@@ -42,7 +44,7 @@ class SourceElement extends Block {
   List<ClassElement> classes = <ClassElement>[];
   List<FunctionElement> functions = <FunctionElement>[];
 
-  Map<SimpleIdentifier, VariableElement> get top_variables => variables;
+  Map<SimpleIdentifier, VariableElement> get top_variables => declaredVariables;
   
   SourceElement(Source this.source, CompilationUnit this.ast);
   
@@ -55,7 +57,7 @@ class SourceElement extends Block {
   dynamic accept(ElementVisitor visitor) => visitor.visitSourceElement(this);
 }
 
-class ClassElement implements Element{
+class ClassElement implements Element {
   List<FieldElement> fields = <FieldElement>[];
   List<MethodElement> methods = <MethodElement>[];
   
