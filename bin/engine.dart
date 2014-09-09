@@ -14,6 +14,7 @@ import 'package:analyzer/src/analyzer_impl.dart';
 
 import 'element.dart';
 import 'printer.dart';
+import 'resolver.dart';
 import 'dart:io';
 
 const int MAX_CACHE_SIZE = 512;
@@ -27,16 +28,36 @@ class EngineError {
   
   EngineError(this.msg, [this.file = null, this.offset = null, this.length = null]);
   
-  String toString() {
+  String toCustomString(Engine engine) {
+    
+    if (this.file == null || this.offset == null || this.length == null)
+      return this.toString();
+    
+    
+    SourceElement element = engine._elementAnalysis.getSource(this.file);
+    if (element == null)
+      return this.toString();
+    
+    if (element.ast == null || element.ast.lineInfo == null)
+      return this.toString();
+    
+    LineInfo_Location location = element.ast.lineInfo.getLocation(offset);
+    return "Error msg: ${this.msg}. (File: ${this.file}, line: ${location.lineNumber}, column: ${location.columnNumber})"; 
+  }
+  
+  String toString(){
     if (this.file == null || this.offset == null || this.length == null)
       return "Error msg: ${this.msg}.";
-    
-    return "Error msg: ${this.msg}. (File: ${this.file}, offset: ${this.offset}, length: ${this.length})"; 
+    return "Error msg: ${this.msg}. (File: ${this.file}, offset: ${this.offset}, length: ${this.length})";
   }
 }
 
 class ErrorCollector {
   List<EngineError> _errors = <EngineError>[];
+  Engine _engine;
+  
+  
+  ErrorCollector(Engine this._engine);
   
   addError(EngineError err, [bool faliure = false]) {
     _errors.add(err);
@@ -48,7 +69,7 @@ class ErrorCollector {
   
   String toString() {
     StringBuffer sb = new StringBuffer();
-    _errors.forEach((err) => sb.writeln(err));
+    _errors.forEach((err) => sb.writeln(err.toCustomString(_engine)));
     return sb.toString();
   }
 }
@@ -61,9 +82,13 @@ class Engine {
   CommandLineOptions _options;
   SourceFactory _sourceFactory;
   AnalysisContextImpl _analysisContext;
-  ErrorCollector errors = new ErrorCollector();
+  ErrorCollector errors;
   
-  Engine(CommandLineOptions this._options, DartSdk this._sdk);
+  ElementAnalysis _elementAnalysis;
+  
+  Engine(CommandLineOptions this._options, DartSdk this._sdk) {
+    errors = new ErrorCollector(this);
+  }
   
   
   analyze(Source source, JavaFile sourceFile) {
@@ -72,7 +97,7 @@ class Engine {
     
     _setupSourceFactory();
     _setupAnalaysisContext();
-    _elementAnalysis();
+    _makeElementAnalysis();
   }
  
   
@@ -145,15 +170,17 @@ class Engine {
     return unit;
   }
   
-  _elementAnalysis() {
+  _makeElementAnalysis() {
     
     GeneralizingAstVisitor visitor = new GeneralizingAstVisitor();
     CompilationUnit unit = this.getCompilationUnit(_entrySource);
     visitor.visitCompilationUnit(unit);
     
-    ElementAnalysis elementAnalysis = new ElementAnalysis();
-    new ElementGenerator(this, _entrySource, elementAnalysis);
-    elementAnalysis.accept(new PrintElementVisitor());
+    _elementAnalysis = new ElementAnalysis();
+    new ElementGenerator(this, _entrySource, _elementAnalysis);
+    //elementAnalysis.accept(new PrintElementVisitor());
+    
+    new ScopeAndExportResolver(this, _elementAnalysis.getSource(_entrySource), _elementAnalysis);
   }
   
   Source resolveUri(Source entrySource, String uri) {

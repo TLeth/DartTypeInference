@@ -7,7 +7,7 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
   int _ident = 0;
   
   visitElementAnalysis(analysis.ElementAnalysis node) {
-    node.libraries.values.forEach(visitSourceElement);
+    node.librarySources.values.forEach(visitSourceElement);
   }
   
   visitFieldElement(analysis.FieldElement node) {
@@ -16,12 +16,12 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
   
   visitMethodElement(analysis.MethodElement node){
     print(("-" * _ident) + node.toString());
-    _ident++;
-    if (node.declaredVariables.values.length > 0){
-      print(("-" * _ident) + "variables: ");
-      node.declaredVariables.values.forEach(visitVariableElement);
-    }
-    _ident--;
+    visitBlock(node);
+  }
+  
+  visitConstructorElement(analysis.ConstructorElement node){
+    print(("-" * _ident) + node.toString());
+    visitBlock(node);
   }
   
   visitVariableElement(analysis.VariableElement node){
@@ -45,12 +45,7 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
   
   visitFunctionElement(analysis.FunctionElement node){
     print(("-" * _ident) + node.toString());
-    _ident++;
-    if (node.declaredVariables.values.length > 0){
-      print(("-" * _ident) + "variables: ");
-      node.declaredVariables.values.forEach(visitVariableElement);
-    }
-    _ident--; 
+    visitBlock(node);
   }
   
   visitSourceElement(analysis.SourceElement node) {
@@ -60,31 +55,36 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
       print(("-" * _ident) + "parts: ");
       node.parts.values.forEach(visitSourceElement);
     }
-    if (node.imports.length >0){
+    if (node.imports.keys.length >0){
       print(("-" * _ident) + "imports: ");
-      node.imports.forEach(print);
+      node.imports.keys.forEach(print);
     }
-    if (node.exports.length >0){
+    if (node.exports.keys.length >0){
       print(("-" * _ident) + "exports: ");
-      node.exports.forEach(print);
+      node.exports.keys.forEach(print);
     }
     
-    _ident++;    
+    visitBlock(node);
+    _ident++;
+    if (node.classes.length > 0){
+      print(("-" * _ident) + "classes: ");
+      node.classes.forEach(visitClassElement);
+    }
+    print(" ");
+    _ident--;
+    _ident--;
+  }
+  
+  visitBlock(analysis.Block node){    
+    _ident++;
     if (node.declaredVariables.values.length > 0){
-      print(("-" * _ident) + "top variables: ");
+      print(("-" * _ident) + "variables: ");
       node.declaredVariables.values.forEach(visitVariableElement);
     }
     if (node.functions.values.length > 0){
       print(("-" * _ident) + "functions: ");
       node.functions.values.forEach(visitFunctionElement);
     }
-    if (node.classes.length > 0){
-      print(("-" * _ident) + "classes: ");
-      node.classes.forEach(visitClassElement);
-    }
-    print(" ");
-    
-    _ident--;
     _ident--;
   }
 }
