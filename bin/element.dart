@@ -4,7 +4,13 @@ import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/sdk.dart';
 import 'engine.dart';
+import 'resolver.dart';
 
+export 'resolver.dart' show LibraryElement;
+
+
+
+//TODO (jln): We need to take type alias definitions into account here, since they change the resolution step 
 /**
  * Instances of the class `ElementAnalysis` is the collection of all the `SourceElement`s 
  * used in the entry file.
@@ -15,15 +21,15 @@ class ElementAnalysis {
   
   // Mapping from a library identifier to the main `SourceElement`. If the library uses part/part of. 
   // the part header source is the SourceElement.  
-  Map<LibraryIdentifier, SourceElement> libraries = <LibraryIdentifier, SourceElement>{};
+  Map<String, SourceElement> librarySources = <String, SourceElement>{};
   
   bool containsSource(Source source) => sources.containsKey(source);
   SourceElement addSource(Source source, SourceElement element) => sources[source] = element;
   SourceElement getSource(Source source) => sources[source];
   
-  bool containsLibrary(LibraryIdentifier lib) => libraries.containsKey(lib);
-  SourceElement addLibrary(LibraryIdentifier lib, SourceElement element) => libraries[lib] = element;
-  SourceElement getLibrary(LibraryIdentifier lib) => libraries[lib];
+  bool containsLibrarySource(String lib) => librarySources.containsKey(lib);
+  SourceElement addLibrarySource(String lib, SourceElement element) => librarySources[lib] = element;
+  SourceElement getLibrarySource(String lib) => librarySources[lib];
 
   dynamic accept(ElementVisitor visitor) => visitor.visitElementAnalysis(this);
 }
@@ -57,29 +63,33 @@ class SourceElement extends Block {
   Source source;
   CompilationUnit ast;
   //If library is `null` it means that the library is implicit named. This means the library name is: ''.
-  LibraryIdentifier library = null;
+  String libraryName = null;
   SourceElement partOf = null;
-  List<Source> imports = <Source>[];
+  
   Map<Source, SourceElement> parts = <Source, SourceElement>{};
-  List<Source> exports = <Source>[];
+  
+  Map<Source, ImportDirective> imports = <Source, ImportDirective>{};
+  Map<Source, ExportDirective> exports = <Source, ExportDirective>{};
   List<ClassElement> classes = <ClassElement>[];
   
   bool implicitImportedDartCore = false;
+  
+  LibraryElement library = null;
 
   Map<SimpleIdentifier, VariableElement> get top_variables => declaredVariables;
   
   SourceElement(Source this.source, CompilationUnit this.ast);
   
-  void addImport(Source source) => imports.add(source);
-  void addExport(Source source) => exports.add(source);
+  ImportDirective addImport(Source source, ImportDirective directive) => imports[source] = directive;
+  ExportDirective addExport(Source source, ExportDirective directive) => exports[source] = directive;
   void addPart(Source source, SourceElement element){ parts[source] = element; }
   void addClass(ClassElement classDecl) => classes.add(classDecl);
   dynamic accept(ElementVisitor visitor) => visitor.visitSourceElement(this);
   
   String toString() {
     if (partOf != null) return "Part of '${partOf}'";
-    else if (library == null) return "Library ''";
-    else return "Library '${library}'";
+    else if (libraryName == null) return "Library ''";
+    else return "Library '${libraryName}'";
   }
 }
 
@@ -89,11 +99,12 @@ class SourceElement extends Block {
 class ClassElement implements Element {
   List<FieldElement> fields = <FieldElement>[];
   List<MethodElement> methods = <MethodElement>[];
+  List<ConstructorElement> constructors = <ConstructorElement>[];
   
   SourceElement source;
   ClassDeclaration ast;
   
-  SimpleIdentifier get ident => ast.name;
+  String get ident => ast.name.toString();
   bool get isAbstract => ast.isAbstract;
   bool get isSynthetic => ast.isSynthetic;
   
@@ -103,6 +114,7 @@ class ClassElement implements Element {
 
   void addField(FieldElement field) => fields.add(field);
   void addMethod(MethodElement method) => methods.add(method);
+  void addConstructor(ConstructorElement constructor) => constructors.add(constructor);
 
   String toString() {
     return "Class [${isAbstract ? ' abstract ' : ''}"+
@@ -124,7 +136,7 @@ class VariableElement implements Element {
   bool get isConst => ast.isConst;
   bool get isFinal => ast.isFinal;
   
-  SimpleIdentifier get ident => ast.name;
+  String get ident => ast.name.toString();
   
   dynamic accept(ElementVisitor visitor) => visitor.visitVariableElement(this);
 
@@ -164,7 +176,7 @@ class FieldElement extends ClassMember {
   bool get isFinal => varDecl.isFinal;
 
   
-  SimpleIdentifier get ident => varDecl.name;
+  String get ident => varDecl.name.toString();
   
   dynamic accept(ElementVisitor visitor) => visitor.visitFieldElement(this);
 
@@ -184,7 +196,7 @@ class FieldElement extends ClassMember {
 class MethodElement extends ClassMember with Block implements Element {
   MethodDeclaration ast;
   
-  SimpleIdentifier get ident => ast.name;
+  String get ident => ast.name.toString();
   bool get isAbstract => ast.isAbstract;
   bool get isGetter => ast.isGetter;
   bool get isOperator => ast.isOperator;
@@ -206,6 +218,28 @@ class MethodElement extends ClassMember with Block implements Element {
   }
 }
 
+/**
+ * Instances of a class `ConstructorElement` is a our abstract representation of constructors
+ **/
+class ConstructorElement extends ClassMember with Block implements Element {
+  ConstructorDeclaration ast;
+  
+  String get ident => ast.name.toString();
+  bool get isSynthetic => ast.isSynthetic;
+  bool get isFactory => ast.factoryKeyword != null;
+  bool get isExternal => ast.externalKeyword != null;
+    
+  dynamic accept(ElementVisitor visitor) => visitor.visitConstructorElement(this);
+
+  ConstructorElement(ConstructorDeclaration this.ast, ClassElement classDecl): super(classDecl);
+  
+  String toString() {
+    return "Constructor [${isFactory ? ' factory ' : ''}"+
+            "${isExternal ? ' external ' : ''}"+
+            "${isSynthetic ? ' synthetic ' : ''}] ${ast.returnType} ${ast.name}(${ast.parameters})";
+  }
+}
+
 
 /**
  * Instances of a class`FunctionElement` is a our abstract representation of functions
@@ -217,10 +251,14 @@ class FunctionElement extends Block implements Element {
   bool get isGetter => ast.isGetter;
   bool get isSetter => ast.isSetter;
   bool get isSynthetic => ast.isSynthetic;
+  
+  String get ident => ast.name.toString();
 
   dynamic accept(ElementVisitor visitor) => visitor.visitFunctionElement(this);
   
   FunctionElement(FunctionDeclaration this.ast, SourceElement this.source);
+  
+  
   
   String toString(){
     return "Func [${isGetter ? ' getter ' : ''}"+
@@ -233,6 +271,7 @@ abstract class ElementVisitor<R> {
   R visitElementAnalysis(ElementAnalysis node);
   
   R visitSourceElement(SourceElement node);
+  R visitLibraryElement(LibraryElement node);
   
   R visitBlock(Block node);
   R visitClassElement(ClassElement node);
@@ -242,19 +281,24 @@ abstract class ElementVisitor<R> {
   R visitClassMember(ClassMember node);
   R visitFieldElement(FieldElement node);
   R visitMethodElement(MethodElement node);
+  R visitConstructorElement(ConstructorElement node);
 }
 
 class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   A visitElementAnalysis(ElementAnalysis node) {
-    A res = null;
-    node.libraries.values.forEach((SourceElement source) => res = this.visitSourceElement(source));
-    return res;
+    node.librarySources.values.forEach(this.visitSourceElement);
+    return null;
   }
   
   A visitSourceElement(SourceElement node) {
     visitBlock(node);
+    if (node.library != null) this.visitLibraryElement(node.library);
     node.classes.forEach(this.visitClassElement);
     return null;
+  }
+  
+  A visitLibraryElement(LibraryElement node) {
+    
   }
   
   A visitClassElement(ClassElement node) {
@@ -288,6 +332,12 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
     return null;
   }
   
+  A visitConstructorElement(ConstructorElement node) {
+    visitBlock(node);
+    visitClassMember(node);
+    return null;
+  }
+  
   A visitFieldElement(FieldElement node) {
     visitClassMember(node);
     return null;
@@ -303,24 +353,25 @@ class ElementGenerator extends GeneralizingAstVisitor {
   
   ClassElement _currentClassElement = null;
   MethodElement _currentMethodElement = null;
-  FunctionElement _currentFunctionElement = null;
+  ConstructorElement _currentConstructorElement = null;
   FieldDeclaration _currentFieldDeclaration = null;
   Block _currentBlock = null;
   
   ElementGenerator(Engine this.engine, Source this.source, ElementAnalysis this.analysis) {
+    //print("Generating elements for: ${source} (${source.hashCode}) which is ${analysis.containsSource(source) ? "in already" : "not in already"}");
     if (!analysis.containsSource(source)) {
       CompilationUnit unit = engine.getCompilationUnit(source); 
       element = new SourceElement(source, unit);
       analysis.addSource(source, element);
       
-      Block oldBlock = _currentBlock; 
+      Block oldBlock = _currentBlock;
       _currentBlock = element;
       
       element.implicitImportedDartCore = _checkForImplicitDartCoreImport(unit);
       if (element.implicitImportedDartCore){
         Source dart_core = engine.resolveUri(source, DartSdk.DART_CORE);
         new ElementGenerator(engine, dart_core, analysis);
-        element.addImport(dart_core);
+        element.addImport(dart_core, null);
       }
       
       this.visitCompilationUnit(unit);
@@ -356,7 +407,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
   visitImportDirective(ImportDirective node) {
     Source import_source = engine.resolveDirective(source, node);
     ElementGenerator generator = new ElementGenerator(engine, import_source, analysis);
-    element.addImport(import_source);
+    element.addImport(import_source, node);
     super.visitImportDirective(node);
   }
   
@@ -371,22 +422,23 @@ class ElementGenerator extends GeneralizingAstVisitor {
   visitExportDirective(ExportDirective node){
     Source export_source = engine.resolveDirective(source, node);
     ElementGenerator generator = new ElementGenerator(engine, export_source, analysis);
-    element.addExport(export_source);
+    element.addExport(export_source, node);
     super.visitExportDirective(node);
   }
   
   visitPartOfDirective(PartOfDirective node){
-    element.library = node.libraryName;
+    element.libraryName = node.libraryName.toString();
     super.visitPartOfDirective(node);
   }
   
   visitLibraryDirective(LibraryDirective node) {
-    analysis.addLibrary(node.name, element);
-    element.library = node.name;
+    analysis.addLibrarySource(node.name.toString(), element);
+    element.libraryName = node.name.toString();
     super.visitLibraryDirective(node);
   }
   
   visitClassDeclaration(ClassDeclaration node){
+    
     _currentClassElement = new ClassElement(node, element);
     element.addClass(_currentClassElement);
     super.visitClassDeclaration(node);
@@ -397,26 +449,45 @@ class ElementGenerator extends GeneralizingAstVisitor {
     if (_currentClassElement == null)
       engine.errors.addError(new EngineError("Visited method declaration, but currentClass was null.", source, node.offset, node.length), true);
     
-    if (_currentMethodElement != null)
+    if (_currentConstructorElement != null || _currentFieldDeclaration != null || _currentMethodElement != null)
       engine.errors.addError(new EngineError("Visited method declaration, inside another method declaration.", source, node.offset, node.length), true);
     
     _currentMethodElement = new MethodElement(node, _currentClassElement);
     _currentClassElement.addMethod(_currentMethodElement);
 
-    Block oldBlock = _currentBlock;
+    _currentMethodElement.parent_block = _currentBlock;
     _currentBlock = _currentMethodElement;
-    _currentBlock.parent_block = oldBlock;
     
     super.visitMethodDeclaration(node);
     
-    _currentBlock = oldBlock;
+    _currentBlock = _currentMethodElement.parent_block;
     _currentMethodElement = null;
+  }
+  
+  visitConstructorDeclaration(ConstructorDeclaration node){
+    if (_currentClassElement == null)
+          engine.errors.addError(new EngineError("Visited constructor declaration, but currentClass was null.", source, node.offset, node.length), true);
+        
+    if (_currentConstructorElement != null || _currentFieldDeclaration != null || _currentMethodElement != null)
+      engine.errors.addError(new EngineError("Visited constructor declaration, inside another class member.", source, node.offset, node.length), true);
     
+    _currentConstructorElement = new ConstructorElement(node, _currentClassElement);
+    _currentClassElement.addConstructor(_currentConstructorElement);
+
+    _currentConstructorElement.parent_block = _currentBlock;
+    _currentBlock = _currentConstructorElement;
+    
+    super.visitConstructorDeclaration(node);
+    
+    _currentBlock = _currentConstructorElement.parent_block;
+    _currentConstructorElement = null;
   }
   
   visitFieldDeclaration(FieldDeclaration node) {
     if (_currentClassElement == null)
       engine.errors.addError(new EngineError("Visited field declaration, but currentClass was null.", source, node.offset, node.length), true);
+    if (_currentConstructorElement != null || _currentFieldDeclaration != null || _currentMethodElement != null)
+      engine.errors.addError(new EngineError("Visited field declaration, inside another class member.", source, node.offset, node.length), true);
     _currentFieldDeclaration = node;
     super.visitFieldDeclaration(node);
     _currentFieldDeclaration = null;
@@ -435,24 +506,26 @@ class ElementGenerator extends GeneralizingAstVisitor {
     
     if (_currentBlock != null) {
       VariableElement variable = new VariableElement(node, _currentBlock);
-      _currentBlock.addVariable(variable.ident, variable);
+      _currentBlock.addVariable(variable.ast.name, variable);
       return;
+    } else {
+      engine.errors.addError(new EngineError("The current block is not set, so the variable cannot be associated with any.", source, node.offset, node.length), true);
     }
   }
   
   visitFunctionDeclaration(FunctionDeclaration node) {
-    FunctionElement oldFunctionElement = _currentFunctionElement;
-    _currentFunctionElement = new FunctionElement(node, element);
-    element.addFunction(node, _currentFunctionElement);
+    FunctionElement functionElement = new FunctionElement(node, element);
+    if (_currentBlock == null){
+      engine.errors.addError(new EngineError("The current block is not set, so the function cannot be associated with any.", source, node.offset, node.length), true);
+    }
+    _currentBlock.addFunction(node, functionElement);
     
-    Block oldBlock = _currentBlock;
-    _currentBlock = _currentFunctionElement;
-    _currentBlock.parent_block = oldBlock;
+    functionElement.parent_block = _currentBlock;
+    _currentBlock = functionElement;
     
     super.visitFunctionDeclaration(node);
     
-    _currentBlock = oldBlock;
-    _currentFunctionElement = null;
+    _currentBlock = functionElement.parent_block;
   }
 }
 

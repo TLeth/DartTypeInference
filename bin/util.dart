@@ -14,11 +14,30 @@ class MapUtil {
     return res;
   }
   
-  static Map filterKeys(Map map, List keys){
+  static Map filterKeys(Map map, Iterable keys){
     return MapUtil.filter(map, (k,v) => keys.contains(k));
   }
   
-  static Map filterValues(Map map, List values){
+  static Map filterValues(Map map, Iterable values){
     return MapUtil.filter(map, (k,v) => values.contains(v));
   }  
+}
+
+class ListUtil {
+  
+  static List filter(Iterable list, bool func(v)){
+    List res = [];
+    list.forEach((v) => func(v) ? res.add(v) : null);
+    return res;
+  }
+  
+  static List intersection(Iterable a, Iterable b){
+    return ListUtil.filter(a, b.contains);
+  }
+  
+  static List complement(Iterable a, Iterable b){
+    return ListUtil.filter(a, (v) => !b.contains(v));
+  }
+  
+  
 }

@@ -964,3 +964,33 @@ class PrintAstVisitor implements GeneralizingAstVisitor {
   }
 
 }
+
+class PrintLibraryVisitor extends analysis.RecursiveElementVisitor {
+  int _ident = 0;
+  
+  visitElementAnalysis(analysis.ElementAnalysis node) {
+    node.sources.values.forEach(visitSourceElement);
+  //  node.librarySources.values.forEach(visitSourceElement);
+  }
+  
+  visitSourceElement(analysis.SourceElement node) {
+    if (node.partOf == null){
+      print(("-" * _ident) + node.source.toString());
+      _ident++;
+      if (node.library == null) print("No library exists!!!");
+      else this.visitLibraryElement(node.library);
+      _ident--;
+    }
+  }
+  
+  visitLibraryElement(analysis.LibraryElement node) {
+    print(("-" * _ident) + "Exports: ");
+    _ident++;
+    node.exports.forEach((ident, e) => print(("-"*_ident) + ident + ": ${e}"));
+    _ident--;
+    print(("-" * _ident) + "Scope: ");
+    _ident++;
+    node.scope.forEach((ident, e) => print(("-"*_ident) + ident + ": ${e}"));
+    _ident--;
+  }
+}
