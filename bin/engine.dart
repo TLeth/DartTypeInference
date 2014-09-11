@@ -91,11 +91,11 @@ class Engine {
   }
   
   
-  analyze(Source source, JavaFile sourceFile) {
-    _entrySource = source;
-    _entryFile = sourceFile;
-    
+  analyze(Uri uri, JavaFile sourceFile) {
+    _entryFile = sourceFile;    
     _setupSourceFactory();
+    _entrySource = _sourceFactory.forUri2(uri);
+    
     _setupAnalaysisContext();
     _makeElementAnalysis();
   }
@@ -178,9 +178,11 @@ class Engine {
     
     _elementAnalysis = new ElementAnalysis();
     new ElementGenerator(this, _entrySource, _elementAnalysis);
-    //elementAnalysis.accept(new PrintElementVisitor());
+    //_elementAnalysis.accept(new PrintElementVisitor());
     
-    new ScopeAndExportResolver(this, _elementAnalysis.getSource(_entrySource), _elementAnalysis);
+    new ScopeResolver(this, _elementAnalysis.getSource(_entrySource), _elementAnalysis);
+    new ExportResolver(this, _elementAnalysis);
+    _elementAnalysis.accept(new PrintLibraryVisitor());
   }
   
   Source resolveUri(Source entrySource, String uri) {
