@@ -10,6 +10,7 @@ export 'resolver.dart' show LibraryElement;
 
 
 
+//TODO (jln): Currently we cannot handle getters and setters correctly since their name clashes happen.
 //TODO (jln): We need to take type alias definitions into account here, since they change the resolution step 
 /**
  * Instances of the class `ElementAnalysis` is the collection of all the `SourceElement`s 
