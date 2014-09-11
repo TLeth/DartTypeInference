@@ -182,11 +182,21 @@ class Engine {
     
     new ScopeResolver(this, _elementAnalysis.getSource(_entrySource), _elementAnalysis);
     new ExportResolver(this, _elementAnalysis);
-    _elementAnalysis.accept(new PrintLibraryVisitor());
+   new ImportResolver(this, _elementAnalysis);
+    
+    _elementAnalysis.accept(new PrintLibraryVisitor(scope: true, import: true, export: true, defined: true));
   }
   
   Source resolveUri(Source entrySource, String uri) {
     return _sourceFactory.resolveUri(entrySource, uri);
+  }
+  
+  bool isCore(Source source){
+    return source == getCore(source);
+  }
+  
+  Source getCore(Source source){
+    return resolveUri(source, DartSdk.DART_CORE); 
   }
 
   Source resolveDirective(Source entrySource, UriBasedDirective directive) {

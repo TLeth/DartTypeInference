@@ -968,6 +968,13 @@ class PrintAstVisitor implements GeneralizingAstVisitor {
 class PrintLibraryVisitor extends analysis.RecursiveElementVisitor {
   int _ident = 0;
   
+  bool scope;
+  bool import;
+  bool export;
+  bool defined;
+  
+  PrintLibraryVisitor({bool this.scope: true, bool this.export: false, bool this.import: false, this.defined: false}) ;
+  
   visitElementAnalysis(analysis.ElementAnalysis node) {
     node.sources.values.forEach(visitSourceElement);
   //  node.librarySources.values.forEach(visitSourceElement);
@@ -984,13 +991,29 @@ class PrintLibraryVisitor extends analysis.RecursiveElementVisitor {
   }
   
   visitLibraryElement(analysis.LibraryElement node) {
-    print(("-" * _ident) + "Exports: ");
-    _ident++;
-    node.exports.forEach((ident, e) => print(("-"*_ident) + ident + ": ${e}"));
-    _ident--;
-    print(("-" * _ident) + "Scope: ");
-    _ident++;
-    node.scope.forEach((ident, e) => print(("-"*_ident) + ident + ": ${e}"));
-    _ident--;
+    if (scope){
+      print(("-" * _ident) + "Scope: ");
+      _ident++;
+      node.scope.forEach((ident, e) => print(("-"*_ident) + ident + ": ${e}"));
+      _ident--;
+    }
+    if (export) {
+      print(("-" * _ident) + "Exports: ");
+      _ident++; 
+      node.exports.forEach((ident, e) => print(("-"*_ident) + ident + ": ${e}"));
+      _ident--;
+    }
+    if (import) {
+      print(("-" * _ident) + "Imports: ");
+      _ident++; 
+      node.imports.forEach((ident) => print(("-"*_ident) + ident + ": ${node.scope[ident]}"));
+      _ident--;
+    }
+    if (defined){
+      print(("-" * _ident) + "Defined: ");
+      _ident++; 
+      node.defined.forEach((ident) => print(("-"*_ident) + ident + ": ${node.scope[ident]}"));
+      _ident--;
+    }
   }
 }
