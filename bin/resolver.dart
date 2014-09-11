@@ -86,6 +86,15 @@ class ScopeResolver {
     });
   }
   
+  static Map<String, Element> applyPrefix(Map<String, Element> import, ImportDirective directive){
+    if (directive.prefix == null) 
+      return import;
+    
+    Map<String, Element> res = <String, Element>{};
+    import.forEach((String ident, Element e) => res["${directive.prefix}.${ident}"] = e);
+    return res;
+  }
+  
   void _checkScopeDuplicate(String ident, AstNode ast, SourceElement source){
     if (source.library.containsElement(ident))
       engine.errors.addError(new EngineError("An element with name: '"+ident+"' already existed in scope", source.source, ast.offset, ast.length), true);
@@ -186,11 +195,11 @@ class ExportResolver {
       Map<String, Element> exports = MapUtil.filterKeys(exportLibrary.exports, exportIdents);
       
       exports.forEach((ident, element) {
-        if (source.library.containsExport(ident) && source.library.exports[ident] != element)
+        if (library.containsExport(ident) && library.exports[ident] != element)
           engine.errors.addError(new EngineError("Exported a element: ${element} with the same identifier from two different origins", source.source, directive.offset, directive.length), true);
-        if (!source.library.containsExport(ident)){
+        if (!library.containsExport(ident)){
           exportsChange = true;
-          source.library.addExport(ident, element);
+          library.addExport(ident, element);
         }
       });
     });
@@ -198,32 +207,67 @@ class ExportResolver {
     if (exportsChange) _queue.addAll(library.depended_exports);
   }
 }
-/*
+
 /**
  * `ImportResolver` resolves the import statements.
- * */
+ **/
 class ImportResolver {
-  Engine engine;
+    Engine engine;
     ElementAnalysis analysis;
-    SourceElement source;
+    LinkedHashSet<LibraryElement> _queue = new LinkedHashSet<LibraryElement>();
     
-    ImportResolver(Engine this.engine, SourceElement this.source, ElementAnalysis this.analysis) {
-      if (!source.library.importResolved){
-        //If the entrySource is part of some bigger library, go to the root of the library and resolve the import.
-        if (source.partOf != null) {
-          new ImportResolver(engine, source.partOf, analysis);
-        } else {
-          //Create a LibraryElement and let this LibraryElement
-          _createImport(source);
-        }
+    ImportResolver(Engine this.engine, ElementAnalysis this.analysis) {
+      analysis.sources.values.forEach((SourceElement source) {
+        if (source.library == null)
+          engine.errors.addError(new EngineError("A SourceElement ${source} was missing its library, this should not be possible in ExportResolver.", source.source, source.ast.offset, source.ast.length), true);
+        _queue.add(source.library);
+      });
+      
+      while(!_queue.isEmpty){
+        LibraryElement library = _queue.first;
+        _queue.remove(library);
+        _createImportScope(library);
       }
     }
     
-    _makeExportImports(source){
-      
+    void _createImportScope(LibraryElement library) {
+      SourceElement source = library.source;
+       
+      source.imports.forEach((Source importSource, ImportDirective directive) {
+        SourceElement importSourceElement = analysis.getSource(importSource);
+        LibraryElement importLibrary = importSourceElement.library;
+        Map<String, Element> imports;
+        
+        //If the library is dart core library, and it is auto generated, no directive is created, in these cases just add all keys.
+        if (directive == null)
+          imports = MapUtil.filterKeys(importLibrary.exports, importLibrary.exports.keys);
+        else {
+          Iterable<String> importIdents = ScopeResolver.filterCombinators(importLibrary.exports.keys, directive.combinators);
+          imports = MapUtil.filterKeys(importLibrary.exports, importIdents);
+          imports = ScopeResolver.applyPrefix(imports, directive);  
+        }
+        
+        imports.forEach((ident, element) {
+          if (!library.containsImport(ident)){
+            library.addImport(ident);
+            library.addElement(ident, element);
+          } else {
+            //If they are different, check if one of them is autohidden.
+            if (library.scope[ident] != element){
+              if (source.implicitImportedDartCore && engine.isCore(library.scope[ident].library_source)) {
+                //The element currently in the scope is from the dart:core library and is imported implicit, so this is autohidden.
+                library.addElement(ident, element);
+              } else if (source.implicitImportedDartCore && engine.isCore(element.library_source)){
+                //The element we will import is from dart:core implicitly so it is autohidden.
+              } else {
+                //Both elements where imported but none of them was from implicit imported dart:core. So this means we have a clash.
+                //The only way this is legal is if the element currently in scope is defined in the current library.
+                if (!library.containsDefined(ident))
+                  engine.errors.addError(new EngineError("Two elements were imported and none of them were from system libraries: ${library.scope[ident]} and ${element}", source.source, directive.offset, directive.length), true);
+              }
+            }
+          }
+        });
+      });
     }
-    
-    void _createImport(SourceElement source) {
-        _makeExportImports(source);
-    }
-}*/
+}

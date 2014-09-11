@@ -35,16 +35,22 @@ class ElementAnalysis {
 }
 
 
-class Element {}
+abstract class Element {
+  Source get library_source;
+  
+  bool get fromSystemLibrary => library_source.isInSystemLibrary;
+}
 /** 
  * Instances of the class `Block` represents a static scope of the program. it could be a Library, a Class, a Method etc.
  * **/ 
-class Block {
+abstract class Block {
 
   Map<SimpleIdentifier, Element> references = <SimpleIdentifier, Element>{};
   Map<SimpleIdentifier, VariableElement> declaredVariables = <SimpleIdentifier, VariableElement>{};
 
   Block parent_block = null;
+  Source get library_source;
+  bool get fromSystemLibrary => library_source.isInSystemLibrary;
 
   Map<FunctionDeclaration, FunctionElement> functions = <FunctionDeclaration, FunctionElement>{};
 
@@ -59,12 +65,13 @@ class Block {
 /**
  * Instances of the class `SourceElement` represents a source file and contains all the the information reguarding its content
  **/
-class SourceElement extends Block {
-  Source source;
+class SourceElement extends Block implements Element {
   CompilationUnit ast;
   //If library is `null` it means that the library is implicit named. This means the library name is: ''.
   String libraryName = null;
   SourceElement partOf = null;
+  Source source;
+  Source get library_source => (partOf == null ? source : partOf.source);
   
   Map<Source, SourceElement> parts = <Source, SourceElement>{};
   
@@ -96,19 +103,20 @@ class SourceElement extends Block {
 /** 
  * Instance of a `ClassElement` is our abstract representation of the class.
  **/
-class ClassElement implements Element {
+class ClassElement extends Element {
   List<FieldElement> fields = <FieldElement>[];
   List<MethodElement> methods = <MethodElement>[];
   List<ConstructorElement> constructors = <ConstructorElement>[];
-  
-  SourceElement source;
   ClassDeclaration ast;
+  
+  SourceElement sourceElement;
+  Source get library_source => sourceElement.library_source;
   
   String get ident => ast.name.toString();
   bool get isAbstract => ast.isAbstract;
   bool get isSynthetic => ast.isSynthetic;
   
-  ClassElement(ClassDeclaration this.ast, SourceElement this.source);
+  ClassElement(ClassDeclaration this.ast, SourceElement this.sourceElement);
   
   dynamic accept(ElementVisitor visitor) => visitor.visitClassElement(this);
 
@@ -126,7 +134,7 @@ class ClassElement implements Element {
 /** 
  * Instance of a `VariableElement` is our abstract representation of a variable.
  **/
-class VariableElement implements Element {
+class VariableElement extends Element {
   List<SimpleIdentifier> references = <SimpleIdentifier>[];
   
   Block parent_block;
@@ -137,6 +145,8 @@ class VariableElement implements Element {
   bool get isFinal => ast.isFinal;
   
   String get ident => ast.name.toString();
+  
+  Source get library_source => parent_block.library_source;
   
   dynamic accept(ElementVisitor visitor) => visitor.visitVariableElement(this);
 
@@ -157,13 +167,15 @@ class VariableElement implements Element {
 class ClassMember {
   ClassElement classDecl;
   ClassMember (ClassElement this.classDecl);
+  
+  Source get library_source => classDecl.library_source;
 }
 
 
 /**
  * Instances of a class`FieldElement` is a our abstract representation of fields
  **/
-class FieldElement extends ClassMember {
+class FieldElement extends ClassMember with Element {
   
   List<Identifier> references = <Identifier>[];
   bool doesReference(Identifier ident) => references.contains(ident);
@@ -174,7 +186,6 @@ class FieldElement extends ClassMember {
   bool get isSynthetic => ast.isSynthetic;
   bool get isConst => varDecl.isConst;
   bool get isFinal => varDecl.isFinal;
-
   
   String get ident => varDecl.name.toString();
   
@@ -193,7 +204,7 @@ class FieldElement extends ClassMember {
 /**
  * Instances of a class`MethodElement` is a our abstract representation of methods
  **/
-class MethodElement extends ClassMember with Block implements Element {
+class MethodElement extends ClassMember with Block {
   MethodDeclaration ast;
   
   String get ident => ast.name.toString();
@@ -245,8 +256,10 @@ class ConstructorElement extends ClassMember with Block implements Element {
  * Instances of a class`FunctionElement` is a our abstract representation of functions
  **/
 class FunctionElement extends Block implements Element {
-  SourceElement source;
+  SourceElement sourceElement;
   FunctionDeclaration ast;
+  
+  Source get library_source => sourceElement.library_source;
   
   bool get isGetter => ast.isGetter;
   bool get isSetter => ast.isSetter;
@@ -256,7 +269,7 @@ class FunctionElement extends Block implements Element {
 
   dynamic accept(ElementVisitor visitor) => visitor.visitFunctionElement(this);
   
-  FunctionElement(FunctionDeclaration this.ast, SourceElement this.source);
+  FunctionElement(FunctionDeclaration this.ast, SourceElement this.sourceElement);
   
   
   
@@ -388,8 +401,8 @@ class ElementGenerator extends GeneralizingAstVisitor {
     bool isPartOf = false;
     bool importsCore = false;
     
-    Source coreSource = engine.resolveUri(source, DartSdk.DART_CORE);
-    bool isCore = (source == coreSource);
+    Source coreSource = engine.getCore(source);
+    bool isCore = engine.isCore(source);
     
     if (!isCore){
       unit.directives.forEach((d) {
