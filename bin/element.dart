@@ -43,22 +43,26 @@ abstract class Element {
 /** 
  * Instances of the class `Block` represents a static scope of the program. it could be a Library, a Class, a Method etc.
  * **/ 
-abstract class Block {
+class Block {
 
-  Map<SimpleIdentifier, Element> references = <SimpleIdentifier, Element>{};
-  Map<SimpleIdentifier, VariableElement> declaredVariables = <SimpleIdentifier, VariableElement>{};
+  Block enclosingBlock = null;
+  List<Block> nestedBlocks = <Block>[];
+  
+  Map<Identifier, Element> resolvedIdentifiers = <Identifier, Element>{};
 
-  Block parent_block = null;
-  Source get library_source;
-  bool get fromSystemLibrary => library_source.isInSystemLibrary;
-
-  Map<FunctionDeclaration, FunctionElement> functions = <FunctionDeclaration, FunctionElement>{};
+  Map<String, Element> declaredElements = <String, Element>{};
+  Map<String, VariableElement> declaredVariables = <String, VariableElement>{};
+  Map<String, FunctionElement> declaredFunctions = <String, FunctionElement>{};
+  
+  Source get librarySource => enclosingBlock.librarySource;
+  bool get fromSystemLibrary => librarySource.isInSystemLibrary;
 
   VariableElement addVariable(SimpleIdentifier ident, VariableElement variable) => declaredVariables[ident] = variable; 
   VariableElement lookupVariableElement(SimpleIdentifier ident) => declaredVariables[ident];
 
-  FunctionElement addFunction(FunctionDeclaration funcDecl, FunctionElement func) => functions[funcDecl] = func; 
-  FunctionElement lookupFunctionElement(FunctionDeclaration funcDecl) => functions[funcDecl];
+  FunctionElement addFunction(Identifier ident, FunctionElement func) => declaredFunctions[ident] = func; 
+  FunctionElement lookupFunctionElement(Identifier ident) => declaredFunctions[ident];
+  
 }
 
 
@@ -66,6 +70,7 @@ abstract class Block {
  * Instances of the class `SourceElement` represents a source file and contains all the the information reguarding its content
  **/
 class SourceElement extends Block implements Element {
+  
   CompilationUnit ast;
   //If library is `null` it means that the library is implicit named. This means the library name is: ''.
   String libraryName = null;
@@ -280,6 +285,8 @@ class FunctionElement extends Block implements Element {
   }
 }
 
+class NamedFunctionElement
+
 abstract class ElementVisitor<R> {
   R visitElementAnalysis(ElementAnalysis node);
   
@@ -468,12 +475,13 @@ class ElementGenerator extends GeneralizingAstVisitor {
     _currentMethodElement = new MethodElement(node, _currentClassElement);
     _currentClassElement.addMethod(_currentMethodElement);
 
-    _currentMethodElement.parent_block = _currentBlock;
+    _currentMethodElement.enclosingBlock = _currentBlock;
+    _currentBlock.nestedBlocks.add(_currentMethodElement);
     _currentBlock = _currentMethodElement;
     
     super.visitMethodDeclaration(node);
     
-    _currentBlock = _currentMethodElement.parent_block;
+    _currentBlock = _currentMethodElement.enclosingBlock;
     _currentMethodElement = null;
   }
   
@@ -487,12 +495,13 @@ class ElementGenerator extends GeneralizingAstVisitor {
     _currentConstructorElement = new ConstructorElement(node, _currentClassElement);
     _currentClassElement.addConstructor(_currentConstructorElement);
 
-    _currentConstructorElement.parent_block = _currentBlock;
+    _currentConstructorElement.enclosingBlock = _currentBlock;
+    _currentBlock.nestedBlocks.add(_currentConstructorElement);
     _currentBlock = _currentConstructorElement;
     
     super.visitConstructorDeclaration(node);
     
-    _currentBlock = _currentConstructorElement.parent_block;
+    _currentBlock = _currentConstructorElement.enclosingBlock;
     _currentConstructorElement = null;
   }
   
@@ -533,12 +542,21 @@ class ElementGenerator extends GeneralizingAstVisitor {
     }
     _currentBlock.addFunction(node, functionElement);
     
-    functionElement.parent_block = _currentBlock;
+    functionElement.enclosingBlock = _currentBlock;
+    _currentBlock.nestedBlocks.add(functionElement);
     _currentBlock = functionElement;
     
     super.visitFunctionDeclaration(node);
     
-    _currentBlock = functionElement.parent_block;
+    _currentBlock = functionElement.enclosingBlock;
+    
   }
+
+  visitFunctionExpression(FunctionExpression node) {
+      
+        
+  }
+  
+ 
 }
 

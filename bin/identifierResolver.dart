@@ -17,39 +17,39 @@ _openNewScope(scope, k) {
   return ret;
 }
 
-class SomethingSomethingVisitor extends Our.RecursiveElementVisitor {
+class IdentifierResolver extends Our.RecursiveElementVisitor {
 
-  Map<String, Our.Element> scope = <String, Our.Element>{};
   Map<SimpleIdentifier, Our.VariableElement> declaredVariables = {};
 
   var engine;
-  SomethingSomethingVisitor(this.engine);
+
+
+  IdentifierResolver(this.engine, Our.ElementAnalysis elem) {
+    visitElementAnalysis(elem);
+  }
 
   void visitElementAnalysis(Our.ElementAnalysis element) {
-    var res = <Source, Our.SourceElement>{};
     element.sources.forEach((source, sourceElement) =>
-        res.add(source, sourceElement.accept(this)));
+        sourceElement.accept(this));
   }
   
   void visitSourceElement(Our.SourceElement element) {
-    //Add to scope:
-    //element.library;
-    //element.variables;
-    //element.classes;
-    //element.functions;
+    if (element.source != this.engine.entrySource) return;
+    
     declaredVariables.clear();
+
     declaredVariables.addAll(element.declaredVariables);
     element.functions.values.forEach((f) { f.accept(this); });
-    element.classes.forEach((c) { c.accept(this); });
+    //    element.classes.forEach((c) { c.accept(this); });
         
-    Map<Identifier, Our.Element> references = {};
-    
-    _openNewScope(<String, Our.Element>{}, (scope) => 
-        element.ast.accept(
-            new LocalVariableVisitor(this.engine, 
-                                     scope, 
-                                     this.declaredVariables,
-                                     references)));
+    Map<String, Our.Element> scope = {};
+    ScopeVisitor visitor = new ScopeVisitor(this.engine, 
+                                            scope, 
+                                            this.declaredVariables,
+                                            element.references);
+
+    _openNewScope(scope, (scope) => 
+        element.ast.accept(visitor));
   }
   
   void visitFunctionElement(Our.FunctionElement element) {
@@ -57,7 +57,7 @@ class SomethingSomethingVisitor extends Our.RecursiveElementVisitor {
   }
   
   void visitClassElement(Our.ClassElement element) {
-    declaredVariables.addAll(element.declaredVariables);
+    //declaredVariables.addAll(element.declaredVariables);
     element.methods.forEach((m) => m.accept(this));
   }
       
@@ -67,31 +67,40 @@ class SomethingSomethingVisitor extends Our.RecursiveElementVisitor {
 }
 
 
-class LocalVariableVisitor extends GeneralizingAstVisitor {
+class ScopeVisitor extends GeneralizingAstVisitor {
 
-  Map<Identifier, Our.Element> references;
+  Map<Identifier, Our.Element> references = {};
   Map<Identifier, Our.VariableElement> declaredVariables;
-  Map<Identifier, Our.VariableElement> declaredFunctions;
+  Map<Identifier, Our.VariableElement> declaredFunctions = {};
   Map<String, Our.Element> scope;
   
   var engine;
-
   
-  LocalVariableVisitor(this.engine, this.scope, this.declaredVariables, this.references);
-
+  ScopeVisitor(this.engine, 
+               this.scope, 
+               this.declaredVariables, 
+               this.references); 
 
   visitBlock(Block node) {
     _openNewScope(scope, (_) => super.visitBlock(node));
   }
 
+//  visitFormalParameter(FormalParameter node) {
+//
+//  }
+
+
   visitVariableDeclaration(VariableDeclaration node) {
-    scope[node.name.toString()] = declaredVariables[node.name];
+    print(node.name);
+    print(this.declaredVariables);
+    
+    this.scope[node.name.toString()] = this.declaredVariables[node.name];
     super.visitVariableDeclaration(node);
   }
 
   visitFunctionDeclaration(FunctionDeclaration node) {
     if (node.name != null) {
-      scope[node.name.toString()] = declaredFunctions[node];
+      this.scope[node.name.toString()] = this.declaredFunctions[node];
     }
     super.visitFunctionDeclaration(node);
   }
@@ -103,7 +112,7 @@ class LocalVariableVisitor extends GeneralizingAstVisitor {
     if (element != null) {
       references[node] = element;
     } else {
-      this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}!'));
+      this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}'));
     }
   }
 

@@ -12,6 +12,7 @@ import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/error.dart';
 import 'package:analyzer/src/analyzer_impl.dart';
 
+import 'identifierResolver.dart';
 import 'element.dart';
 import 'printer.dart';
 import 'resolver.dart';
@@ -86,6 +87,8 @@ class Engine {
   
   ElementAnalysis _elementAnalysis;
   
+  Source get entrySource => _entrySource;
+  
   Engine(CommandLineOptions this._options, DartSdk this._sdk) {
     errors = new ErrorCollector(this);
   }
@@ -98,8 +101,14 @@ class Engine {
     
     _setupAnalaysisContext();
     _makeElementAnalysis();
+    
+    _printErrors(); 
   }
  
+  void _printErrors() {
+    print(this.errors);
+  }
+  
   
   _setupSourceFactory() {
     List<UriResolver> resolvers = [new DartUriResolver(_sdk), new FileUriResolver()];
@@ -182,9 +191,11 @@ class Engine {
     
     new ScopeResolver(this, _elementAnalysis.getSource(_entrySource), _elementAnalysis);
     new ExportResolver(this, _elementAnalysis);
-   new ImportResolver(this, _elementAnalysis);
+    new ImportResolver(this, _elementAnalysis);
+    new IdentifierResolver(this, _elementAnalysis);
     
-    _elementAnalysis.accept(new PrintLibraryVisitor(scope: true, import: true, export: true, defined: true));
+    unit.accept(new PrintAstVisitor());
+    //_elementAnalysis.accept(new PrintLibraryVisitor(scope: true, import: true, export: true, defined: true));
   }
   
   Source resolveUri(Source entrySource, String uri) {
