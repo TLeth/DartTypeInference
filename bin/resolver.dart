@@ -27,19 +27,19 @@ class LibraryElement {
   
   LibraryElement(SourceElement this.source);
  
-  Element addExport(String ident, Element element) => exports[ident] = element;
-  bool containsExport(String ident) => exports.containsKey(ident);
+  Element addExport(String name, Element element) => exports[name] = element;
+  bool containsExport(String name) => exports.containsKey(name);
   
-  void addImport(String ident) => imports.add(ident);
-  bool containsImport(String ident) => imports.contains(ident);
+  void addImport(String name) => imports.add(name);
+  bool containsImport(String name) => imports.contains(name);
   
-  void addDefined(String ident) => defined.add(ident);
-  bool containsDefined(String ident) => defined.contains(ident);
+  void addDefined(String name) => defined.add(name);
+  bool containsDefined(String name) => defined.contains(name);
   
-  bool containsElement(String ident) => scope.containsKey(ident);
-  Element addElement(String ident, Element element) => scope[ident] = element;
+  bool containsElement(String name) => scope.containsKey(name);
+  Element addElement(String name, Element element) => scope[name] = element;
   void addElements(Map<String, Element> pairs) => scope.addAll(pairs);
-  void containsElements(List<String> idents) => idents.fold(false, (prev, ident) => prev || scope.containsKey(ident));
+  void containsElements(List<String> names) => names.fold(false, (prev, name) => prev || scope.containsKey(name));
   
   void addDependedExport(LibraryElement library) => depended_exports.add(library);
   bool containsDependedExport(LibraryElement library) => depended_exports.contains(library);
@@ -72,16 +72,14 @@ class ScopeResolver {
     }
   }
   
-  static bool isPrivate(String ident) => Identifier.isPrivateName(ident);
-  
-  static Iterable<String> filterCombinators(Iterable<String> idents, NodeList<Combinator> combinators) {
-    return combinators.fold(idents, (Iterable<String> idents, Combinator c) {
+  static Iterable<String> filterCombinators(Iterable<String> names, NodeList<Combinator> combinators) {
+    return combinators.fold(names, (Iterable<String> names, Combinator c) {
       if (c is ShowCombinator) {
-        Iterable<String> names = c.shownNames.map((SimpleIdentifier name) => name.toString());
-        return ListUtil.intersection(idents, names);
+        Iterable<String> namesToShow = c.shownNames.map((SimpleIdentifier name) => name.toString());
+        return ListUtil.intersection(names, namesToShow);
       } else if (c is HideCombinator){
-        Iterable<String> names = c.hiddenNames.map((SimpleIdentifier name) => name.toString());
-        return ListUtil.complement(idents, names);
+        Iterable<String> namesToHide = c.hiddenNames.map((SimpleIdentifier name) => name.toString());
+        return ListUtil.complement(names, namesToHide);
       }
     });
   }
@@ -91,13 +89,13 @@ class ScopeResolver {
       return import;
     
     Map<String, Element> res = <String, Element>{};
-    import.forEach((String ident, Element e) => res["${directive.prefix}.${ident}"] = e);
+    import.forEach((String name, Element e) => res["${directive.prefix}.${name}"] = e);
     return res;
   }
   
-  void _checkScopeDuplicate(String ident, AstNode ast, SourceElement source){
-    if (source.library.containsElement(ident))
-      engine.errors.addError(new EngineError("An element with name: '"+ident+"' already existed in scope", source.source, ast.offset, ast.length), true);
+  void _checkScopeDuplicate(String name, AstNode ast, SourceElement source){
+    if (source.library.containsElement(name))
+      engine.errors.addError(new EngineError("An element with name: '"+name+"' already existed in scope", source.source, ast.offset, ast.length), true);
   }
   
   void _setLibraryOnPartOf(SourceElement source){
@@ -126,33 +124,42 @@ class ScopeResolver {
     LibraryElement lib = source.library;
     
     for(ClassElement classElement in source.classes) {
-      _checkScopeDuplicate(classElement.ident, classElement.ast, source);
-      lib.addElement(classElement.ident, classElement);
+      _checkScopeDuplicate(classElement.name, classElement.ast, source);
+      lib.addElement(classElement.name, classElement);
       
-      if (!isPrivate(classElement.ident)) 
-        lib.addExport(classElement.ident, classElement);
+      if (!classElement.isPrivate) 
+        lib.addExport(classElement.name, classElement);
       
-      lib.addDefined(classElement.ident);
+      lib.addDefined(classElement.name);
     }
     
     for(VariableElement varElement in source.top_variables.values) {
-      _checkScopeDuplicate(varElement.ident, varElement.ast, source);
-      lib.addElement(varElement.ident, varElement);
-      
-      if (!isPrivate(varElement.ident)) 
-        lib.addExport(varElement.ident, varElement);
+      _checkScopeDuplicate(varElement.name, varElement.ast, source);
+      // Since variables implicitly makes getters and setters,
+      // we add another setter if the element is not final (const is implicitly final). 
+      lib.addElement(varElement.name, varElement);
+      if (!varElement.isFinal && !varElement.isConst)
+        lib.addElement(varElement.setterName, varElement);
 
-      lib.addDefined(varElement.ident);
+      lib.addDefined(varElement.name);
+      if (!varElement.isFinal && !varElement.isConst)
+        lib.addDefined(varElement.setterName);
+      
+      if (!varElement.isPrivate) {
+        lib.addExport(varElement.name, varElement);
+        if (!varElement.isFinal && !varElement.isConst) 
+          lib.addExport(varElement.setterName, varElement);
+      }
     }
     
     for(FunctionElement funcElement in source.functions.values) {
-      _checkScopeDuplicate(funcElement.ident, funcElement.ast, source);
-      lib.addElement(funcElement.ident, funcElement);
+      _checkScopeDuplicate(funcElement.name, funcElement.ast, source);
+      lib.addElement(funcElement.name, funcElement);
       
-      if (!isPrivate(funcElement.ident)) 
-        lib.addExport(funcElement.ident, funcElement);
+      if (!funcElement.isPrivate) 
+        lib.addExport(funcElement.name, funcElement);
       
-      lib.addDefined(funcElement.ident);
+      lib.addDefined(funcElement.name);
     }
     
     //Since part of elements cannot have any other directives we only do this if they dont have a partOf. 
@@ -190,16 +197,16 @@ class ExportResolver {
     source.exports.forEach((Source exportSource, NamespaceDirective directive) {
       SourceElement exportSourceElement = analysis.getSource(exportSource);
       LibraryElement exportLibrary = exportSourceElement.library;
-      Iterable<String> exportIdents = ScopeResolver.filterCombinators(exportLibrary.exports.keys, directive.combinators);
+      Iterable<String> exportNames = ScopeResolver.filterCombinators(exportLibrary.exports.keys, directive.combinators);
       
-      Map<String, Element> exports = MapUtil.filterKeys(exportLibrary.exports, exportIdents);
+      Map<String, Element> exports = MapUtil.filterKeys(exportLibrary.exports, exportNames);
       
-      exports.forEach((ident, element) {
-        if (library.containsExport(ident) && library.exports[ident] != element)
-          engine.errors.addError(new EngineError("Exported a element: ${element} with the same identifier from two different origins", source.source, directive.offset, directive.length), true);
-        if (!library.containsExport(ident)){
+      exports.forEach((name, element) {
+        if (library.containsExport(name) && library.exports[name] != element)
+          engine.errors.addError(new EngineError("Exported a element: ${element} with the same nameifier from two different origins", source.source, directive.offset, directive.length), true);
+        if (!library.containsExport(name)){
           exportsChange = true;
-          library.addExport(ident, element);
+          library.addExport(name, element);
         }
       });
     });
@@ -242,28 +249,45 @@ class ImportResolver {
         if (directive == null)
           imports = MapUtil.filterKeys(importLibrary.exports, importLibrary.exports.keys);
         else {
-          Iterable<String> importIdents = ScopeResolver.filterCombinators(importLibrary.exports.keys, directive.combinators);
-          imports = MapUtil.filterKeys(importLibrary.exports, importIdents);
-          imports = ScopeResolver.applyPrefix(imports, directive);  
+          Iterable<String> importNames = ScopeResolver.filterCombinators(importLibrary.exports.keys, directive.combinators);
+          //Todo hidding the getter hides also the the setter.
+          imports = MapUtil.filterKeys(importLibrary.exports, importNames);
+          imports = ScopeResolver.applyPrefix(imports, directive);
         }
         
-        imports.forEach((ident, element) {
-          if (!library.containsImport(ident)){
-            library.addImport(ident);
-            library.addElement(ident, element);
-          } else {
+        imports.forEach((name, element) {
+          if (!library.containsElement(name)) {
+            // If the element is a function and that function is a getter and setter, extra checks is needed. 
+            if (element is FunctionElement && (element.isGetter || element.isSetter)){
+              // If the function is a setter and the the getter corresponding is not in the import 
+              // or it comes from same sourceFile, add it to scope. And visa versa for getters.
+              if ((element.isGetter && (!library.containsElement(element.setterName) || element.library_source == library.scope[element.setterName].library_source)) ||
+                  (element.isSetter && (!library.containsElement(element.getterName) || element.library_source == library.scope[element.getterName].library_source))) {
+                library.addImport(name);
+                library.addElement(name, element);  
+              }
+            // if the element imported is a variable element, we need to check that the library not already contains
+            // a getter or a setter hiding this variable.
+            } else if (element is VariableElement){
+              if (!library.containsElement(element.setterName) && !library.containsElement(element.getterName)){
+                library.addImport(name);
+                library.addElement(name, element);
+              }
+            } else {
+              library.addImport(name);
+              library.addElement(name, element);
+            }
+          } else if (!library.containsDefined(name)) {
             //If they are different, check if one of them is autohidden.
-            if (library.scope[ident] != element){
-              if (source.implicitImportedDartCore && engine.isCore(library.scope[ident].library_source)) {
+            if (library.scope[name] != element){
+              if (source.implicitImportedDartCore && engine.isCore(library.scope[name].library_source)) {
                 //The element currently in the scope is from the dart:core library and is imported implicit, so this is autohidden.
-                library.addElement(ident, element);
+                library.addElement(name, element);
               } else if (source.implicitImportedDartCore && engine.isCore(element.library_source)){
                 //The element we will import is from dart:core implicitly so it is autohidden.
               } else {
                 //Both elements where imported but none of them was from implicit imported dart:core. So this means we have a clash.
-                //The only way this is legal is if the element currently in scope is defined in the current library.
-                if (!library.containsDefined(ident))
-                  engine.errors.addError(new EngineError("Two elements were imported and none of them were from system libraries: ${library.scope[ident]} and ${element}", source.source, directive.offset, directive.length), true);
+                engine.errors.addError(new EngineError("Two elements were imported and none of them were from system libraries: ${library.scope[name]} and ${element}", source.source, directive.offset, directive.length), true);
               }
             }
           }
