@@ -336,6 +336,7 @@ class NamedFunctionElement extends FunctionElement implements NamedElement {
   bool get isSetter => decl.isSetter;
   
   NamedFunctionElement(FunctionDeclaration decl, SourceElement sourceElement) : super(decl.functionExpression, sourceElement) {
+    this.decl = decl;
     _name = new Name.FromIdentifier(decl.name);
   }
 }
@@ -588,7 +589,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
     }
     
     if (_currentBlock != null) {
-      VariableElement variable = new VariableElement(node, _currentBlock, _currentBlock);
+      VariableElement variable = new VariableElement(node, _currentBlock, element);
       _currentBlock.addVariable(variable);
       return;
     } else {
