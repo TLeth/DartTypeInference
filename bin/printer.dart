@@ -32,20 +32,20 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
   visitClassElement(analysis.ClassElement node) {
     print(("-" * _ident) + node.toString());
     _ident++;
-    if (node.methods.length > 0){
+    if (node.declaredMethods.values.length > 0){
       print(("-" * _ident) + "methods: ");
-      node.methods.forEach(visitMethodElement);
+      node.declaredMethods.values.forEach(visitMethodElement);
     }
-    if (node.fields.length > 0){
+    if (node.declaredFields.length > 0){
       print(("-" * _ident) + "fields: ");
-      node.fields.forEach(visitFieldElement);
+      node.declaredFields.values.forEach(visitFieldElement);
     }
     _ident--;
   }
   
-  visitFunctionElement(analysis.FunctionElement node){
+  visitNamedFunctionElement(analysis.NamedFunctionElement node){
     print(("-" * _ident) + node.toString());
-    visitBlock(node);
+    visitFunctionElement(node);
   }
   
   visitSourceElement(analysis.SourceElement node) {
@@ -66,9 +66,9 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
     
     visitBlock(node);
     _ident++;
-    if (node.classes.length > 0){
+    if (node.declaredClasses.values.length > 0){
       print(("-" * _ident) + "classes: ");
-      node.classes.forEach(visitClassElement);
+      node.declaredClasses.values.forEach(visitClassElement);
     }
     print(" ");
     _ident--;
@@ -81,9 +81,9 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
       print(("-" * _ident) + "variables: ");
       node.declaredVariables.values.forEach(visitVariableElement);
     }
-    if (node.functions.values.length > 0){
+    if (node.declaredFunctions.values.length > 0){
       print(("-" * _ident) + "functions: ");
-      node.functions.values.forEach(visitFunctionElement);
+      node.declaredFunctions.values.forEach(visitFunctionElement);
     }
     _ident--;
   }
