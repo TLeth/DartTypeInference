@@ -20,7 +20,14 @@ class MapUtil {
   
   static Map filterValues(Map map, Iterable values){
     return MapUtil.filter(map, (k,v) => values.contains(v));
-  }  
+  } 
+
+  static Map union(Map a, map b) {
+    Map res = {};
+    res.addAll(a);
+    res.addAll(b);
+    return res;
+  }
 }
 
 class ListUtil {
