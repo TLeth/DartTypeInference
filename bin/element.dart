@@ -128,6 +128,8 @@ class SourceElement extends Block with Element {
   Map<Source, ExportDirective> exports = <Source, ExportDirective>{};
   Map<Name, ClassElement> declaredClasses = <Name, ClassElement>{};
   
+  Map<Identifier, Element> resolvedIdentifiers = {};
+  
   bool implicitImportedDartCore = false;
   
   LibraryElement library = null;

@@ -19,7 +19,7 @@ _openNewScope(scope, k) {
 
 class IdentifierResolver extends Our.RecursiveElementVisitor {
 
-  Map<SimpleIdentifier, Our.VariableElement> declaredVariables = {};
+  Map<Our.Name, Our.VariableElement> declaredVariables = {};
 
   var engine;
 
@@ -39,14 +39,14 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
     declaredVariables.clear();
 
     declaredVariables.addAll(element.declaredVariables);
-    element.functions.values.forEach((f) { f.accept(this); });
+    element.declaredFunctions.values.forEach((f) { f.accept(this); });
     //    element.classes.forEach((c) { c.accept(this); });
         
     Map<String, Our.Element> scope = {};
     ScopeVisitor visitor = new ScopeVisitor(this.engine, 
                                             scope, 
                                             this.declaredVariables,
-                                            element.references);
+                                            element.resolvedIdentifiers);
 
     _openNewScope(scope, (scope) => 
         element.ast.accept(visitor));
@@ -58,7 +58,7 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
   
   void visitClassElement(Our.ClassElement element) {
     //declaredVariables.addAll(element.declaredVariables);
-    element.methods.forEach((m) => m.accept(this));
+    element.declaredMethods.values.forEach((m) => m.accept(this));
   }
       
   void visitMethodElement(Our.MethodElement element) {
@@ -70,8 +70,8 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
 class ScopeVisitor extends GeneralizingAstVisitor {
 
   Map<Identifier, Our.Element> references = {};
-  Map<Identifier, Our.VariableElement> declaredVariables;
-  Map<Identifier, Our.VariableElement> declaredFunctions = {};
+  Map<Our.Name, Our.VariableElement> declaredVariables;
+  Map<Our.Name, Our.VariableElement> declaredFunctions = {};
   Map<String, Our.Element> scope;
   
   var engine;
