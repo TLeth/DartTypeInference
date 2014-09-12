@@ -43,17 +43,36 @@ class Name {
   
   Name(String this._name);
   factory Name.FromIdentifier(Identifier name) => new Name(name.toString());
+  
   bool get isPrivate => Identifier.isPrivateName(_name);
   String get name => _name;
   
-  bool operator ==(Name other){
-    return this._name == other._name;
+  bool operator ==(Object other){
+    return other is Name && this._name == other._name;
   }
   
-  String toString() => _name;
+  String toString() => name;
   
   static Name SetterName(Name name) => new Name(name.name + "=");
   static Name UnaryMinusName = new Name('unary-');
+}
+
+class PrefixedName implements Name {
+  String _prefix;
+  Name _postfixName;
+  
+  PrefixedName(String this._prefix, Name this._postfixName);
+  factory PrefixedName.FromIdentifier(Identifier prefix, Name postfixName) => new PrefixedName(prefix.toString(), postfixName);
+  
+  bool get isPrivate => Identifier.isPrivateName(_postfixName.toString()) || Identifier.isPrivateName(_prefix);
+  
+  String get _name => _prefix + "." + _postfixName.name;
+  void set _name(String name) { _postfixName._name = name; }
+  String get name => _name;
+  
+  bool operator ==(Object other){
+    return other is PrefixedName && this._prefix == other._prefix && _postfixName == other._postfixName; 
+  }
 }
 
 /** 
@@ -66,13 +85,13 @@ class Block {
 
   Map<Name, Element> get declaredElements => MapUtil.union(declaredVariables, declaredFunctions);
   Map<Name, VariableElement> declaredVariables = <Name, VariableElement>{};
-  Map<Name, FunctionElement> declaredFunctions = <Name, FunctionElement>{};
+  Map<Name, NamedFunctionElement> declaredFunctions = <Name, NamedFunctionElement>{};
   
   VariableElement addVariable(Name name, VariableElement variable) => declaredVariables[name] = variable; 
   VariableElement lookupVariableElement(Name name) => declaredVariables[name];
 
-  FunctionElement addFunction(Name name, FunctionElement func) => declaredFunctions[name] = func; 
-  FunctionElement lookupFunctionElement(Name name) => declaredFunctions[name];
+  NamedFunctionElement addFunction(Name name, NamedFunctionElement func) => declaredFunctions[name] = func; 
+  NamedFunctionElement lookupFunctionElement(Name name) => declaredFunctions[name];
 }
 
 abstract class Element {
