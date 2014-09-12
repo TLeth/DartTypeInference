@@ -10,6 +10,7 @@ import 'util.dart';
 export 'resolver.dart' show LibraryElement;
 
 
+//TODO (jln): Top elements should hide exports.
 //TODO (jln): Variable scoping rules, check page 13 in the specification (tlj).
 //TODO (jln): We need to take type alias definitions into account here, since they change the resolution step 
 /**
@@ -31,9 +32,6 @@ class ElementAnalysis {
   bool containsLibrarySource(Name lib) => librarySources.containsKey(lib);
   SourceElement addLibrarySource(Name lib, SourceElement element) => librarySources[lib] = element;
   SourceElement getLibrarySource(Name lib) => librarySources[lib];
-  
-  ElementAnalysis operator -(ElementAnalysis a) => this;
-  ElementAnalysis operator -() => this;
 
   dynamic accept(ElementVisitor visitor) => visitor.visitElementAnalysis(this);
 }
@@ -128,7 +126,7 @@ class SourceElement extends Block with Element {
   Map<Source, ExportDirective> exports = <Source, ExportDirective>{};
   Map<Name, ClassElement> declaredClasses = <Name, ClassElement>{};
   
-  Map<Identifier, Element> resolvedIdentifiers = {};
+  Map<Identifier, Element> resolvedIdentifiers = <Identifier, Element>{};
   
   bool implicitImportedDartCore = false;
   
@@ -439,6 +437,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
   MethodElement _currentMethodElement = null;
   ConstructorElement _currentConstructorElement = null;
   FieldDeclaration _currentFieldDeclaration = null;
+  FunctionDeclaration _lastSeenFunctionDeclaration = null;
   Block _currentBlock = null;
   
   ElementGenerator(Engine this.engine, Source this.source, ElementAnalysis this.analysis) {
@@ -600,25 +599,32 @@ class ElementGenerator extends GeneralizingAstVisitor {
   }
   
   visitFunctionDeclaration(FunctionDeclaration node) {
-    NamedFunctionElement functionElement = new NamedFunctionElement(node, element);
+    _lastSeenFunctionDeclaration = node;
+    super.visitFunctionDeclaration(node);
+  }
+
+  visitFunctionExpression(FunctionExpression node) {
     if (_currentBlock == null){
       engine.errors.addError(new EngineError("The current block is not set, so the function cannot be associated with any.", source, node.offset, node.length), true);
     }
+    
+    FunctionElement functionElement;
+    if (_lastSeenFunctionDeclaration != null){
+      functionElement = new NamedFunctionElement(_lastSeenFunctionDeclaration, element);
+      _lastSeenFunctionDeclaration = null;
+    } else {
+      functionElement = new FunctionElement(node, element);
+    }
+
     _currentBlock.addFunction(functionElement);
     
     functionElement.enclosingBlock = _currentBlock;
     _currentBlock.nestedBlocks.add(functionElement);
     _currentBlock = functionElement;
     
-    super.visitFunctionDeclaration(node);
+    super.visitFunctionExpression(node);
     
     _currentBlock = functionElement.enclosingBlock;
-    
-  }
-
-  visitFunctionExpression(FunctionExpression node) {
-      
-        
   }
   
  
