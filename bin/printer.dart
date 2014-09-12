@@ -994,25 +994,25 @@ class PrintLibraryVisitor extends analysis.RecursiveElementVisitor {
     if (scope){
       print(("-" * _ident) + "Scope: ");
       _ident++;
-      node.scope.forEach((ident, e) => print(("-"*_ident) + ident + ": ${e}"));
+      node.scope.forEach((analysis.Name name, e) => print(("-"*_ident) + "${name}: ${e}"));
       _ident--;
     }
     if (export) {
       print(("-" * _ident) + "Exports: ");
       _ident++; 
-      node.exports.forEach((ident, e) => print(("-"*_ident) + ident + ": ${e}"));
+      node.exports.forEach((analysis.Name name, e) => print(("-"*_ident) + "${name}: ${e}"));
       _ident--;
     }
     if (import) {
       print(("-" * _ident) + "Imports: ");
       _ident++; 
-      node.imports.forEach((ident) => print(("-"*_ident) + ident + ": ${node.scope[ident]}"));
+      node.imports.forEach((analysis.Name name) => print(("-"*_ident) + "${name}: ${node.scope[name]}"));
       _ident--;
     }
     if (defined){
       print(("-" * _ident) + "Defined: ");
       _ident++; 
-      node.defined.forEach((ident) => print(("-"*_ident) + ident + ": ${node.scope[ident]}"));
+      node.defined.forEach((analysis.Name name) => print(("-"*_ident) + "${name}: ${node.scope[name]}"));
       _ident--;
     }
   }

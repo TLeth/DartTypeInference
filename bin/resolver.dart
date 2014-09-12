@@ -201,8 +201,9 @@ class ExportResolver {
       Map<Name, Element> exports = MapUtil.filterKeys(exportLibrary.exports, exportNames);
       
       exports.forEach((name, element) {
-        if (library.containsExport(name) && library.exports[name] != element)
-          engine.errors.addError(new EngineError("Exported a element: ${element} with the same nameifier from two different origins", source.source, directive.offset, directive.length), true);
+        if (library.containsExport(name) && !library.containsDefined(name) && library.exports[name] != element){
+          engine.errors.addError(new EngineError("Exported a element: ${element} with the same identifier from two different origins", source.source, directive.offset, directive.length), true);
+        }
         if (!library.containsExport(name)){
           exportsChange = true;
           library.addExport(name, element);

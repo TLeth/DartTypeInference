@@ -1,19 +1,16 @@
-import 'Corporation.dart';
-import 'Manager.dart';
-import 'Person.dart';
+
 import 'dart:io';
+import 'package:analyzer/src/generated/ast.dart';
+import 'package:analyzer/src/generated/constant.dart';
 
 class Test{
   Test(){
     var n;
   }
   
-  Test operator -() => this;
-  Test operator -(Test t) => this;
 }
 
 void main() {
-  
   int a = 3;
   int b = 4;
   var c = 4.0;
@@ -24,7 +21,7 @@ void main() {
   var f = c + d;
   var g = c + a;
   
-  var h = new Test();
+
  
   
   /*

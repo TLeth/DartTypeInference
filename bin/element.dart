@@ -10,7 +10,6 @@ import 'util.dart';
 export 'resolver.dart' show LibraryElement;
 
 
-//TODO (jln): Top elements should hide exports.
 //TODO (jln): Variable scoping rules, check page 13 in the specification (tlj).
 //TODO (jln): We need to take type alias definitions into account here, since they change the resolution step 
 /**
@@ -53,6 +52,8 @@ class Name {
   
   static Name SetterName(Name name) => new Name(name.name + "=");
   static Name UnaryMinusName = new Name('unary-');
+  
+  int get hashCode => _name.hashCode;
 }
 
 class PrefixedName implements Name {
@@ -68,6 +69,8 @@ class PrefixedName implements Name {
   void set _name(String name) { _postfixName._name = name; }
   String get name => _name;
   
+ // int get hashCode => _prefix.hashCode + _postfixName.hashCode;
+      
   bool operator ==(Object other){
     return other is PrefixedName && this._prefix == other._prefix && _postfixName == other._postfixName; 
   }
@@ -612,11 +615,10 @@ class ElementGenerator extends GeneralizingAstVisitor {
     if (_lastSeenFunctionDeclaration != null){
       functionElement = new NamedFunctionElement(_lastSeenFunctionDeclaration, element);
       _lastSeenFunctionDeclaration = null;
+      _currentBlock.addFunction(functionElement);
     } else {
       functionElement = new FunctionElement(node, element);
     }
-
-    _currentBlock.addFunction(functionElement);
     
     functionElement.enclosingBlock = _currentBlock;
     _currentBlock.nestedBlocks.add(functionElement);
@@ -626,7 +628,5 @@ class ElementGenerator extends GeneralizingAstVisitor {
     
     _currentBlock = functionElement.enclosingBlock;
   }
-  
- 
 }
 
