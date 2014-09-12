@@ -5,6 +5,7 @@ import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/sdk.dart';
 import 'engine.dart';
 import 'resolver.dart';
+import 'util.dart';
 
 export 'resolver.dart' show LibraryElement;
 
@@ -21,15 +22,15 @@ class ElementAnalysis {
   
   // Mapping from a library identifier to the main `SourceElement`. If the library uses part/part of. 
   // the part header source is the SourceElement.  
-  Map<String, SourceElement> librarySources = <String, SourceElement>{};
+  Map<Name, SourceElement> librarySources = <Name, SourceElement>{};
   
   bool containsSource(Source source) => sources.containsKey(source);
   SourceElement addSource(Source source, SourceElement element) => sources[source] = element;
   SourceElement getSource(Source source) => sources[source];
   
-  bool containsLibrarySource(String lib) => librarySources.containsKey(lib);
-  SourceElement addLibrarySource(String lib, SourceElement element) => librarySources[lib] = element;
-  SourceElement getLibrarySource(String lib) => librarySources[lib];
+  bool containsLibrarySource(Name lib) => librarySources.containsKey(lib);
+  SourceElement addLibrarySource(Name lib, SourceElement element) => librarySources[lib] = element;
+  SourceElement getLibrarySource(Name lib) => librarySources[lib];
   
   ElementAnalysis operator -(ElementAnalysis a) => this;
   ElementAnalysis operator -() => this;
@@ -37,78 +38,87 @@ class ElementAnalysis {
   dynamic accept(ElementVisitor visitor) => visitor.visitElementAnalysis(this);
 }
 
-
-abstract class Element {
-  Source get library_source;
+class Name {
+  String _name;
   
-  String get name;
-  bool get fromSystemLibrary => library_source.isInSystemLibrary;
-  bool get isPrivate => Identifier.isPrivateName(name);
+  Name(String this._name);
+  factory Name.FromIdentifier(Identifier name) => new Name(name.toString());
+  bool get isPrivate => Identifier.isPrivateName(_name);
+  String get name => _name;
+  
+  bool operator ==(Name other){
+    return this._name == other._name;
+  }
+  
+  String toString() => _name;
+  
+  static Name SetterName(Name name) => new Name(name.name + "=");
+  static Name UnaryMinusName = new Name('unary-');
 }
+
 /** 
- * Instances of the class `Block` represents a static scope of the program. it could be a Library, a Class, a Method etc.
+ * Instances of the class `Block` represents a static scope of the program. 
+ * it could be a Library, a Class, a Method etc.
  * **/ 
 class Block {
-
   Block enclosingBlock = null;
-  List<Block> nestedBlocks = <Block>[];
+  List<Block> nestedBlocks = <Block>[];  
+
+  Map<Name, Element> get declaredElements => MapUtil.union(declaredVariabes, declaredFuctions);
+  Map<Name, VariableElement> declaredVariables = <Name, VariableElement>{};
+  Map<Name, FunctionElement> declaredFunctions = <Name, FunctionElement>{};
   
-  Map<Identifier, Element> resolvedIdentifiers = <Identifier, Element>{};
-  Map<SimpleIdentifier, Element> references = <SimpleIdentifier, Element>{};
+  VariableElement addVariable(Name name, VariableElement variable) => declaredVariables[name] = variable; 
+  VariableElement lookupVariableElement(Name name) => declaredVariables[name];
 
-  Block parent_block = null;
-  Source get library_source => enclosingBlock.library_source;
-  String get name;
-  bool get fromSystemLibrary => library_source.isInSystemLibrary;
-  bool get isPrivate => Identifier.isPrivateName(name);
-
-  Map<String, Element> declaredElements = <String, Element>{};
-  Map<String, VariableElement> declaredVariables = <String, VariableElement>{};
-  Map<String, FunctionElement> declaredFunctions = <String, FunctionElement>{};
-  
-  Source get librarySource => enclosingBlock.librarySource;
-
-  VariableElement addVariable(SimpleIdentifier ident, VariableElement variable) => declaredVariables[ident] = variable; 
-  VariableElement lookupVariableElement(SimpleIdentifier ident) => declaredVariables[ident];
-
-  FunctionElement addFunction(Identifier ident, FunctionElement func) => declaredFunctions[ident] = func; 
-  FunctionElement lookupFunctionElement(Identifier ident) => declaredFunctions[ident];
-  
+  FunctionElement addFunction(Name name, FunctionElement func) => declaredFunctions[name] = func; 
+  FunctionElement lookupFunctionElement(Name name) => declaredFunctions[name];
 }
 
+abstract class Element {
+  Source get librarySource => sourceElement.librarySource;
+  SourceElement get sourceElement;
+  
+  bool get fromSystemLibrary => librarySource.isInSystemLibrary;
+}
+
+abstract class NamedElement extends Element {
+  Name get name;
+  bool get isPrivate => name.isPrivate;
+  
+  Name get getterName => name;
+  Name get setterName => Name.SetterName(name);
+}
 
 /**
  * Instances of the class `SourceElement` represents a source file and contains all the the information reguarding its content
  **/
-class SourceElement extends Block implements Element {
+class SourceElement extends Block with Element {
   
   CompilationUnit ast;
   //If library is `null` it means that the library is implicit named. This means the library name is: ''.
   String libraryName = null;
   SourceElement partOf = null;
   Source source;
-  Source get library_source => (partOf == null ? source : partOf.source);
+  Source get librarySource => (partOf == null ? source : partOf.source);
+  SourceElement get sourceElement => this;
   
   Map<Source, SourceElement> parts = <Source, SourceElement>{};
   
   Map<Source, ImportDirective> imports = <Source, ImportDirective>{};
   Map<Source, ExportDirective> exports = <Source, ExportDirective>{};
-  List<ClassElement> classes = <ClassElement>[];
+  Map<Name, ClassElement> declaredClasses = <Name, ClassElement>{};
   
   bool implicitImportedDartCore = false;
   
   LibraryElement library = null;
-  
-  String get name => libraryName;
-
-  Map<SimpleIdentifier, VariableElement> get top_variables => declaredVariables;
-  
+   
   SourceElement(Source this.source, CompilationUnit this.ast);
   
   ImportDirective addImport(Source source, ImportDirective directive) => imports[source] = directive;
   ExportDirective addExport(Source source, ExportDirective directive) => exports[source] = directive;
   void addPart(Source source, SourceElement element){ parts[source] = element; }
-  void addClass(ClassElement classDecl) => classes.add(classDecl);
+  ClassElement addClass(Name name, ClassElement classDecl) => declaredClasses[name] = classDecl;
   dynamic accept(ElementVisitor visitor) => visitor.visitSourceElement(this);
   
   String toString() {
@@ -121,26 +131,27 @@ class SourceElement extends Block implements Element {
 /** 
  * Instance of a `ClassElement` is our abstract representation of the class.
  **/
-class ClassElement extends Element {
-  List<FieldElement> fields = <FieldElement>[];
-  List<MethodElement> methods = <MethodElement>[];
-  List<ConstructorElement> constructors = <ConstructorElement>[];
+class ClassElement extends NamedElement with Block {
+  Map<Name, FieldElement> declaredFields = <Name, FieldElement>{};
+  Map<Name, MethodElement> declaredMethods = <Name, MethodElement>{};
+  Map<Name, ConstructorElement> declaredConstructors = <Name, ConstructorElement>{};
   ClassDeclaration ast;
   
   SourceElement sourceElement;
-  Source get library_source => sourceElement.library_source;
   
-  String get name => ast.name.toString();
+  Name name;
   bool get isAbstract => ast.isAbstract;
   bool get isSynthetic => ast.isSynthetic;
   
-  ClassElement(ClassDeclaration this.ast, SourceElement this.sourceElement);
+  ClassElement(ClassDeclaration this.ast, SourceElement this.sourceElement) {
+    name = new Name.FromIdentifier(this.ast.name);
+  }
   
   dynamic accept(ElementVisitor visitor) => visitor.visitClassElement(this);
 
-  void addField(FieldElement field) => fields.add(field);
-  void addMethod(MethodElement method) => methods.add(method);
-  void addConstructor(ConstructorElement constructor) => constructors.add(constructor);
+  FieldElement addField(Name name, FieldElement field) => declaredFields[name] = field;
+  MethodElement addMethod(Name name, MethodElement method) => declaredMethods[name] = method;
+  ConstructorElement addConstructor(Name name, ConstructorElement constructor) => declaredConstructors[name] = constructor;
 
   String toString() {
     return "Class [${isAbstract ? ' abstract ' : ''}"+
@@ -152,28 +163,23 @@ class ClassElement extends Element {
 /** 
  * Instance of a `VariableElement` is our abstract representation of a variable.
  **/
-class VariableElement extends Element {
-  List<SimpleIdentifier> references = <SimpleIdentifier>[];
-  
-  Block parent_block;
+class VariableElement extends NamedElement {
+  Block enclosingBlock = null;
   VariableDeclaration ast;
   
   bool get isSynthetic => ast.isSynthetic;
   bool get isConst => ast.isConst;
   bool get isFinal => ast.isFinal;
   
+  Name name;
+  
+  SourceElement sourceElement;
 
-  String get getterName => name;
-  String get setterName => FunctionElement.SetterName(name);
-  String get name => ast.name.toString();
-  
-  Source get library_source => parent_block.library_source;
-  
   dynamic accept(ElementVisitor visitor) => visitor.visitVariableElement(this);
 
-  VariableElement(VariableDeclaration this.ast, Block this.parent_block);
-  
-  bool doesReference(SimpleIdentifier ident) => references.contains(ident);
+  VariableElement(VariableDeclaration this.ast, Block this.enclosingBlock, SourceElement this.sourceElement) {
+    name = new Name.FromIdentifier(this.ast.name);
+  }
   
   String toString() {
     return "Var [${isConst ? ' const ' : ''}"+
@@ -185,34 +191,32 @@ class VariableElement extends Element {
 /**
  * Instances of a class `ClassMember` is a our abstract representation of class members
  **/
-class ClassMember {
-  ClassElement classDecl;
-  ClassMember (ClassElement this.classDecl);
+abstract class ClassMember {
+  ClassElement get classDecl;
   
-  Source get library_source => classDecl.library_source;
+  SourceElement get sourceElement => classDecl.sourceElement;
 }
 
 
 /**
  * Instances of a class`FieldElement` is a our abstract representation of fields
  **/
-class FieldElement extends ClassMember with Element {
-  
-  List<Identifier> references = <Identifier>[];
-  bool doesReference(Identifier ident) => references.contains(ident);
-  
+class FieldElement extends NamedElement with ClassMember {
   FieldDeclaration ast;
   VariableDeclaration varDecl;
+  ClassElement classDecl;
   bool get isStatic => ast.isStatic;
   bool get isSynthetic => ast.isSynthetic;
   bool get isConst => varDecl.isConst;
   bool get isFinal => varDecl.isFinal;
   
-  String get name => varDecl.name.toString();
+  Name name;
   
   dynamic accept(ElementVisitor visitor) => visitor.visitFieldElement(this);
 
-  FieldElement(FieldDeclaration this.ast,VariableDeclaration this.varDecl, ClassElement classDecl): super(classDecl);
+  FieldElement(FieldDeclaration this.ast,VariableDeclaration this.varDecl, ClassElement this.classDecl) {
+    name = new Name.FromIdentifier(this.varDecl.name);
+  }
   
   String toString() {
     return "Field [${isConst ? ' const ' : ''}"+
@@ -225,12 +229,14 @@ class FieldElement extends ClassMember with Element {
 /**
  * Instances of a class`MethodElement` is a our abstract representation of methods
  **/
-class MethodElement extends ClassMember with Block implements Element {
+class MethodElement extends NamedElement with Block, ClassMember {
   MethodDeclaration ast;
+  ClassElement classDecl;
   
-  String get name => isSetter ? setterName : getterName;
-  String get getterName => ast.name.toString();
-  String get setterName => FunctionElement.SetterName(getterName);
+  Name _name;
+  Name get setterName => Name.SetterName(_name);
+  Name get getterName => _name;
+  Name get name => isSetter ? setterName : getterName;
   bool get isAbstract => ast.isAbstract;
   bool get isGetter => ast.isGetter;
   bool get isOperator => ast.isOperator;
@@ -240,7 +246,9 @@ class MethodElement extends ClassMember with Block implements Element {
     
   dynamic accept(ElementVisitor visitor) => visitor.visitMethodElement(this);
   
-  MethodElement(MethodDeclaration this.ast, ClassElement classDecl): super(classDecl);
+  MethodElement(MethodDeclaration this.ast, ClassElement this.classDecl) {
+    _name = new Name.FromIdentifier(this.ast.name);
+  }
   
   String toString() {
     return "Method [${isAbstract ? ' abstract ' : ''}"+
@@ -255,17 +263,20 @@ class MethodElement extends ClassMember with Block implements Element {
 /**
  * Instances of a class `ConstructorElement` is a our abstract representation of constructors
  **/
-class ConstructorElement extends ClassMember with Block implements Element {
+class ConstructorElement extends NamedElement with Block, ClassMember {
   ConstructorDeclaration ast;
+  ClassElement classDecl;
   
-  String get name => ast.name.toString();
+  Name name;
   bool get isSynthetic => ast.isSynthetic;
   bool get isFactory => ast.factoryKeyword != null;
   bool get isExternal => ast.externalKeyword != null;
     
   dynamic accept(ElementVisitor visitor) => visitor.visitConstructorElement(this);
 
-  ConstructorElement(ConstructorDeclaration this.ast, ClassElement classDecl): super(classDecl);
+  ConstructorElement(ConstructorDeclaration this.ast, ClassElement this.classDecl) {
+    name = new Name.FromIdentifier(this.ast.name);
+  }
   
   String toString() {
     return "Constructor [${isFactory ? ' factory ' : ''}"+
@@ -278,30 +289,35 @@ class ConstructorElement extends ClassMember with Block implements Element {
 /**
  * Instances of a class`FunctionElement` is a our abstract representation of functions
  **/
-class FunctionElement extends Block implements Element {
+class FunctionElement extends Block with Element {
+  FunctionExpression ast;
   SourceElement sourceElement;
-  FunctionDeclaration ast;
   
-  Source get library_source => sourceElement.library_source;
   
-  String get name => isSetter ? setterName : getterName;
-  String get getterName => ast.name.toString();
-  String get setterName => FunctionElement.SetterName(getterName);
-  bool get isGetter => ast.isGetter;
-  bool get isSetter => ast.isSetter;
   bool get isSynthetic => ast.isSynthetic;
   
-  static String SetterName(String name) => name + "=";
-  static String UnaryMinusName = 'unary-';
 
   dynamic accept(ElementVisitor visitor) => visitor.visitFunctionElement(this);
   
-  FunctionElement(FunctionDeclaration this.ast, SourceElement this.sourceElement);
+  FunctionElement(FunctionExpression this.ast, SourceElement this.sourceElement);
   
   String toString(){
-    return "Func [${isGetter ? ' getter ' : ''}"+
-            "${isSetter ? ' setter ' : ''}"+
-            "${isSynthetic ? ' synthetic ' : ''}] ${ast.returnType} ${name}(${ast.functionExpression.parameters})";
+    return "Func [${isSynthetic ? ' synthetic ' : ''}] annonymous";
+  }
+}
+
+class NamedFunctionElement extends FunctionElement implements NamedElement {
+  FunctionDeclaration decl;
+  Name _name;
+  Name get setterName => Name.SetterName(_name);
+  Name get getterName => _name;
+  bool get isPrivate => _name.isPrivate; 
+  Name get name => isSetter ? setterName : getterName;
+  bool get isGetter => decl.isGetter;
+  bool get isSetter => decl.isSetter;
+  
+  NamedFunctionElement(FunctionDeclaration decl, SourceElement sourceElement) : super(decl.functionExpression, sourceElement) {
+    _name = new Name.FromIdentifier(decl.name);
   }
 }
 
