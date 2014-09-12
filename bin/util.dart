@@ -22,7 +22,7 @@ class MapUtil {
     return MapUtil.filter(map, (k,v) => values.contains(v));
   } 
 
-  static Map union(Map a, map b) {
+  static Map union(Map a, Map b) {
     Map res = {};
     res.addAll(a);
     res.addAll(b);

@@ -14,11 +14,11 @@ import 'util.dart';
  */ 
 
 class LibraryElement {
-  Map<String, Element> scope = <String, Element>{};
-  Map<String, Element> exports = <String, Element>{};
+  Map<Name, NamedElement> scope = <Name, NamedElement>{};
+  Map<Name, NamedElement> exports = <Name, NamedElement>{};
   
-  List<String> imports = <String>[];
-  List<String> defined = <String>[];
+  List<Name> imports = <Name>[];
+  List<Name> defined = <Name>[];
   
   SourceElement source;
   
@@ -27,23 +27,22 @@ class LibraryElement {
   
   LibraryElement(SourceElement this.source);
  
-  Element addExport(String name, Element element) => exports[name] = element;
-  bool containsExport(String name) => exports.containsKey(name);
+  Element addExport(Name name, Element element) => exports[name] = element;
+  bool containsExport(Name name) => exports.containsKey(name);
   
-  void addImport(String name) => imports.add(name);
-  bool containsImport(String name) => imports.contains(name);
+  void addImport(Name name) => imports.add(name);
+  bool containsImport(Name name) => imports.contains(name);
   
-  void addDefined(String name) => defined.add(name);
-  bool containsDefined(String name) => defined.contains(name);
+  void addDefined(Name name) => defined.add(name);
+  bool containsDefined(Name name) => defined.contains(name);
   
-  bool containsElement(String name) => scope.containsKey(name);
-  Element addElement(String name, Element element) => scope[name] = element;
-  void addElements(Map<String, Element> pairs) => scope.addAll(pairs);
-  void containsElements(List<String> names) => names.fold(false, (prev, name) => prev || scope.containsKey(name));
+  bool containsElement(Name name) => scope.containsKey(name);
+  Element addElement(Name name, Element element) => scope[name] = element;
+  void addElements(Map<Name, Element> pairs) => scope.addAll(pairs);
+  void containsElements(List<Name> names) => names.fold(false, (prev, name) => prev || scope.containsKey(name));
   
   void addDependedExport(LibraryElement library) => depended_exports.add(library);
   bool containsDependedExport(LibraryElement library) => depended_exports.contains(library);
-  
 }
 
 
@@ -72,30 +71,30 @@ class ScopeResolver {
     }
   }
   
-  static Iterable<String> filterCombinators(Iterable<String> names, NodeList<Combinator> combinators) {
-    return combinators.fold(names, (Iterable<String> names, Combinator c) {
+  static Iterable<Name> filterCombinators(Iterable<Name> names, NodeList<Combinator> combinators) {
+    return combinators.fold(names, (Iterable<Name> names, Combinator c) {
       if (c is ShowCombinator) {
-        Iterable<String> namesToShow = c.shownNames.map((SimpleIdentifier name) => name.toString());
+        Iterable<Name> namesToShow = c.shownNames.map((SimpleIdentifier name) => new Name.FromIdentifier(name));
         return ListUtil.intersection(names, namesToShow);
       } else if (c is HideCombinator){
-        Iterable<String> namesToHide = c.hiddenNames.map((SimpleIdentifier name) => name.toString());
+        Iterable<Name> namesToHide = c.hiddenNames.map((SimpleIdentifier name) => new Name.FromIdentifier(name));
         return ListUtil.complement(names, namesToHide);
       }
     });
   }
   
-  static Map<String, Element> applyPrefix(Map<String, Element> import, ImportDirective directive){
+  static Map<Name, Element> applyPrefix(Map<Name, Element> import, ImportDirective directive){
     if (directive.prefix == null) 
       return import;
     
-    Map<String, Element> res = <String, Element>{};
-    import.forEach((String name, Element e) => res["${directive.prefix}.${name}"] = e);
+    Map<Name, Element> res = <Name, Element>{};
+    import.forEach((Name name, Element e) => res[new PrefixedName.FromIdentifier(directive.prefix, name)] = e);
     return res;
   }
   
-  void _checkScopeDuplicate(String name, AstNode ast, SourceElement source){
+  void _checkScopeDuplicate(Name name, AstNode ast, SourceElement source){
     if (source.library.containsElement(name))
-      engine.errors.addError(new EngineError("An element with name: '"+name+"' already existed in scope", source.source, ast.offset, ast.length), true);
+      engine.errors.addError(new EngineError("An element with name: '${name}' already existed in scope", source.source, ast.offset, ast.length), true);
   }
   
   void _setLibraryOnPartOf(SourceElement source){
@@ -123,7 +122,7 @@ class ScopeResolver {
   void _createScope(SourceElement source) {
     LibraryElement lib = source.library;
     
-    for(ClassElement classElement in source.classes) {
+    for(ClassElement classElement in source.declaredClasses.values) {
       _checkScopeDuplicate(classElement.name, classElement.ast, source);
       lib.addElement(classElement.name, classElement);
       
@@ -133,7 +132,7 @@ class ScopeResolver {
       lib.addDefined(classElement.name);
     }
     
-    for(VariableElement varElement in source.top_variables.values) {
+    for(VariableElement varElement in source.declaredVariables.values) {
       _checkScopeDuplicate(varElement.name, varElement.ast, source);
       // Since variables implicitly makes getters and setters,
       // we add another setter if the element is not final (const is implicitly final). 
@@ -152,7 +151,7 @@ class ScopeResolver {
       }
     }
     
-    for(FunctionElement funcElement in source.functions.values) {
+    for(NamedFunctionElement funcElement in source.declaredFunctions.values) {
       _checkScopeDuplicate(funcElement.name, funcElement.ast, source);
       lib.addElement(funcElement.name, funcElement);
       
@@ -197,9 +196,9 @@ class ExportResolver {
     source.exports.forEach((Source exportSource, NamespaceDirective directive) {
       SourceElement exportSourceElement = analysis.getSource(exportSource);
       LibraryElement exportLibrary = exportSourceElement.library;
-      Iterable<String> exportNames = ScopeResolver.filterCombinators(exportLibrary.exports.keys, directive.combinators);
+      Iterable<Name> exportNames = ScopeResolver.filterCombinators(exportLibrary.exports.keys, directive.combinators);
       
-      Map<String, Element> exports = MapUtil.filterKeys(exportLibrary.exports, exportNames);
+      Map<Name, Element> exports = MapUtil.filterKeys(exportLibrary.exports, exportNames);
       
       exports.forEach((name, element) {
         if (library.containsExport(name) && library.exports[name] != element)
@@ -243,13 +242,13 @@ class ImportResolver {
       source.imports.forEach((Source importSource, ImportDirective directive) {
         SourceElement importSourceElement = analysis.getSource(importSource);
         LibraryElement importLibrary = importSourceElement.library;
-        Map<String, Element> imports;
+        Map<Name, Element> imports;
         
         //If the library is dart core library, and it is auto generated, no directive is created, in these cases just add all keys.
         if (directive == null)
           imports = MapUtil.filterKeys(importLibrary.exports, importLibrary.exports.keys);
         else {
-          Iterable<String> importNames = ScopeResolver.filterCombinators(importLibrary.exports.keys, directive.combinators);
+          Iterable<Name> importNames = ScopeResolver.filterCombinators(importLibrary.exports.keys, directive.combinators);
           //Todo hidding the getter hides also the the setter.
           imports = MapUtil.filterKeys(importLibrary.exports, importNames);
           imports = ScopeResolver.applyPrefix(imports, directive);
@@ -258,11 +257,11 @@ class ImportResolver {
         imports.forEach((name, element) {
           if (!library.containsElement(name)) {
             // If the element is a function and that function is a getter and setter, extra checks is needed. 
-            if (element is FunctionElement && (element.isGetter || element.isSetter)){
+            if (element is NamedFunctionElement && (element.isGetter || element.isSetter)){
               // If the function is a setter and the the getter corresponding is not in the import 
               // or it comes from same sourceFile, add it to scope. And visa versa for getters.
-              if ((element.isGetter && (!library.containsElement(element.setterName) || element.library_source == library.scope[element.setterName].library_source)) ||
-                  (element.isSetter && (!library.containsElement(element.getterName) || element.library_source == library.scope[element.getterName].library_source))) {
+              if ((element.isGetter && (!library.containsElement(element.setterName) || element.librarySource == library.scope[element.setterName].librarySource)) ||
+                  (element.isSetter && (!library.containsElement(element.getterName) || element.librarySource == library.scope[element.getterName].librarySource))) {
                 library.addImport(name);
                 library.addElement(name, element);  
               }
@@ -280,10 +279,10 @@ class ImportResolver {
           } else if (!library.containsDefined(name)) {
             //If they are different, check if one of them is autohidden.
             if (library.scope[name] != element){
-              if (source.implicitImportedDartCore && engine.isCore(library.scope[name].library_source)) {
+              if (source.implicitImportedDartCore && engine.isCore(library.scope[name].librarySource)) {
                 //The element currently in the scope is from the dart:core library and is imported implicit, so this is autohidden.
                 library.addElement(name, element);
-              } else if (source.implicitImportedDartCore && engine.isCore(element.library_source)){
+              } else if (source.implicitImportedDartCore && engine.isCore(element.librarySource)){
                 //The element we will import is from dart:core implicitly so it is autohidden.
               } else {
                 //Both elements where imported but none of them was from implicit imported dart:core. So this means we have a clash.
