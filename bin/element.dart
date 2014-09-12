@@ -68,11 +68,11 @@ class Block {
   Map<Name, VariableElement> declaredVariables = <Name, VariableElement>{};
   Map<Name, FunctionElement> declaredFunctions = <Name, FunctionElement>{};
   
-  VariableElement addVariable(Name name, VariableElement variable) => declaredVariables[name] = variable; 
+  VariableElement addVariable(VariableElement variable) => declaredVariables[variable.name] = variable; 
   VariableElement lookupVariableElement(Name name) => declaredVariables[name];
 
-  FunctionElement addFunction(Name name, FunctionElement func) => declaredFunctions[name] = func; 
-  FunctionElement lookupFunctionElement(Name name) => declaredFunctions[name];
+  NamedFunctionElement addFunction(NamedFunctionElement func) => declaredFunctions[func.name] = func; 
+  NamedFunctionElement lookupFunctionElement(Name name) => declaredFunctions[name];
 }
 
 abstract class Element {
@@ -118,7 +118,7 @@ class SourceElement extends Block with Element {
   ImportDirective addImport(Source source, ImportDirective directive) => imports[source] = directive;
   ExportDirective addExport(Source source, ExportDirective directive) => exports[source] = directive;
   void addPart(Source source, SourceElement element){ parts[source] = element; }
-  ClassElement addClass(Name name, ClassElement classDecl) => declaredClasses[name] = classDecl;
+  ClassElement addClass(ClassElement classDecl) => declaredClasses[classDecl.name] = classDecl;
   dynamic accept(ElementVisitor visitor) => visitor.visitSourceElement(this);
   
   String toString() {
@@ -348,17 +348,17 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   A visitSourceElement(SourceElement node) {
     visitBlock(node);
     if (node.library != null) this.visitLibraryElement(node.library);
-    node.classes.forEach(this.visitClassElement);
+    node.declaredClasses.values.forEach(this.visitClassElement);
     return null;
   }
   
   A visitLibraryElement(LibraryElement node) {
-    
+    return null;
   }
   
   A visitClassElement(ClassElement node) {
-    node.fields.forEach(this.visitFieldElement);
-    node.methods.forEach(this.visitMethodElement);
+    node.declaredFields.values.forEach(this.visitFieldElement);
+    node.declaredMethods.values.forEach(this.visitMethodElement);
     return null;
   }
   
@@ -377,7 +377,7 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   
   A visitBlock(Block node){
     node.declaredVariables.values.forEach(this.visitVariableElement);
-    node.functions.values.forEach(this.visitFunctionElement);
+    node.declaredFunctions.values.forEach(this.visitFunctionElement);
     return null;
   }
   
@@ -487,7 +487,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
   }
   
   visitLibraryDirective(LibraryDirective node) {
-    analysis.addLibrarySource(node.name.toString(), element);
+    analysis.addLibrarySource(new Name.FromIdentifier(node.name), element);
     element.libraryName = node.name.toString();
     super.visitLibraryDirective(node);
   }
@@ -508,7 +508,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
       engine.errors.addError(new EngineError("Visited method declaration, inside another method declaration.", source, node.offset, node.length), true);
     
     _currentMethodElement = new MethodElement(node, _currentClassElement);
-    _currentClassElement.addMethod(_currentMethodElement);
+    _currentClassElement.addMethod(new Name.FromIdentifier(node.name), _currentMethodElement);
 
     _currentMethodElement.enclosingBlock = _currentBlock;
     _currentBlock.nestedBlocks.add(_currentMethodElement);
@@ -528,7 +528,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
       engine.errors.addError(new EngineError("Visited constructor declaration, inside another class member.", source, node.offset, node.length), true);
     
     _currentConstructorElement = new ConstructorElement(node, _currentClassElement);
-    _currentClassElement.addConstructor(_currentConstructorElement);
+    _currentClassElement.addConstructor(new Name.FromIdentifier(node.name), _currentConstructorElement);
 
     _currentConstructorElement.enclosingBlock = _currentBlock;
     _currentBlock.nestedBlocks.add(_currentConstructorElement);
@@ -556,14 +556,14 @@ class ElementGenerator extends GeneralizingAstVisitor {
          engine.errors.addError(new EngineError("Visited variable decl inside a field declaration, but currentClass was null.", source, node.offset, node.length), true);
       
       FieldElement field = new FieldElement(_currentFieldDeclaration, node, _currentClassElement);
-      _currentClassElement.addField(field);
+      _currentClassElement.addField(field.name, field);
       super.visitVariableDeclaration(node);
       return;
     }
     
     if (_currentBlock != null) {
-      VariableElement variable = new VariableElement(node, _currentBlock);
-      _currentBlock.addVariable(variable.ast.name, variable);
+      VariableElement variable = new VariableElement(node, _currentBlock, _currentBlock);
+      _currentBlock.addVariable(variable);
       return;
     } else {
       engine.errors.addError(new EngineError("The current block is not set, so the variable cannot be associated with any.", source, node.offset, node.length), true);
@@ -571,11 +571,11 @@ class ElementGenerator extends GeneralizingAstVisitor {
   }
   
   visitFunctionDeclaration(FunctionDeclaration node) {
-    FunctionElement functionElement = new FunctionElement(node, element);
+    NamedFunctionElement functionElement = new NamedFunctionElement(node, element);
     if (_currentBlock == null){
       engine.errors.addError(new EngineError("The current block is not set, so the function cannot be associated with any.", source, node.offset, node.length), true);
     }
-    _currentBlock.addFunction(node, functionElement);
+    _currentBlock.addFunction(functionElement);
     
     functionElement.enclosingBlock = _currentBlock;
     _currentBlock.nestedBlocks.add(functionElement);
