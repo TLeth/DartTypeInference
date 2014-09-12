@@ -2,15 +2,18 @@ import 'Corporation.dart';
 import 'Manager.dart';
 import 'Person.dart';
 import 'dart:io';
-import 'package:analyzer/analyzer.dart';
 
 class Test{
   Test(){
     var n;
   }
+  
+  Test operator -() => this;
+  Test operator -(Test t) => this;
 }
 
 void main() {
+  
   int a = 3;
   int b = 4;
   var c = 4.0;
