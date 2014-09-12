@@ -64,7 +64,7 @@ class Block {
   Block enclosingBlock = null;
   List<Block> nestedBlocks = <Block>[];  
 
-  Map<Name, Element> get declaredElements => MapUtil.union(declaredVariabes, declaredFuctions);
+  Map<Name, Element> get declaredElements => MapUtil.union(declaredVariables, declaredFunctions);
   Map<Name, VariableElement> declaredVariables = <Name, VariableElement>{};
   Map<Name, FunctionElement> declaredFunctions = <Name, FunctionElement>{};
   
