@@ -19,7 +19,7 @@ _openNewScope(scope, k) {
 
 class IdentifierResolver extends Our.RecursiveElementVisitor {
 
-  Map<Our.Name, Our.VariableElement> declaredVariables = {};
+  Map<Our.Name, Our.Element> declaredVariables = {};
 
   var engine;
 
@@ -37,7 +37,6 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
     if (element.source != this.engine.entrySource) return;
     
     declaredVariables.clear();
-
     declaredVariables.addAll(element.declaredVariables);
     element.declaredFunctions.values.forEach((f) { f.accept(this); });
     //    element.classes.forEach((c) { c.accept(this); });
@@ -48,8 +47,7 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
                                             this.declaredVariables,
                                             element.resolvedIdentifiers);
 
-    _openNewScope(scope, (scope) => 
-        element.ast.accept(visitor));
+    _openNewScope(scope, (scope) => element.ast.accept(visitor));
   }
   
   void visitFunctionElement(Our.FunctionElement element) {
@@ -91,10 +89,9 @@ class ScopeVisitor extends GeneralizingAstVisitor {
 
 
   visitVariableDeclaration(VariableDeclaration node) {
-    print(node.name);
-    print(this.declaredVariables);
-    
-    this.scope[node.name.toString()] = this.declaredVariables[node.name];
+    print(declaredVariables);
+    this.scope[node.name.toString()] = this.declaredVariables[new Our.Name.FromIdentifier(node.name)];
+    print(scope);
     super.visitVariableDeclaration(node);
   }
 
@@ -112,6 +109,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     if (element != null) {
       references[node] = element;
     } else {
+      
       this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}'));
     }
   }

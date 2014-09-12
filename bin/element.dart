@@ -55,6 +55,8 @@ class Name {
   
   static Name SetterName(Name name) => new Name(name.name + "=");
   static Name UnaryMinusName = new Name('unary-');
+  
+  int get hashCode => _name.hashCode;
 }
 
 class PrefixedName implements Name {
@@ -70,6 +72,8 @@ class PrefixedName implements Name {
   void set _name(String name) { _postfixName._name = name; }
   String get name => _name;
   
+ // int get hashCode => _prefix.hashCode + _postfixName.hashCode;
+      
   bool operator ==(Object other){
     return other is PrefixedName && this._prefix == other._prefix && _postfixName == other._postfixName; 
   }
@@ -616,10 +620,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
     
   }
 
-  visitFunctionExpression(FunctionExpression node) {
-      
-        
-  }
+  
   
  
 }

@@ -194,7 +194,7 @@ class Engine {
     new ImportResolver(this, _elementAnalysis);
     new IdentifierResolver(this, _elementAnalysis);
     
-    unit.accept(new PrintAstVisitor());
+    //unit.accept(new PrintAstVisitor());
     //_elementAnalysis.accept(new PrintLibraryVisitor(scope: true, import: true, export: true, defined: true));
   }
   

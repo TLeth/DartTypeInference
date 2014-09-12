@@ -1,14 +1,8 @@
-import 'Corporation.dart';
-import 'Manager.dart';
-import 'Person.dart';
+
 import 'dart:io';
 import 'package:analyzer/analyzer.dart';
+var test;
 
-class Test{
-  Test(){
-    var n;
-  }
-}
 
 void main() {
   int a = 3;
@@ -21,7 +15,7 @@ void main() {
   var f = c + d;
   var g = c + a;
   
-  var h = new Test();
+
  
   
   /*
