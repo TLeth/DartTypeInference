@@ -51,7 +51,7 @@ class Name {
   String toString() => name;
   
   static Name SetterName(Name name) => new Name(name.name + "=");
-  static Name UnaryMinusName = new Name('unary-');
+  static Name UnaryMinusName() => new Name('unary-');
   static bool IsSetterName(Name name) => name._name[name._name.length - 1] == "=";
   static Name GetterName(Name name) => IsSetterName(name) ? new Name(name._name.substring(0, name._name.length - 1) ) : name;
   bool get isSetterName => IsSetterName(this); 
@@ -273,7 +273,11 @@ class MethodElement extends NamedElement with Block, ClassMember {
   dynamic accept(ElementVisitor visitor) => visitor.visitMethodElement(this);
   
   MethodElement(MethodDeclaration this.ast, ClassElement this.classDecl) {
-    _name = new Name.FromIdentifier(this.ast.name);
+    if (this.ast.name.toString() == '-' && this.ast.parameters.length == 0){
+      _name = Name.UnaryMinusName();
+    } else {
+      _name = new Name.FromIdentifier(this.ast.name);
+    }
   }
   
   String toString() {
@@ -543,7 +547,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
       engine.errors.addError(new EngineError("Visited method declaration, inside another method declaration.", source, node.offset, node.length), true);
     
     _currentMethodElement = new MethodElement(node, _currentClassElement);
-    _currentClassElement.addMethod(new Name.FromIdentifier(node.name), _currentMethodElement);
+    _currentClassElement.addMethod(_currentMethodElement.name, _currentMethodElement);
 
     _currentMethodElement.enclosingBlock = _currentBlock;
     _currentBlock.nestedBlocks.add(_currentMethodElement);
@@ -563,7 +567,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
       engine.errors.addError(new EngineError("Visited constructor declaration, inside another class member.", source, node.offset, node.length), true);
     
     _currentConstructorElement = new ConstructorElement(node, _currentClassElement);
-    _currentClassElement.addConstructor(new Name.FromIdentifier(node.name), _currentConstructorElement);
+    _currentClassElement.addConstructor(_currentConstructorElement.name, _currentConstructorElement);
 
     _currentConstructorElement.enclosingBlock = _currentBlock;
     _currentBlock.nestedBlocks.add(_currentConstructorElement);
