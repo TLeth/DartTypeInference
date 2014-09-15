@@ -191,20 +191,24 @@ class ClassElement extends NamedElement with Block {
  **/
 class VariableElement extends NamedElement {
   Block enclosingBlock = null;
-  VariableDeclaration ast;
+  VariableDeclaration variableAst;
+  FormalParameter parameterAst;
   
-  bool get isSynthetic => ast.isSynthetic;
-  bool get isConst => ast.isConst;
-  bool get isFinal => ast.isFinal;
-  
+  dynamic get ast => (variableAst == null) ? parameterAst : variableAst;
+  bool get isSynthetic => this.ast.isSynthetic;
+  bool get isConst => this.ast.isConst;
+  bool get isFinal => this.ast.isFinal;
   Name name;
   
   SourceElement sourceElement;
 
   dynamic accept(ElementVisitor visitor) => visitor.visitVariableElement(this);
 
-  VariableElement(VariableDeclaration this.ast, Block this.enclosingBlock, SourceElement this.sourceElement) {
-    name = new Name.FromIdentifier(this.ast.name);
+  VariableElement(VariableDeclaration this.variableAst, Block this.enclosingBlock, SourceElement this.sourceElement, [FormalParameter this.parameterAst = null]) {
+    if (parameterAst != null)
+      name = new Name.FromIdentifier(this.ast.identifier);
+    else
+      name = new Name.FromIdentifier(this.ast.name);
   }
   
   String toString() {
@@ -451,6 +455,31 @@ class ElementGenerator extends GeneralizingAstVisitor {
   FunctionDeclaration _lastSeenFunctionDeclaration = null;
   Block _currentBlock = null;
   
+  
+  enterNewBlock(Block newBlock, k) {
+    var oldBlock = _currentBlock,
+        oldMethodElement = _currentMethodElement,
+        isMethod = newBlock is MethodElement;
+    
+    newBlock.enclosingBlock = oldBlock;
+    oldBlock.nestedBlocks.add(newBlock);
+
+    _currentBlock = newBlock;
+    if (isMethod) {
+      _currentMethodElement = newBlock;
+    }
+    
+    var ret = k();
+    
+    _currentBlock = oldBlock;
+    if (isMethod) {
+      _currentMethodElement = oldMethodElement;
+        
+    }
+    return ret;
+  }
+  
+  
   ElementGenerator(Engine this.engine, Source this.source, ElementAnalysis this.analysis) {
     //print("Generating elements for: ${source} (${source.hashCode}) which is ${analysis.containsSource(source) ? "in already" : "not in already"}");
     if (!analysis.containsSource(source)) {
@@ -589,7 +618,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
     _currentFieldDeclaration = null;
   }
   
-  visitVariableDeclaration(VariableDeclaration node){
+  visitVariableDeclaration(VariableDeclaration node) {
     if (_currentFieldDeclaration != null) {
       if (_currentClassElement == null)
          engine.errors.addError(new EngineError("Visited variable decl inside a field declaration, but currentClass was null.", source, node.offset, node.length), true);
@@ -603,6 +632,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
     if (_currentBlock != null) {
       VariableElement variable = new VariableElement(node, _currentBlock, element);
       _currentBlock.addVariable(variable);
+      super.visitVariableDeclaration(node);
       return;
     } else {
       engine.errors.addError(new EngineError("The current block is not set, so the variable cannot be associated with any.", source, node.offset, node.length), true);
@@ -628,13 +658,36 @@ class ElementGenerator extends GeneralizingAstVisitor {
       functionElement = new FunctionElement(node, element);
     }
     
+    enterNewBlock(functionElement, (){
+      super.visitFunctionExpression(node);
+    });
+   
+    
+/*  
     functionElement.enclosingBlock = _currentBlock;
     _currentBlock.nestedBlocks.add(functionElement);
     _currentBlock = functionElement;
     
-    super.visitFunctionExpression(node);
     
     _currentBlock = functionElement.enclosingBlock;
+*/
+    }
+  
+  visitFormalParameterList(FormalParameterList node){
+    enterNewBlock(new Block(), (){
+      super.visitFormalParameterList(node);
+    });
+  }
+  
+  visitFormalParameter(FormalParameter node){
+    if (_currentBlock == null) {
+      engine.errors.addError(new EngineError("The current block is not set, so the variable cannot be associated with any.", source, node.offset, node.length), true);
+    }
+    
+    VariableElement variable = new VariableElement(null, _currentBlock, element, node);
+
+    _currentBlock.addVariable(variable);
+    super.visitFormalParameter(node);  
   }
 }
 

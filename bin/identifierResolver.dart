@@ -17,10 +17,17 @@ _openNewScope(scope, k) {
   return ret;
 }
 
+_addToScope(scope, bindings, k) {
+  return _openNewScope(scope, (scope) {
+    scope.addAll(bindings);
+    k(scope);
+  });
+}
+
 class IdentifierResolver extends Our.RecursiveElementVisitor {
 
-  Map<Our.Name, Our.Element> declaredVariables = {};
-
+  Map<Our.Name, Our.Element> declaredElements = {};
+  Our.LibraryElement currentLibrary;
   var engine;
 
 
@@ -36,31 +43,33 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
   void visitSourceElement(Our.SourceElement element) {
     if (element.source != this.engine.entrySource) return;
     
-    declaredVariables.clear();
-    declaredVariables.addAll(element.declaredVariables);
-    element.declaredFunctions.values.forEach((f) { f.accept(this); });
-    //    element.classes.forEach((c) { c.accept(this); });
-        
+    declaredElements.clear();
+    currentLibrary = element.library;
+    
+    visitBlock(element);
+    
     Map<String, Our.Element> scope = {};
     ScopeVisitor visitor = new ScopeVisitor(this.engine, 
                                             scope, 
-                                            this.declaredVariables,
+                                            this.declaredElements,
                                             element.resolvedIdentifiers);
 
     _openNewScope(scope, (scope) => element.ast.accept(visitor));
   }
   
-  void visitFunctionElement(Our.FunctionElement element) {
-    declaredVariables.addAll(element.declaredVariables);
+  void visitBlockList(List<Our.Block> blocks) {
+    blocks.forEach((block) {
+        visitBlock(block);
+    });      
   }
   
-  void visitClassElement(Our.ClassElement element) {
-    //declaredVariables.addAll(element.declaredVariables);
-    element.declaredMethods.values.forEach((m) => m.accept(this));
-  }
-      
-  void visitMethodElement(Our.MethodElement element) {
-    declaredVariables.addAll(element.declaredVariables);
+  void visitBlock(Our.Block block) {
+    
+    this.declaredElements.addAll(block.declaredVariables);
+    this.declaredElements.addAll(block.declaredFunctions);
+    this.declaredElements.addAll(block.declaredElements);
+    
+    visitBlockList(block.nestedBlocks);      
   }
 }
 
@@ -68,36 +77,33 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
 class ScopeVisitor extends GeneralizingAstVisitor {
 
   Map<Identifier, Our.Element> references = {};
-  Map<Our.Name, Our.VariableElement> declaredVariables;
-  Map<Our.Name, Our.VariableElement> declaredFunctions = {};
+  Map<Our.Name, Our.Element> declaredElements;
   Map<String, Our.Element> scope;
   
   var engine;
   
   ScopeVisitor(this.engine, 
                this.scope, 
-               this.declaredVariables, 
+               this.declaredElements, 
                this.references); 
 
   visitBlock(Block node) {
     _openNewScope(scope, (_) => super.visitBlock(node));
   }
 
-//  visitFormalParameter(FormalParameter node) {
-//
-//  }
+  visitFormalParameter(FormalParameter node) {
+    this.scope[node.identifier.toString()] = this.declaredElements[new Our.Name.FromIdentifier(node.identifier)];
+  }
 
 
   visitVariableDeclaration(VariableDeclaration node) {
-    print(declaredVariables);
-    this.scope[node.name.toString()] = this.declaredVariables[new Our.Name.FromIdentifier(node.name)];
-    print(scope);
+    this.scope[node.name.toString()] = this.declaredElements[new Our.Name.FromIdentifier(node.name)];
     super.visitVariableDeclaration(node);
   }
 
   visitFunctionDeclaration(FunctionDeclaration node) {
     if (node.name != null) {
-      this.scope[node.name.toString()] = this.declaredFunctions[node];
+      this.scope[node.name.toString()] = this.declaredElements[new Our.Name.FromIdentifier(node.name)];
     }
     super.visitFunctionDeclaration(node);
   }
@@ -109,7 +115,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     if (element != null) {
       references[node] = element;
     } else {
-      
       this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}'));
     }
   }
