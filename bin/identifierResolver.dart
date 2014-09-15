@@ -65,8 +65,6 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
   
   void visitBlock(Our.Block block) {
     
-    this.declaredElements.addAll(block.declaredVariables);
-    this.declaredElements.addAll(block.declaredFunctions);
     this.declaredElements.addAll(block.declaredElements);
     
     visitBlockList(block.nestedBlocks);      

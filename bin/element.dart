@@ -161,6 +161,9 @@ class ClassElement extends NamedElement with Block {
   Map<Name, FieldElement> declaredFields = <Name, FieldElement>{};
   Map<Name, MethodElement> declaredMethods = <Name, MethodElement>{};
   Map<Name, ConstructorElement> declaredConstructors = <Name, ConstructorElement>{};
+
+  Map<Name, Element> get declaredElements => [declaredFields, declaredMethods, declaredConstructors].reduce(MapUtil.union);
+  
   ClassDeclaration ast;
   
   SourceElement sourceElement;
