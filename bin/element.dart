@@ -52,6 +52,9 @@ class Name {
   
   static Name SetterName(Name name) => new Name(name.name + "=");
   static Name UnaryMinusName = new Name('unary-');
+  static bool IsSetterName(Name name) => name._name[name._name.length - 1] == "=";
+  static Name GetterName(Name name) => IsSetterName(name) ? new Name(name._name.substring(0, name._name.length - 1) ) : name;
+  bool get isSetterName => IsSetterName(this); 
   
   int get hashCode => _name.hashCode;
 }
@@ -68,6 +71,7 @@ class PrefixedName implements Name {
   String get _name => _prefix + "." + _postfixName.name;
   void set _name(String name) { _postfixName._name = name; }
   String get name => _name;
+  bool get isSetterName => Name.IsSetterName(this);
   
  // int get hashCode => _prefix.hashCode + _postfixName.hashCode;
       

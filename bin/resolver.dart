@@ -14,20 +14,21 @@ import 'util.dart';
  */ 
 
 class LibraryElement {
-  Map<Name, NamedElement> scope = <Name, NamedElement>{};
+  Map<Name, List<NamedElement>> scope = <Name, List<NamedElement>>{};
   Map<Name, NamedElement> exports = <Name, NamedElement>{};
   
   List<Name> imports = <Name>[];
   List<Name> defined = <Name>[];
   
   SourceElement source;
+  Engine engine;
   
   //This list of library elements is all elements that is dependend on what the current library exports.
   List<LibraryElement> depended_exports = <LibraryElement>[];
   
-  LibraryElement(SourceElement this.source);
+  LibraryElement(SourceElement this.source, Engine this.engine);
  
-  Element addExport(Name name, Element element) => exports[name] = element;
+  NamedElement addExport(Name name, NamedElement element) => exports[name] = element;
   bool containsExport(Name name) => exports.containsKey(name);
   
   void addImport(Name name) => imports.add(name);
@@ -37,12 +38,49 @@ class LibraryElement {
   bool containsDefined(Name name) => defined.contains(name);
   
   bool containsElement(Name name) => scope.containsKey(name);
-  Element addElement(Name name, Element element) => scope[name] = element;
-  void addElements(Map<Name, Element> pairs) => scope.addAll(pairs);
+  void addElement(Name name, NamedElement element) { scope.containsKey(name) ? scope[name].add(element) : scope[name] = <NamedElement>[element]; }
+  void addElements(Name name, List<NamedElement> elements) => elements.forEach((NamedElement e) => addElement(name,e));
+  void addElementMap(Map<Name, NamedElement> pairs) => scope.forEach(addElements);
   void containsElements(List<Name> names) => names.fold(false, (prev, name) => prev || scope.containsKey(name));
   
   void addDependedExport(LibraryElement library) => depended_exports.add(library);
   bool containsDependedExport(LibraryElement library) => depended_exports.contains(library);
+  
+  
+  //Lookup method used for making proper lookup in the scope.
+  NamedElement lookup(Name name, [bool notUniqueFail = true]) {
+    if (!scope.containsKey(name)){
+      engine.errors.addError(new EngineError("An element with name: '${name}' didn't exists in the scope", source.source), notUniqueFail);
+      return null;
+    }
+    
+    if (scope[name].length > 1){
+      engine.errors.addError(new EngineError("Multiple elements with name: '${name}' existed in scope", source.source), notUniqueFail);
+      return null;
+    }
+    
+    NamedElement element = scope[name][0];
+    if (element is NamedFunctionElement && (element.isGetter || element.isSetter)){
+      if ((element.isGetter && (!containsElement(element.setterName) || 
+                               (scope[element.setterName].length == 1 && scope[element.setterName][0].librarySource == element.librarySource))) ||
+          (element.isSetter && (!containsElement(element.getterName) || 
+                               (scope[element.getterName].length == 1 && scope[element.getterName][0].librarySource == element.librarySource)))) {
+        return element;
+      } else {
+        engine.errors.addError(new EngineError("The element: '${name}' did exist but its coresponding getter/setter was from another library.", source.source), notUniqueFail);
+        return null;
+      }
+    } else if (element is VariableElement) {
+      if (scope[element.name].length == 1 && scope[Name.SetterName(element.name)].length == 1){
+        return element;
+      } else {
+        engine.errors.addError(new EngineError("The variable element: '${name}' did exist but the coresponding getter/setter was not unique represented.", source.source), notUniqueFail);
+        return null;
+      }
+    }else {
+      return element;
+    }
+  }
 }
 
 
@@ -63,7 +101,7 @@ class ScopeResolver {
         new ScopeResolver(engine, source.partOf, analysis); 
       } else {
         //Create a LibraryElement and let this LibraryElement
-        source.library = new LibraryElement(source);
+        source.library = new LibraryElement(source, engine);
         _createScope(source);
         _makeExportLibraries(source);
         _makeImportLibraries(source);
@@ -256,38 +294,19 @@ class ImportResolver {
         }
         
         imports.forEach((name, element) {
-          if (!library.containsElement(name)) {
-            // If the element is a function and that function is a getter and setter, extra checks is needed. 
-            if (element is NamedFunctionElement && (element.isGetter || element.isSetter)){
-              // If the function is a setter and the the getter corresponding is not in the import 
-              // or it comes from same sourceFile, add it to scope. And visa versa for getters.
-              if ((element.isGetter && (!library.containsElement(element.setterName) || element.librarySource == library.scope[element.setterName].librarySource)) ||
-                  (element.isSetter && (!library.containsElement(element.getterName) || element.librarySource == library.scope[element.getterName].librarySource))) {
-                library.addImport(name);
-                library.addElement(name, element);  
-              }
-            // if the element imported is a variable element, we need to check that the library not already contains
-            // a getter or a setter hiding this variable.
-            } else if (element is VariableElement){
-              if (!library.containsElement(element.setterName) && !library.containsElement(element.getterName)){
+          if (!library.containsDefined(name)){
+            if (element is VariableElement) {
+              if ((Name.IsSetterName(name) && !library.containsDefined(Name.GetterName(name))) ||
+                 (!Name.IsSetterName(name) && !library.containsDefined(Name.SetterName(name)))) {
+                if (!library.containsElement(name) || !library.scope[name].contains(element)) {                
+                  library.addImport(name);
+                  library.addElement(name, element);
+                }
+              }  
+            } else {  
+              if (!library.containsElement(name) || !library.scope[name].contains(element)){
                 library.addImport(name);
                 library.addElement(name, element);
-              }
-            } else {
-              library.addImport(name);
-              library.addElement(name, element);
-            }
-          } else if (!library.containsDefined(name)) {
-            //If they are different, check if one of them is autohidden.
-            if (library.scope[name] != element){
-              if (source.implicitImportedDartCore && engine.isCore(library.scope[name].librarySource)) {
-                //The element currently in the scope is from the dart:core library and is imported implicit, so this is autohidden.
-                library.addElement(name, element);
-              } else if (source.implicitImportedDartCore && engine.isCore(element.librarySource)){
-                //The element we will import is from dart:core implicitly so it is autohidden.
-              } else {
-                //Both elements where imported but none of them was from implicit imported dart:core. So this means we have a clash.
-                engine.errors.addError(new EngineError("Two elements were imported and none of them were from system libraries: ${library.scope[name]} and ${element}", source.source, directive.offset, directive.length), true);
               }
             }
           }
