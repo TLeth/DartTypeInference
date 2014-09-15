@@ -183,6 +183,23 @@ class ClassElement extends NamedElement with Block {
     return "Class [${isAbstract ? ' abstract ' : ''}"+
             "${isSynthetic ? ' synthetic ' : ''}] ${name}";
   }
+  
+  ClassMember lookup(Name name) {
+    List<ClassMember> res = <ClassMember>[];
+    if (declaredFields.containsKey(name))
+      res.add(declaredFields[name]);
+    
+    if (declaredMethods.containsKey(name))
+      res.add(declaredMethods[name]);
+    
+    if (declaredConstructors.containsKey(name))
+      res.add(declaredConstructors[name]);
+    
+    if (res.length == 1) 
+      return res[0];
+    else 
+      return null;
+  }
 }
 
 
@@ -279,6 +296,8 @@ class MethodElement extends NamedElement with Block, ClassMember {
   MethodElement(MethodDeclaration this.ast, ClassElement this.classDecl) {
     if (this.ast.name.toString() == '-' && this.ast.parameters.length == 0){
       _name = Name.UnaryMinusName();
+    } else if (isSetter) {
+      _name = Name.SetterName(new Name.FromIdentifier(this.ast.name));
     } else {
       _name = new Name.FromIdentifier(this.ast.name);
     }
