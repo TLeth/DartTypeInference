@@ -1,12 +1,9 @@
 library typeanalysis.Local;
 
-import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/ast.dart';
 
 import 'element.dart' as Our;
 import 'engine.dart';
-
-import 'dart:collection';
 
 _openNewScope(scope, k) {
   Map curr = {};
@@ -26,7 +23,7 @@ _addToScope(scope, bindings, k) {
 
 class IdentifierResolver extends Our.RecursiveElementVisitor {
 
-  Map<Our.Name, Our.Element> declaredElements = {};
+  Map<Our.Name, Our.NamedElement> declaredElements = {};
   Our.LibraryElement currentLibrary;
   var engine;
 
@@ -48,7 +45,7 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
     
     visitBlock(element);
     
-    Map<String, Our.Element> scope = {};
+    Map<String, Our.NamedElement> scope = {};
     ScopeVisitor visitor = new ScopeVisitor(this.engine, 
                                             scope, 
                                             this.declaredElements,
@@ -74,9 +71,9 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
 
 class ScopeVisitor extends GeneralizingAstVisitor {
 
-  Map<Identifier, Our.Element> references = {};
-  Map<Our.Name, Our.Element> declaredElements;
-  Map<String, Our.Element> scope;
+  Map<Identifier, Our.NamedElement> references = {};
+  Map<Our.Name, Our.NamedElement> declaredElements;
+  Map<String, Our.NamedElement> scope;
   
   var engine;
   
@@ -106,9 +103,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     super.visitFunctionDeclaration(node);
   }
   
-  
   visitSimpleIdentifier(SimpleIdentifier node) {
-    
     var element = scope[node.name.toString()];
     if (element != null) {
       references[node] = element;

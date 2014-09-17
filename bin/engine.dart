@@ -1,5 +1,6 @@
 library typeanalysis.engine;
 
+import 'dart:io';
 import 'package:analyzer/options.dart';
 import 'package:analyzer/src/generated/engine.dart';
 import 'package:analyzer/src/generated/sdk.dart';
@@ -14,9 +15,10 @@ import 'package:analyzer/src/analyzer_impl.dart';
 
 import 'identifierResolver.dart';
 import 'element.dart';
-import 'printer.dart';
+import 'constraint.dart';
 import 'resolver.dart';
-import 'dart:io';
+import 'printer.dart';
+
 
 const int MAX_CACHE_SIZE = 512;
 const String DART_EXT_SCHEME = "dart-ext:";
@@ -68,6 +70,8 @@ class ErrorCollector {
     }
   }
   
+  void reset() => _errors.removeRange(0, _errors.length-1);
+  
   String toString() {
     StringBuffer sb = new StringBuffer();
     _errors.forEach((err) => sb.writeln(err.toCustomString(_engine)));
@@ -86,6 +90,7 @@ class Engine {
   ErrorCollector errors;
   
   ElementAnalysis _elementAnalysis;
+  ConstraintAnalysis _constraintAnalysis;
   
   Source get entrySource => _entrySource;
   
@@ -101,12 +106,15 @@ class Engine {
     
     _setupAnalaysisContext();
     _makeElementAnalysis();
+    _printErrorsAndReset();
     
-    _printErrors(); 
+    _makeConstraintAnalysis();
+    
   }
  
-  void _printErrors() {
+  void _printErrorsAndReset() {
     print(this.errors);
+    this.errors.reset();
   }
   
   
@@ -180,7 +188,6 @@ class Engine {
   }
   
   _makeElementAnalysis() {
-    
     GeneralizingAstVisitor visitor = new GeneralizingAstVisitor();
     CompilationUnit unit = this.getCompilationUnit(_entrySource);
     visitor.visitCompilationUnit(unit);
@@ -193,11 +200,25 @@ class Engine {
     new ImportResolver(this, _elementAnalysis);
     //_elementAnalysis.accept(new PrintLibraryVisitor(scope: true, import: true, export: true, defined: true));
     new IdentifierResolver(this, _elementAnalysis);
-    
     //unit.accept(new PrintAstVisitor());
   }
   
+  _makeConstraintAnalysis(){
+    _constraintAnalysis = new ConstraintAnalysis();
+    new ConstraintGenerator(this, _elementAnalysis, _constraintAnalysis);
+    //print(_constraintAnalysis.constraints[_entrySource]);
+    new SubstitutionGenerator(this, _constraintAnalysis);
+    //ConstraintSolver solver = new ConstraintSolver(_elementAnalysis.sources[_entrySource].constraints);    
+    print(_constraintAnalysis.substitutions[_entrySource]);
+  }
+  
+  /*
+  _makeInstrumentedTypeAnalysis() {
+    new Convert
+  }*/
+  
   Source resolveUri(Source entrySource, String uri) {
+    
     return _sourceFactory.resolveUri(entrySource, uri);
   }
   

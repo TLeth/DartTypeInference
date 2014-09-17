@@ -88,7 +88,7 @@ class Block {
   Block enclosingBlock = null;
   List<Block> nestedBlocks = <Block>[];  
 
-  Map<Name, Element> get declaredElements => MapUtil.union(declaredVariables, declaredFunctions);
+  Map<Name, NamedElement> get declaredElements => MapUtil.union(declaredVariables, declaredFunctions);
   Map<Name, VariableElement> declaredVariables = <Name, VariableElement>{};
   Map<Name, NamedFunctionElement> declaredFunctions = <Name, NamedFunctionElement>{};
   
@@ -108,6 +108,7 @@ abstract class Element {
 
 abstract class NamedElement extends Element {
   Name get name;
+  Identifier get identifier;
   bool get isPrivate => name.isPrivate;
   
   Name get getterName => name;
@@ -133,7 +134,7 @@ class SourceElement extends Block with Element {
   Map<Source, ExportDirective> exports = <Source, ExportDirective>{};
   Map<Name, ClassElement> declaredClasses = <Name, ClassElement>{};
   
-  Map<Identifier, Element> resolvedIdentifiers = <Identifier, Element>{};
+  Map<Identifier, NamedElement> resolvedIdentifiers = <Identifier, NamedElement>{};
   
   bool implicitImportedDartCore = false;
   
@@ -162,13 +163,14 @@ class ClassElement extends NamedElement with Block {
   Map<Name, MethodElement> declaredMethods = <Name, MethodElement>{};
   Map<Name, ConstructorElement> declaredConstructors = <Name, ConstructorElement>{};
 
-  Map<Name, Element> get declaredElements => [declaredFields, declaredMethods, declaredConstructors].reduce(MapUtil.union);
+  Map<Name, NamedElement> get declaredElements => [declaredFields, declaredMethods, declaredConstructors].reduce(MapUtil.union);
   
   ClassDeclaration ast;
   
   SourceElement sourceElement;
   
   Name name;
+  Identifier get identifier => this.ast.name;
   bool get isAbstract => ast.isAbstract;
   bool get isSynthetic => ast.isSynthetic;
   
@@ -219,12 +221,15 @@ class VariableElement extends NamedElement {
   bool get isConst => this.ast.isConst;
   bool get isFinal => this.ast.isFinal;
   Name name;
+  Identifier get identifier => (variableAst == null ? this.parameterAst.identifier : this.variableAst.name);
+  
+  TypeName annotatedType;
   
   SourceElement sourceElement;
 
   dynamic accept(ElementVisitor visitor) => visitor.visitVariableElement(this);
 
-  VariableElement(VariableDeclaration this.variableAst, Block this.enclosingBlock, SourceElement this.sourceElement, [FormalParameter this.parameterAst = null]) {
+  VariableElement(VariableDeclaration this.variableAst, Block this.enclosingBlock, TypeName this.annotatedType, SourceElement this.sourceElement, [FormalParameter this.parameterAst = null]) {
     if (parameterAst != null)
       name = new Name.FromIdentifier(this.ast.identifier);
     else
@@ -232,7 +237,7 @@ class VariableElement extends NamedElement {
   }
   
   String toString() {
-    return "Var [${isConst ? ' const ' : ''}"+
+    return "Var ${annotatedType} [${isConst ? ' const ' : ''}"+
             "${isFinal ? ' final ' : ''}"+
             "${isSynthetic ? ' synthetic ' : ''}] ${name}";
   }
@@ -245,6 +250,16 @@ abstract class ClassMember {
   ClassElement get classDecl;
   
   SourceElement get sourceElement => classDecl.sourceElement;
+}
+
+/**
+ * instance of the class `Callable` is our abstraction of an element that can be invoked.
+ */
+abstract class Callable {
+  Type get retunType;
+  
+  List<Type> get parameterTypes;
+  Map<Name, Type> get namedParameterTypes;
 }
 
 
@@ -261,15 +276,18 @@ class FieldElement extends NamedElement with ClassMember {
   bool get isFinal => varDecl.isFinal;
   
   Name name;
+  Identifier get identifier => this.varDecl.name;
+  
+  TypeName annotatedType;
   
   dynamic accept(ElementVisitor visitor) => visitor.visitFieldElement(this);
 
-  FieldElement(FieldDeclaration this.ast,VariableDeclaration this.varDecl, ClassElement this.classDecl) {
+  FieldElement(FieldDeclaration this.ast,VariableDeclaration this.varDecl, TypeName this.annotatedType, ClassElement this.classDecl) {
     name = new Name.FromIdentifier(this.varDecl.name);
   }
   
   String toString() {
-    return "Field [${isConst ? ' const ' : ''}"+
+    return "Field ${annotatedType} [${isConst ? ' const ' : ''}"+
             "${isStatic ? ' static ' : ''}"+
             "${isFinal ? ' final ' : ''}"+
             "${isSynthetic ? ' synthetic ' : ''}] ${name}";
@@ -287,6 +305,7 @@ class MethodElement extends NamedElement with Block, ClassMember {
   Name get setterName => Name.SetterName(_name);
   Name get getterName => _name;
   Name get name => isSetter ? setterName : getterName;
+  Identifier get identifier => this.ast.name;
   bool get isAbstract => ast.isAbstract;
   bool get isGetter => ast.isGetter;
   bool get isOperator => ast.isOperator;
@@ -324,6 +343,7 @@ class ConstructorElement extends NamedElement with Block, ClassMember {
   ClassElement classDecl;
   
   Name name;
+  Identifier get identifier => this.ast.name;
   bool get isSynthetic => ast.isSynthetic;
   bool get isFactory => ast.factoryKeyword != null;
   bool get isExternal => ast.externalKeyword != null;
@@ -369,6 +389,7 @@ class NamedFunctionElement extends FunctionElement implements NamedElement {
   Name get getterName => _name;
   bool get isPrivate => _name.isPrivate; 
   Name get name => isSetter ? setterName : getterName;
+  Identifier get identifier => decl.name;
   bool get isGetter => decl.isGetter;
   bool get isSetter => decl.isSetter;
   
@@ -476,6 +497,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
   FieldDeclaration _currentFieldDeclaration = null;
   FunctionDeclaration _lastSeenFunctionDeclaration = null;
   Block _currentBlock = null;
+  TypeName _currentVariableType = null;
   
   
   enterNewBlock(Block newBlock, k) {
@@ -519,6 +541,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
         element.addImport(dart_core, null);
       }
       
+      //unit.accept(new PrintAstVisitor());
       this.visitCompilationUnit(unit);
       
       _currentBlock = oldBlock;
@@ -640,19 +663,25 @@ class ElementGenerator extends GeneralizingAstVisitor {
     _currentFieldDeclaration = null;
   }
   
+  visitVariableDeclarationList(VariableDeclarationList node){
+    _currentVariableType = node.type;
+    super.visitVariableDeclarationList(node);
+    _currentVariableType = null;
+  }
+  
   visitVariableDeclaration(VariableDeclaration node) {
     if (_currentFieldDeclaration != null) {
       if (_currentClassElement == null)
          engine.errors.addError(new EngineError("Visited variable decl inside a field declaration, but currentClass was null.", source, node.offset, node.length), true);
       
-      FieldElement field = new FieldElement(_currentFieldDeclaration, node, _currentClassElement);
+      FieldElement field = new FieldElement(_currentFieldDeclaration, node, _currentVariableType, _currentClassElement);
       _currentClassElement.addField(field.name, field);
       super.visitVariableDeclaration(node);
       return;
     }
     
     if (_currentBlock != null) {
-      VariableElement variable = new VariableElement(node, _currentBlock, element);
+      VariableElement variable = new VariableElement(node, _currentBlock, _currentVariableType, element);
       _currentBlock.addVariable(variable);
       super.visitVariableDeclaration(node);
       return;
@@ -683,17 +712,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
     enterNewBlock(functionElement, (){
       super.visitFunctionExpression(node);
     });
-   
-    
-/*  
-    functionElement.enclosingBlock = _currentBlock;
-    _currentBlock.nestedBlocks.add(functionElement);
-    _currentBlock = functionElement;
-    
-    
-    _currentBlock = functionElement.enclosingBlock;
-*/
-    }
+  }
   
   visitFormalParameterList(FormalParameterList node){
     enterNewBlock(new Block(), (){
@@ -701,12 +720,17 @@ class ElementGenerator extends GeneralizingAstVisitor {
     });
   }
   
+  visitSimpleFormalParameter(SimpleFormalParameter node){
+    _currentVariableType = node.type;
+    super.visitSimpleFormalParameter(node);
+    _currentVariableType = null;
+  }
+  
   visitFormalParameter(FormalParameter node){
     if (_currentBlock == null) {
       engine.errors.addError(new EngineError("The current block is not set, so the variable cannot be associated with any.", source, node.offset, node.length), true);
     }
-    
-    VariableElement variable = new VariableElement(null, _currentBlock, element, node);
+    VariableElement variable = new VariableElement(null, _currentBlock, _currentVariableType, element, node);
 
     _currentBlock.addVariable(variable);
     super.visitFormalParameter(node);  
