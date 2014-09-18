@@ -73,7 +73,7 @@ class PrefixedName implements Name {
   String get name => _name;
   bool get isSetterName => Name.IsSetterName(this);
   
- // int get hashCode => _prefix.hashCode + _postfixName.hashCode;
+ int get hashCode => _prefix.hashCode + _postfixName.hashCode;
       
   bool operator ==(Object other){
     return other is PrefixedName && this._prefix == other._prefix && _postfixName == other._postfixName; 
