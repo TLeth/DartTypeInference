@@ -13,17 +13,11 @@ class ConstraintAnalysis {
 
 abstract class ConstraintType {
   ConstraintType replace(Expression expression, ConstraintType type);
-  
   ConstraintType addProperty(Name name, ConstraintType type);
-  
   ConstraintType union(ConstraintType type);
 }
 
-abstract class AdvancedType extends ConstraintType {
-  
-}
-
-class ObjectType extends AdvancedType {
+class ObjectType extends ConstraintType {
   Map<Name, ConstraintType> properties = <Name, ConstraintType>{};
   
   ConstraintType type;
@@ -71,7 +65,7 @@ class ObjectType extends AdvancedType {
   }
 }
 
-class UnionType extends AdvancedType {
+class UnionType extends ConstraintType {
   List<ConstraintType> types;
   
   UnionType(List<ConstraintType> this.types);
@@ -109,7 +103,7 @@ abstract class SimpleType extends ConstraintType {
   ConstraintType union(ConstraintType type) {
     if (type == this) 
       return this;
-    else if (type is AdvancedType)
+    else if (type is ObjectType)
       return type.union(this);
     else if (type is UnionType)
       return type.union(this);
