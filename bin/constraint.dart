@@ -417,8 +417,17 @@ class ConstraintSolver extends ConstraintVisitor {
       substitutions[node.rightHandSide] = node.leftHandSide;
       queue.replace(node.rightHandSide, substitutions[node.rightHandSide]); 
       substitutions.replace(node.rightHandSide, substitutions[node.rightHandSide]);
-    } else
+    } else if (node.leftHandSide is ObjectType) {
+      node.leftHandSide.union(node.rightHandSide);
+    } else if (node.rightHandSide is ObjectType) {
+      node.rightHandSide.union(node.leftHandSide);
+    } else if (node.leftHandSide is UnionType){
+      node.leftHandSide.union(node.rightHandSide);
+    } else if (node.rightHandSide is UnionType){
+      node.rightHandSide.union(node.leftHandSide);
+    } else {
       print("NOT POSSIBLE, no typevariables in constraint. ${node}.");
+    }
   }
   
   void visitMethodConstraint(MethodConstraint node){
