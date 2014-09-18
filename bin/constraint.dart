@@ -11,26 +11,26 @@ class ConstraintAnalysis {
   Map<Source, Substitutions> substitutions = <Source, Substitutions>{};
 }
 
-abstract class ConstraintType {
-  ConstraintType replace(Expression expression, ConstraintType type);
-  ConstraintType addProperty(Name name, ConstraintType type);
-  ConstraintType union(ConstraintType type);
+abstract class AbstractType {
+  AbstractType replace(Expression expression, AbstractType type);
+  AbstractType addProperty(Name name, AbstractType type);
+  AbstractType union(AbstractType type);
 }
 
-class ObjectType extends ConstraintType {
-  Map<Name, ConstraintType> properties = <Name, ConstraintType>{};
+class ObjectType extends AbstractType {
+  Map<Name, AbstractType> properties = <Name, AbstractType>{};
   
-  ConstraintType type;
+  AbstractType type;
   
-  ObjectType(ConstraintType this.type);
+  ObjectType(AbstractType this.type);
   
-  ConstraintType replace(Expression exp, ConstraintType type) {
+  AbstractType replace(Expression exp, AbstractType type) {
     properties.keys.forEach((Name ident) => properties[ident] = properties[ident].replace(exp, type) );
     this.type = this.type.replace(exp, type);
     return this;
   }
   
-  ConstraintType addProperty(Name name, ConstraintType type) {
+  AbstractType addProperty(Name name, AbstractType type) {
     if (properties.containsKey(name))
       properties[name] = properties[name].union(type);
     else
@@ -39,11 +39,11 @@ class ObjectType extends ConstraintType {
     return this;
   }
   
-  ConstraintType union(ConstraintType type) {
+  AbstractType union(AbstractType type) {
     if (type == this) 
       return this;
     else if (type is ObjectType){
-      type.properties.forEach((Name ident, ConstraintType type) {
+      type.properties.forEach((Name ident, AbstractType type) {
         if (properties.containsKey(ident))
           properties[ident] = properties[ident].union(type);
         else
@@ -59,24 +59,24 @@ class ObjectType extends ConstraintType {
   String toString(){
     StringBuffer sb = new StringBuffer();
     sb.writeln("${type}, with properties: {");
-    properties.forEach((Name ident, ConstraintType type) => sb.writeln("${ident}: ${type}"));
+    properties.forEach((Name ident, AbstractType type) => sb.writeln("${ident}: ${type}"));
     sb.write("}");
     return sb.toString();
   }
 }
 
-class UnionType extends ConstraintType {
-  List<ConstraintType> types;
+class UnionType extends AbstractType {
+  List<AbstractType> types;
   
-  UnionType(List<ConstraintType> this.types);
+  UnionType(List<AbstractType> this.types);
   
-  ConstraintType replace(Expression exp, ConstraintType type) {
+  AbstractType replace(Expression exp, AbstractType type) {
     for (var i = 0; i < types.length; i++)
       types[i] = types[i].replace(exp, type);
     return this;
   }
   
-  ConstraintType union(ConstraintType type){
+  AbstractType union(AbstractType type){
     if (type == this) 
       return this;
     else if (type is UnionType){
@@ -90,8 +90,8 @@ class UnionType extends ConstraintType {
     }
   }
   
-  ConstraintType addProperty(Name name, ConstraintType type) {
-     ConstraintType res = new ObjectType(this);
+  AbstractType addProperty(Name name, AbstractType type) {
+     AbstractType res = new ObjectType(this);
      res.addProperty(name, type);
      return res;
   }
@@ -99,8 +99,9 @@ class UnionType extends ConstraintType {
   String toString() => types.toString(); 
 }
 
-abstract class SimpleType extends ConstraintType { 
-  ConstraintType union(ConstraintType type) {
+abstract class SimpleType extends AbstractType {
+ 
+  AbstractType union(AbstractType type) {
     if (type == this) 
       return this;
     else if (type is ObjectType)
@@ -108,16 +109,16 @@ abstract class SimpleType extends ConstraintType {
     else if (type is UnionType)
       return type.union(this);
     else
-      return new UnionType(<ConstraintType>[this, type]);
+      return new UnionType(<AbstractType>[this, type]);
   }
     
-  ConstraintType addProperty(Name name, ConstraintType type) {
-    ConstraintType res = new ObjectType(this);
+  AbstractType addProperty(Name name, AbstractType type) {
+    AbstractType res = new ObjectType(this);
     res.addProperty(name, type);
     return res;
   }
   
-  ConstraintType replace(Expression expression, ConstraintType type) => this;
+  AbstractType replace(Expression expression, AbstractType type) => this;
 }
 
 class ConcreteType extends SimpleType {
@@ -127,13 +128,13 @@ class ConcreteType extends SimpleType {
   String toString() => type; 
 }
 
-class AbstractType extends SimpleType {
+class TypeVariable extends SimpleType {
   Expression expression;
-  AbstractType(this.expression);
+  TypeVariable(this.expression);
   
   String toString() => "[${expression} (${expression.hashCode})]";
   
-  ConstraintType replace(Expression expression, ConstraintType type) => 
+  AbstractType replace(Expression expression, AbstractType type) => 
       (this.expression == expression ? type : this);
   
 }
@@ -153,32 +154,35 @@ class FreeType extends SimpleType {
 }
 
 class FunctionType extends SimpleType {
-  List<ConstraintType> normalParameterTypes;
-  List<ConstraintType> optionalParameterTypes;
-  Map<Name, ConstraintType> namedParameterTypes;
-  ConstraintType returnType;
+  List<AbstractType> normalParameterTypes;
+  List<AbstractType> optionalParameterTypes;
+  Map<Name, AbstractType> namedParameterTypes;
+  AbstractType returnType;
   
-  FunctionType(List<ConstraintType> this.normalParameterTypes, ConstraintType this.returnType, 
-              [List<ConstraintType> optionalParameterTypes = null, Map<Name, ConstraintType> namedParameterTypes = null ] ) :
-                this.optionalParameterTypes = (optionalParameterTypes == null ? <ConstraintType>[] : optionalParameterTypes),
-                this.namedParameterTypes = (namedParameterTypes == null ? <Name, ConstraintType>{} : namedParameterTypes);
+  FunctionType(List<AbstractType> this.normalParameterTypes, AbstractType this.returnType, 
+              [List<AbstractType> optionalParameterTypes = null, Map<Name, AbstractType> namedParameterTypes = null ] ) :
+                this.optionalParameterTypes = (optionalParameterTypes == null ? <AbstractType>[] : optionalParameterTypes),
+                this.namedParameterTypes = (namedParameterTypes == null ? <Name, AbstractType>{} : namedParameterTypes);
   
 
   String toString() {
     String res = "";
-    res = normalParameterTypes.fold(res, (String res, ConstraintType type) => res + "${type} -> ");
+    res = normalParameterTypes.fold(res, (String res, AbstractType type) => res + "${type} -> ");
+
     if (optionalParameterTypes.length > 0){
-      optionalParameterTypes.fold(res + "[", (String res, ConstraintType type) => res + "${type} -> ");
+      optionalParameterTypes.fold(res + "[", (String res, AbstractType type) => res + "${type} -> ");
       res = res.substring(0, res.length - 4) + "] -> ";
     }
+
     if (namedParameterTypes.length > 0){
-      MapUtil.fold(namedParameterTypes, res + "{", (String res, Name ident, ConstraintType type) => res + "${ident}: ${type} -> ");
+      MapUtil.fold(namedParameterTypes, res + "{", (String res, Name ident, AbstractType type) => res + "${ident}: ${type} -> ");
       res = res.substring(0, res.length - 4) + "} -> "; 
     }
+
     return res + "${returnType}";
   }
   
-  ConstraintType replace(Expression exp, ConstraintType type) {
+  AbstractType replace(Expression exp, AbstractType type) {
     for (var i = 0; i < normalParameterTypes.length; i++)
       normalParameterTypes[i] = normalParameterTypes[i].replace(exp, type);
     for (var i = 0; i < optionalParameterTypes.length; i++)
@@ -195,11 +199,11 @@ abstract class Constraint {
   
   Constraint(this.expression);
   dynamic accept(ConstraintVisitor visitor);
-  void replace(Expression expression, ConstraintType type);
+  void replace(Expression expression, AbstractType type);
 }
 
 class EqualityConstraint extends Constraint {
-  ConstraintType type;
+  AbstractType type;
   
   EqualityConstraint(Expression expression,this.type): super(expression);
   
@@ -207,28 +211,28 @@ class EqualityConstraint extends Constraint {
   
   dynamic accept(ConstraintVisitor visitor) => visitor.visitEqualityConstraint(this);
   
-  void replace(Expression expression, ConstraintType type){ 
+  void replace(Expression expression, AbstractType type){ 
     this.type = this.type.replace(expression, type);
   }
 }
 
 class MethodConstraint extends Constraint {
   Name method;
-  List<ConstraintType> normalParameterTypes;
-  List<ConstraintType> optionalParameterTypes;
-  Map<Name, ConstraintType> namedParameterTypes;
-  ConstraintType returnType;
+  List<AbstractType> normalParameterTypes;
+  List<AbstractType> optionalParameterTypes;
+  Map<Name, AbstractType> namedParameterTypes;
+  AbstractType returnType;
   
   MethodConstraint(Expression expression, this.method, List<SimpleType> this.normalParameterTypes, this.returnType, [List<SimpleType> optionalParameterTypes = null, Map<Name, SimpleType> namedParameterTypes = null ] ) :
     super(expression),
-    this.optionalParameterTypes = (optionalParameterTypes == null ? <ConstraintType>[] : optionalParameterTypes),
-    this.namedParameterTypes = (namedParameterTypes == null ? <Name, ConstraintType>{} : namedParameterTypes);
+    this.optionalParameterTypes = (optionalParameterTypes == null ? <AbstractType>[] : optionalParameterTypes),
+    this.namedParameterTypes = (namedParameterTypes == null ? <Name, AbstractType>{} : namedParameterTypes);
   
   String toString() => "[${expression}] contains method: '${method}', with return '${returnType}', normalParameters: ${normalParameterTypes}, optionalParameters: ${optionalParameterTypes}, namedParameters: ${namedParameterTypes}.";
   
   dynamic accept(ConstraintVisitor visitor) => visitor.visitMethodConstraint(this);
   
-  void replace(Expression exp, ConstraintType type) {
+  void replace(Expression exp, AbstractType type) {
     for (var i = 0; i < normalParameterTypes.length; i++)
       normalParameterTypes[i] = normalParameterTypes[i].replace(exp, type);
     for (var i = 0; i < optionalParameterTypes.length; i++)
@@ -261,7 +265,7 @@ class Constraints {
     return constraint;
   }
   
-  void replace(Expression expression, ConstraintType type){
+  void replace(Expression expression, AbstractType type){
     _constraints.forEach((Constraint constraint) => constraint.replace(expression, type));
   }
 }
@@ -309,10 +313,11 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor {
   
   visitBinaryExpression(BinaryExpression be) {
     super.visitBinaryExpression(be);
-    ConstraintType return_type = new FreeType();
     Expression leftOperand = _normalizeIdentifiers(be.leftOperand);
     Expression rightOperand = _normalizeIdentifiers(be.rightOperand);
-    ConstraintType rightOperandType = new AbstractType(rightOperand);
+    AbstractType return_type = new FreeType();
+    AbstractType rightOperandType = new TypeVariable(rightOperand);
+
     constraints.add(new EqualityConstraint(rightOperand, rightOperandType));
     constraints.add(new MethodConstraint(leftOperand, new Name("+"), [rightOperandType], return_type));
     constraints.add(new EqualityConstraint(be, return_type));
@@ -321,13 +326,13 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor {
   visitVariableDeclaration(VariableDeclaration vd){
     super.visitVariableDeclaration(vd);
     Expression name = _normalizeIdentifiers(vd.name);
-    constraints.add(new EqualityConstraint(name, new AbstractType(vd.initializer)));
+    constraints.add(new EqualityConstraint(name, new TypeVariable(vd.initializer)));
   }
   
   visitAssignmentExpression(AssignmentExpression node){
     super.visitAssignmentExpression(node);
     Expression leftHandSide = _normalizeIdentifiers(node.leftHandSide);
-    constraints.add(new EqualityConstraint(leftHandSide, new AbstractType(node.rightHandSide)));
+    constraints.add(new EqualityConstraint(leftHandSide, new TypeVariable(node.rightHandSide)));
   }
 }
 
@@ -338,31 +343,31 @@ abstract class ConstraintVisitor<R> {
 }
 
 class Substitutions {
-  Map<Expression, ConstraintType> substitutions = <Expression, ConstraintType>{};
+  Map<Expression, AbstractType> substitutions = <Expression, AbstractType>{};
   
-  ConstraintType operator [](Expression e) => substitutions[e];
-  void operator []=(Expression e, ConstraintType type) {
+  AbstractType operator [](Expression e) => substitutions[e];
+  void operator []=(Expression e, AbstractType type) {
     if (substitutions.containsKey(e))
       substitutions[e] = substitutions[e].union(type);
     else
       substitutions[e] = type;
   }
   
-  void replace(Expression expression, ConstraintType type) {
+  void replace(Expression expression, AbstractType type) {
     substitutions.keys.forEach((Expression key) {
       substitutions[key] = substitutions[key].replace(expression, type);
     });
   }
   
-  void addProperty(Expression e, Name property, ConstraintType type) {
+  void addProperty(Expression e, Name property, AbstractType type) {
     if (!substitutions.containsKey(e))
-      substitutions[e] = new AbstractType(e);
+      substitutions[e] = new TypeVariable(e);
     substitutions[e] = substitutions[e].addProperty(property, type);
   }
   
   String toString(){
     StringBuffer sb = new StringBuffer();
-    substitutions.forEach((Expression exp, ConstraintType type) => sb.writeln("[${exp}]: $type"));
+    substitutions.forEach((Expression exp, AbstractType type) => sb.writeln("[${exp}]: $type"));
     return sb.toString();  
   }
 }

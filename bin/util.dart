@@ -7,6 +7,18 @@ class MapUtil {
     map.forEach((k,v) => res = func(res, k, v));
     return res;
   }
+
+  static Map mapKeys(Map map, f(k)) {
+    Map res = {};
+    map.forEach((k, v) => res[f(k)] = v);
+    return res;
+  }
+  
+  static Map mapValues(Map map, f(v)) {
+    Map res = {};
+    map.forEach((k, v) => res[k] = f(v));
+    return res;
+  }
   
   static Map filter(Map map, bool func(k, v)) {
     Map res = {};
