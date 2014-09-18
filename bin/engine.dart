@@ -206,9 +206,8 @@ class Engine {
   _makeConstraintAnalysis(){
     _constraintAnalysis = new ConstraintAnalysis();
     new ConstraintGenerator(this, _elementAnalysis, _constraintAnalysis);
-    //print(_constraintAnalysis.constraints[_entrySource]);
+    print(_constraintAnalysis.constraints[_entrySource]);
     new SubstitutionGenerator(this, _constraintAnalysis);
-    //ConstraintSolver solver = new ConstraintSolver(_elementAnalysis.sources[_entrySource].constraints);    
     print(_constraintAnalysis.substitutions[_entrySource]);
   }
   

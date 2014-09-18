@@ -14,7 +14,7 @@ class ConstraintAnalysis {
 abstract class ConstraintType {
   ConstraintType replace(Expression expression, ConstraintType type);
   
-  ConstraintType addField(Name name, ConstraintType type);
+  ConstraintType addProperty(Name name, ConstraintType type);
   
   ConstraintType union(ConstraintType type);
 }
@@ -24,23 +24,23 @@ abstract class AdvancedType extends ConstraintType {
 }
 
 class ObjectType extends AdvancedType {
-  Map<Name, ConstraintType> fields = <Name, ConstraintType>{};
+  Map<Name, ConstraintType> properties = <Name, ConstraintType>{};
   
   ConstraintType type;
   
   ObjectType(ConstraintType this.type);
   
   ConstraintType replace(Expression exp, ConstraintType type) {
-    fields.keys.forEach((Name ident) => fields[ident] = fields[ident].replace(exp, type) );
+    properties.keys.forEach((Name ident) => properties[ident] = properties[ident].replace(exp, type) );
     this.type = this.type.replace(exp, type);
     return this;
   }
   
-  ConstraintType addField(Name name, ConstraintType type) {
-    if (fields.containsKey(name))
-      fields[name] = fields[name].union(type);
+  ConstraintType addProperty(Name name, ConstraintType type) {
+    if (properties.containsKey(name))
+      properties[name] = properties[name].union(type);
     else
-      fields[name] = type;
+      properties[name] = type;
     
     return this;
   }
@@ -49,11 +49,11 @@ class ObjectType extends AdvancedType {
     if (type == this) 
       return this;
     else if (type is ObjectType){
-      type.fields.forEach((Name ident, ConstraintType type) {
-        if (fields.containsKey(ident))
-          fields[ident] = fields[ident].union(type);
+      type.properties.forEach((Name ident, ConstraintType type) {
+        if (properties.containsKey(ident))
+          properties[ident] = properties[ident].union(type);
         else
-          fields[ident] = type;
+          properties[ident] = type;
       });
       this.type = this.type.union(type.type);
     } else {
@@ -64,8 +64,8 @@ class ObjectType extends AdvancedType {
   
   String toString(){
     StringBuffer sb = new StringBuffer();
-    sb.writeln("${type}, with fields: {");
-    fields.forEach((Name ident, ConstraintType type) => sb.writeln("${ident}: ${type}"));
+    sb.writeln("${type}, with properties: {");
+    properties.forEach((Name ident, ConstraintType type) => sb.writeln("${ident}: ${type}"));
     sb.write("}");
     return sb.toString();
   }
@@ -96,9 +96,9 @@ class UnionType extends AdvancedType {
     }
   }
   
-  ConstraintType addField(Name name, ConstraintType type) {
+  ConstraintType addProperty(Name name, ConstraintType type) {
      ConstraintType res = new ObjectType(this);
-     res.addField(name, type);
+     res.addProperty(name, type);
      return res;
   }
   
@@ -117,9 +117,9 @@ abstract class SimpleType extends ConstraintType {
       return new UnionType(<ConstraintType>[this, type]);
   }
     
-  ConstraintType addField(Name name, ConstraintType type) {
+  ConstraintType addProperty(Name name, ConstraintType type) {
     ConstraintType res = new ObjectType(this);
-    res.addField(name, type);
+    res.addProperty(name, type);
     return res;
   }
   
@@ -329,6 +329,12 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor {
     Expression name = _normalizeIdentifiers(vd.name);
     constraints.add(new EqualityConstraint(name, new AbstractType(vd.initializer)));
   }
+  
+  visitAssignmentExpression(AssignmentExpression node){
+    super.visitAssignmentExpression(node);
+    Expression leftHandSide = _normalizeIdentifiers(node.leftHandSide);
+    constraints.add(new EqualityConstraint(leftHandSide, new AbstractType(node.rightHandSide)));
+  }
 }
 
 abstract class ConstraintVisitor<R> {
@@ -354,10 +360,10 @@ class Substitutions {
     });
   }
   
-  void addField(Expression e, Name field, ConstraintType type) {
+  void addProperty(Expression e, Name property, ConstraintType type) {
     if (!substitutions.containsKey(e))
       substitutions[e] = new AbstractType(e);
-    substitutions[e] = substitutions[e].addField(field, type);
+    substitutions[e] = substitutions[e].addProperty(property, type);
   }
   
   String toString(){
@@ -402,6 +408,6 @@ class ConstraintSolver extends ConstraintVisitor {
   
   void visitMethodConstraint(MethodConstraint node){
     var method = new FunctionType(node.normalParameterTypes, node.returnType, node.optionalParameterTypes, node.namedParameterTypes);
-    substitutions.addField(node.expression, node.method, method);
+    substitutions.addProperty(node.expression, node.method, method);
   }
 }
