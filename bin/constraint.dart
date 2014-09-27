@@ -7,20 +7,8 @@ import 'package:analyzer/src/generated/utilities_dart.dart';
 import 'element.dart';
 import 'util.dart';
 
-class ConstraintAnalysis {
-  Map<Source, TypeMap> typeMap = <Source, TypeMap>{};
-  
 
-  LibraryElement get dartCore => elementAnalysis.dartCore;
-  Engine engine;
-  ElementAnalysis elementAnalysis;
-  ElementTyper elementTyper;
-  
-  ConstraintAnalysis(Engine this.engine, ElementAnalysis this.elementAnalysis) {
-    elementTyper = new ElementTyper(this); 
-  }
-}
-
+/************** ElementTyper *****/
 class ParameterTypes { 
   List<AbstractType> normalParameterTypes = <AbstractType>[];
   List<AbstractType> optionalParameterTypes = <AbstractType>[];
@@ -112,16 +100,9 @@ class ElementTyper {
   }
 }
 
-abstract class AbstractType {
 
-  Map<String,TypeVariable> properties = <String,TypeVariable>{};
-  TypeVariable property(String name) {
-    if (properties.containsKey(name))
-      return properties[name];
-    else 
-      return properties[name] = new TypeVariable();
-  }
-}
+/***************** TYPES **************/
+abstract class AbstractType {}
 
 class FreeType extends AbstractType {
   static int _countID = 0;
@@ -132,17 +113,15 @@ class FreeType extends AbstractType {
   
   String toString() => "\u{03b1}${_typeID}";
   
-  //TODO (jln): a free type is equal to any free type right? (check properties map)
-  bool operator ==(Object other) => other is FreeType;
+  //TODO (jln): a free type is equal to any free type right?
+  //bool operator ==(Object other) => other is FreeType;
 }
 
-//TODO (jln): The property map should maybe contain the properties of function.
 class FunctionType extends AbstractType {
   List<AbstractType> normalParameterTypes;
   List<AbstractType> optionalParameterTypes;
   Map<Name, AbstractType> namedParameterTypes;
   AbstractType returnType;
-  Map<String,TypeVariable> properties = <String,TypeVariable>{};
   
   FunctionType(List<AbstractType> this.normalParameterTypes, AbstractType this.returnType, 
               [List<AbstractType> optionalParameterTypes = null, Map<Name, AbstractType> namedParameterTypes = null ] ) :
@@ -196,6 +175,17 @@ class FunctionType extends AbstractType {
     return res + "${returnType})";
   }
   
+  int get hashCode {
+    int h = returnType.hashCode;
+    for(Name name in namedParameterTypes.keys)
+      h = h + name.hashCode + namedParameterTypes[name].hashCode;
+    for(AbstractType t in normalParameterTypes)
+      h = 31*h + t.hashCode;
+    for(AbstractType t in optionalParameterTypes)
+      h = 31*h + t.hashCode;
+    return h;
+  }
+  
   bool operator ==(Object other) => 
       other is FunctionType &&
       ListUtil.equal(other.normalParameterTypes, this.normalParameterTypes) &&
@@ -219,24 +209,39 @@ class NominalType extends AbstractType {
     
   
   NominalType(ClassElement this.element, ConstraintAnalysis this.constraintAnalysis);
-  
-  //TODO (jln): Make lookup on the classElement first. 
-  TypeVariable property(String name) {
-    if (!properties.containsKey(name)){
-      properties[name] = new TypeVariable();
-      
-      ClassMember member = this.element.lookup(new Name(name));
-      if (member != null)
-        properties[name].add(constraintAnalysis.elementTyper.typeClassMember(member, this.element.sourceElement.library));
-    }
-    return properties[name];
-  }
+ 
   
   String toString() => element.name.toString();
   
   bool operator ==(Object other) => other is NominalType && other.element == this.element;
   
   int get hashCode => element.hashCode;
+}
+
+class UnionType extends AbstractType {
+  Set<AbstractType> types = new Set<AbstractType>();
+  
+  UnionType(Iterable<AbstractType> types) {
+    for(AbstractType type in types){
+      if (type is UnionType)
+        this.types.addAll(type.types);
+    }
+    this.types.addAll(types);
+  }
+  
+  String toString() {
+    StringBuffer sb = new StringBuffer();
+    sb.write("{");
+    var i = 0;
+    types.forEach((AbstractType t) {
+      sb.write("${i > 0 ? " + " : ""}${t}");
+      i++;
+    });
+    sb.write("}");    
+    return sb.toString();
+  }
+  
+  bool operator ==(Object other) => other is UnionType && other.types == this.types;
 }
 
 class VoidType extends AbstractType {
@@ -250,21 +255,100 @@ class VoidType extends AbstractType {
   bool operator ==(Object other) => other is VoidType;
 }
 
+class ConstraintAnalysis {
+  Map<Source, TypeMap> typeMap = <Source, TypeMap>{};
+  
+
+  LibraryElement get dartCore => elementAnalysis.dartCore;
+  Engine engine;
+  ElementAnalysis elementAnalysis;
+  ElementTyper elementTyper;
+  
+  ConstraintAnalysis(Engine this.engine, ElementAnalysis this.elementAnalysis) {
+    elementTyper = new ElementTyper(this); 
+  }
+}
+
+/************ TypeIdentifiers *********************/
+abstract class TypeIdentifier {}
+
+
+class ExpressionTypeIdentifier extends TypeIdentifier {
+  Expression exp;
+  
+  ExpressionTypeIdentifier(Expression this.exp);
+  
+  int get hashCode => exp.hashCode; 
+}
+
+
+class AbstractTypeIdentifier extends TypeIdentifier {
+  AbstractType type;
+  Name name;
+  
+  AbstractTypeIdentifier(AbstractType this.type, Name this.name);
+  
+  int get hashCode => type.hashCode + 31 * name.hashCode;
+}
+
+
+/************* Type maps ********************/
+class TypeMap {
+  Map<TypeIdentifier, TypeVariable> _typeMap = <TypeIdentifier, TypeVariable>{};
+  
+  TypeVariable operator [](TypeIdentifier ident) => (containsKey(ident) ? _typeMap[ident] : addEmpty(ident));
+  
+  bool containsKey(TypeIdentifier ident) => _typeMap.containsKey(ident);
+  TypeVariable addEmpty(TypeIdentifier ident) => _typeMap[ident] = new TypeVariable();
+  
+  void operator []=(TypeIdentifier ident, AbstractType t) {
+    if (!_typeMap.containsKey(ident))
+      _typeMap[ident] = new TypeVariable();
+    _typeMap[ident].add(t);
+  }
+  
+  String toString() {
+    StringBuffer sb = new StringBuffer();
+    
+    for(Expression exp in _typeMap.keys){
+      sb.writeln("${exp}: ${_typeMap[exp]}");
+    }
+    
+    return sb.toString();
+  }
+}
+
 
 class TypeVariable {
-  Set<AbstractType> types = new Set<AbstractType>();
+  List<AbstractType> types = <AbstractType>[];
   
   List<Function> event_listeners = <Function>[];
+  bool _changed = false;
   
   void add(AbstractType t) {
     //TODO (jln) If the type added is a free-type check if there already exists a free type and merge them. 
-    if (types.add(t)) trigger(t);
+    if (!types.contains(t)) {
+      _changed = true;
+      types.add(t);
+      trigger(t);
+      _changed = false;
+    }
   }
   
   Function notify(void f(TypeVariable, AbstractType)) {
     event_listeners.add(f);
-    for (AbstractType type in types)
-      f(this, type);
+    
+    bool reset;
+    do {
+      reset = false;
+      for(var i= 0; i < types.length; i++){
+          if (_changed) {
+            reset = true;
+            break;
+          } else 
+            f(this, types[i]);
+      }
+    } while(reset);
     return (() => event_listeners.remove(f));
   }
   
@@ -284,46 +368,6 @@ class TypeVariable {
   TypeVariable();
   
   String toString() => types.toString();
-}
-
-class TypeMap {
-  Map<Expression, TypeVariable> _typeMap = <Expression, TypeVariable>{};
-  Map<Identifier, TypeVariable> _getters = <Identifier, TypeVariable>{};
-  Map<Identifier, TypeVariable> _setters = <Identifier, TypeVariable>{};
-  
-  TypeVariable operator [](Expression e) => (containsKey(e) ? _typeMap[e] : addEmpty(e));
-  
-  bool containsKey(Expression e) => _typeMap.containsKey(e);
-  TypeVariable addEmpty(Expression e) => _typeMap[e] = new TypeVariable();
-  TypeVariable add(Expression e, TypeVariable type) => _typeMap[e] = type;
-  
-  void operator []=(Expression e, AbstractType t) {
-    if (!_typeMap.containsKey(e))
-      _typeMap[e] = new TypeVariable();
-    _typeMap[e].add(t);
-  }
-  
-  TypeVariable setter(Identifier i) {
-    if (!_setters.containsKey(i))
-      _setters[i] = new TypeVariable();
-    return _setters[i];
-  }
-  
-  TypeVariable getter(Identifier i) {
-    if (!_getters.containsKey(i))
-      _getters[i] = new TypeVariable();
-    return _getters[i];
-  }
-  
-  String toString() {
-    StringBuffer sb = new StringBuffer();
-    
-    for(Expression exp in _typeMap.keys){
-      sb.writeln("${exp}: ${_typeMap[exp]}");
-    }
-    
-    return sb.toString();
-  }
 }
 
 
@@ -384,6 +428,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor {
       
       // [v] \subseteq [get:v]
       getNameType.notify((TypeVariable getNameType, AbstractType alpha) => nodeType.add(alpha));
+      nodeType.notify((TypeVariable nodeType, AbstractType alpha) => getNameType.add(alpha));
       
       // \forall \alpha \in [get:v] => (\alpha -> void) \in [set:v]
       getNameType.notify((TypeVariable getNameType, AbstractType alpha) => setNameType.add(new FunctionType(<AbstractType>[alpha], new VoidType())));
