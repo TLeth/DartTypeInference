@@ -58,11 +58,11 @@ class ElementTyper {
   AbstractType typeClassElement(ClassElement element){
     if (types.containsKey(element.ast))
       return types[element.ast];
-    return types[element.ast] = new NominalType(element, constraintAnalysis);
+    return types[element.ast] = new NominalType(element);
   }
   
   AbstractType resolveType(TypeName type, LibraryElement library, SourceElement source){
-    return new NominalType(elementAnalysis.resolveClassElement(type.name.toString(), library, source), constraintAnalysis);
+    return new NominalType(elementAnalysis.resolveClassElement(type.name.toString(), library, source));
   }
   
   ParameterTypes resolveParameters(FormalParameterList paramList, LibraryElement library, SourceElement source){
@@ -208,10 +208,9 @@ class FunctionType extends AbstractType {
 class NominalType extends AbstractType {
   
   ClassElement element;
-  ConstraintAnalysis constraintAnalysis;
     
   
-  NominalType(ClassElement this.element, ConstraintAnalysis this.constraintAnalysis);
+  NominalType(ClassElement this.element);
  
   
   String toString() => element.name.toString();
@@ -280,7 +279,7 @@ class ExpressionTypeIdentifier extends TypeIdentifier {
   
   ExpressionTypeIdentifier(Expression this.exp);
   
-  int get hashCode => exp.hashCode; 
+  int get hashCode => exp.hashCode;
 }
 
 
@@ -477,13 +476,13 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   visitIntegerLiteral(IntegerLiteral n) {
     super.visitIntegerLiteral(n);
     // {double} \subseteq [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement("int", constraintAnalysis.dartCore, source), this.constraintAnalysis));
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement("int", constraintAnalysis.dartCore, source)));
   }
   
   visitDoubleLiteral(DoubleLiteral n) {
     super.visitDoubleLiteral(n);
     // {double} \subseteq [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement("double", constraintAnalysis.dartCore, source), this.constraintAnalysis));
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement("double", constraintAnalysis.dartCore, source)));
   }
   
   visitVariableDeclaration(VariableDeclaration vd){
