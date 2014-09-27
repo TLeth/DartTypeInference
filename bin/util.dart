@@ -1,11 +1,20 @@
 library typanalysis.util;
 
+
 class MapUtil {
   
   static dynamic fold(Map map, dynamic initial, dynamic func(dynamic acc, k, v) ) {
     dynamic res = initial;
     map.forEach((k,v) => res = func(res, k, v));
     return res;
+  }
+  
+  static void listAdd(Map map, k, e) {
+    if (map.contains(k)) {
+      map[k].add(e);
+    } else {
+      map[k] = [e];
+    }
   }
 
   static Map mapKeys(Map map, f(k)) {
