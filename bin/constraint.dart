@@ -74,7 +74,7 @@ class ElementTyper {
     NodeList<FormalParameter> params = paramList.parameters;
     
     for(FormalParameter param in params){
-      NormalFormalParameter normalParam; 
+      var normalParam; 
       if (param is NormalFormalParameter) normalParam = param;
       else if (param is DefaultFormalParameter) normalParam = param.parameter;
       
