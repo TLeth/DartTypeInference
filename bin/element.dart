@@ -3,6 +3,7 @@ library typeanalysis.element;
 import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/sdk.dart';
+import 'package:analyzer/src/generated/scanner.dart';
 import 'engine.dart';
 import 'resolver.dart';
 import 'util.dart';
@@ -67,6 +68,7 @@ class Name {
   
   Name(String this._name);
   factory Name.FromIdentifier(Identifier name) => new Name(name.toString());
+  factory Name.FromToken(Token name) => new Name(name.toString());
   
   bool get isPrivate => Identifier.isPrivateName(_name);
   String get name => _name;

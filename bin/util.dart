@@ -1,17 +1,5 @@
 library typanalysis.util;
 
-class SetUtil {
-  static String join(Set xs, String delim) {
-    
-    String res;
-    
-    res = s.fold("", (a, x) => a + x.toString() + delim);
-    res = res.substring(0, 1 + res.length - delim.length);
-    
-    return res;
-  }
-}
-
 class MapUtil {
   
   static dynamic fold(Map map, dynamic initial, dynamic func(dynamic acc, k, v) ) {
@@ -56,6 +44,15 @@ class MapUtil {
     }
     return true;
   }
+  
+  static String join(Map map, String delim) {
+    
+    String res;
+    
+    res = MapUtil.fold(map, "", (acc, k, v) => acc + "${k}: ${v}" + delim);
+    res = res.substring(0, res.length - delim.length);
+    return res;
+  }
 
   static Map union(Map a, Map b) {
     Map res = {};
@@ -84,6 +81,16 @@ class ListUtil {
   static List union(Iterable a, Iterable b) {
     List res = new List.from(a);
     res.addAll(b);
+    return res;
+  }
+  
+  static String join(Iterable xs, String delim) {
+    
+    String res;
+    
+    res = xs.fold("", (a, x) => a + x.toString() + delim);
+    res = res.substring(0, res.length - delim.length);
+    
     return res;
   }
   

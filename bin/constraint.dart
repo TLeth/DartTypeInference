@@ -159,20 +159,23 @@ class FunctionType extends AbstractType {
   }
 
   String toString() {
-    String res = "(";
-    res = normalParameterTypes.fold(res, (String res, AbstractType type) => res + "${type} -> ");
+    StringBuffer sb = new StringBuffer();
+    sb.write("(");
+    sb.write(ListUtil.join(normalParameterTypes, " -> "));
 
     if (optionalParameterTypes.length > 0){
-      optionalParameterTypes.fold(res + "[", (String res, AbstractType type) => res + "${type} -> ");
-      res = res.substring(0, res.length - 4) + "] -> ";
+      sb.write("[");
+      sb.write(ListUtil.join(optionalParameterTypes, " -> "));
+      sb.write("]");
     }
 
     if (namedParameterTypes.length > 0){
-      MapUtil.fold(namedParameterTypes, res + "{", (String res, Name ident, AbstractType type) => res + "${ident}: ${type} -> ");
-      res = res.substring(0, res.length - 4) + "} -> "; 
+      sb.write("{");
+      MapUtil.join(namedParameterTypes, " -> ");
+      sb.write("}");
     }
-
-    return res + "${returnType})";
+    sb.write(" -> ${returnType})");
+    return sb.toString();
   }
   
   int get hashCode {
@@ -229,17 +232,7 @@ class UnionType extends AbstractType {
     this.types.addAll(types);
   }
   
-  String toString() {
-    StringBuffer sb = new StringBuffer();
-    sb.write("{");
-    var i = 0;
-    types.forEach((AbstractType t) {
-      sb.write("${i > 0 ? " + " : ""}${t}");
-      i++;
-    });
-    sb.write("}");    
-    return sb.toString();
-  }
+  String toString() => "{${ListUtil.join(types, " + ")}}";
   
   bool operator ==(Object other) => other is UnionType && other.types == this.types;
 }
@@ -256,7 +249,7 @@ class VoidType extends AbstractType {
 }
 
 class ConstraintAnalysis {
-  Map<Source, TypeMap> typeMap = <Source, TypeMap>{};
+  TypeMap typeMap;
   
 
   LibraryElement get dartCore => elementAnalysis.dartCore;
@@ -266,11 +259,20 @@ class ConstraintAnalysis {
   
   ConstraintAnalysis(Engine this.engine, ElementAnalysis this.elementAnalysis) {
     elementTyper = new ElementTyper(this); 
+    typeMap = new TypeMap();
   }
 }
 
 /************ TypeIdentifiers *********************/
-abstract class TypeIdentifier {}
+abstract class TypeIdentifier {  
+  static TypeIdentifier ConvertToTypeIdentifier(dynamic ident) {
+    if (ident is TypeIdentifier)
+      return ident;
+    else if (ident is Expression)
+      return new ExpressionTypeIdentifier(ident);
+    return null;
+  }
+}
 
 
 class ExpressionTypeIdentifier extends TypeIdentifier {
@@ -291,23 +293,45 @@ class AbstractTypeIdentifier extends TypeIdentifier {
   int get hashCode => type.hashCode + 31 * name.hashCode;
 }
 
+class SetTypeIdentifier extends TypeIdentifier {
+  TypeIdentifier ident;
+  
+  SetTypeIdentifier(TypeIdentifier this.ident);
+  
+  int get hashCode => ident.hashCode * 37;
+}
+
 
 /************* Type maps ********************/
 class TypeMap {
   Map<TypeIdentifier, TypeVariable> _typeMap = <TypeIdentifier, TypeVariable>{};
   
-  TypeVariable operator [](TypeIdentifier ident) => (containsKey(ident) ? _typeMap[ident] : addEmpty(ident));
+  TypeVariable getter(dynamic i) {
+    TypeIdentifier ident = TypeIdentifier.ConvertToTypeIdentifier(i);
+    return (containsKey(ident) ? _typeMap[ident] : addEmpty(ident));
+  }
+  
+  TypeVariable setter(dynamic i) {
+    TypeIdentifier ident = new SetTypeIdentifier(TypeIdentifier.ConvertToTypeIdentifier(i));
+    return (containsKey(ident) ? _typeMap[ident] : addEmpty(ident));
+  }
+  
+  TypeVariable operator [](TypeIdentifier ident) => _typeMap[ident];
+  
+  Iterable<TypeIdentifier> get keys => _typeMap.keys;
   
   bool containsKey(TypeIdentifier ident) => _typeMap.containsKey(ident);
-  TypeVariable addEmpty(TypeIdentifier ident) => _typeMap[ident] = new TypeVariable();
+  TypeVariable addEmpty(TypeIdentifier ident) => _typeMap[ident] = new TypeVariable();  
   
-  void operator []=(TypeIdentifier ident, AbstractType t) {
+  void put(dynamic i, AbstractType t){
+    TypeIdentifier ident = TypeIdentifier.ConvertToTypeIdentifier(i);
     if (!_typeMap.containsKey(ident))
       _typeMap[ident] = new TypeVariable();
     _typeMap[ident].add(t);
   }
   
   String toString() {
+    [new ExpressionTypeIdentifier(null)];
     StringBuffer sb = new StringBuffer();
     
     for(Expression exp in _typeMap.keys){
@@ -318,46 +342,61 @@ class TypeMap {
   }
 }
 
+typedef bool FilterFunc(AbstractType);
+typedef dynamic NotifyFunc(AbstractType);
 
 class TypeVariable {
-  List<AbstractType> types = <AbstractType>[];
+  Set<AbstractType> _types = new Set<AbstractType>();
   
-  List<Function> event_listeners = <Function>[];
+  List<Function> _event_listeners = <Function>[];
+  Map<Function,Function> _filters = <Function, Function>{};
+  
   bool _changed = false;
   
   void add(AbstractType t) {
     //TODO (jln) If the type added is a free-type check if there already exists a free type and merge them. 
-    if (!types.contains(t)) {
+    if (!_types.add(t)) {
       _changed = true;
-      types.add(t);
       trigger(t);
       _changed = false;
     }
   }
   
-  Function notify(void f(TypeVariable, AbstractType)) {
-    event_listeners.add(f);
+  Function notify(NotifyFunc func, [FilterFunc filter = null]) {
+    if (_event_listeners.contains(func))
+      return (() => this.remove(func));
+    
+    _event_listeners.add(func);
+    _filters[func] = filter;
     
     bool reset;
     do {
       reset = false;
-      for(var i= 0; i < types.length; i++){
-          if (_changed) {
-            reset = true;
-            break;
-          } else 
-            f(this, types[i]);
-      }
+      for(AbstractType type in _types){
+        if (_changed){
+          reset = true;
+          break;
+        }
+        
+        if (filter == null || filter(type))
+          func(type);
+      }       
     } while(reset);
-    return (() => event_listeners.remove(f));
+    return (() => this.remove(func));
   }
   
-  void trigger(AbstractType t){
-    for(Function f in event_listeners)
-      f(this, t);
+  bool remove(void func(AbstractType)){
+    _filters.remove(func);
+    return _event_listeners.remove(func);
   }
   
-  bool has_listener(void f(TypeVariable, AbstractType)) => event_listeners.contains(f);
+  void trigger(AbstractType type){
+    for(Function func in _event_listeners)
+      if (_filters[func] == null || _filters[func](type))
+        func(type);
+  }
+  
+  bool has_listener(void f(TypeVariable, AbstractType)) => _event_listeners.contains(f);
       
   factory TypeVariable.With(AbstractType type) {
     TypeVariable t = new TypeVariable();
@@ -367,7 +406,37 @@ class TypeVariable {
   
   TypeVariable();
   
-  String toString() => types.toString();
+  String toString() => "{${ListUtil.join(_types, ", ")}}";
+}
+
+
+
+abstract class ConstraintHelper {
+  TypeIdentifier _lastTypeIdentifier = null;
+  FilterFunc _lastWhere = null;
+  
+  TypeMap get types;
+  
+  ConstraintHelper foreach(dynamic ident) {
+    _lastTypeIdentifier = TypeIdentifier.ConvertToTypeIdentifier(ident);
+    return this;
+  }
+  
+  ConstraintHelper where(FilterFunc func){
+    _lastWhere = func;
+    return this;
+  }
+  
+  void update(NotifyFunc func){
+    if (_lastTypeIdentifier != null){
+      TypeIdentifier identifier = _lastTypeIdentifier;
+      FilterFunc filter = _lastWhere;
+      
+      _lastTypeIdentifier = null;
+      _lastWhere = null;
+      types.getter(identifier).notify(func, filter);
+    }
+  }
 }
 
 
@@ -379,14 +448,15 @@ class ConstraintGenerator {
   ConstraintGenerator(ConstraintAnalysis this.constraintAnalysis) {
     elementAnalysis.sources.values.forEach((SourceElement source) {
       ConstraintGeneratorVisitor constraintVisitor = new ConstraintGeneratorVisitor(source, this.constraintAnalysis);
-      constraintAnalysis.typeMap[ source.source ] = constraintVisitor.types;
     });
   }
 }
 
-class ConstraintGeneratorVisitor extends GeneralizingAstVisitor {
+class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintHelper {
   
-  TypeMap types = new TypeMap();
+  TypeMap get types => constraintAnalysis.typeMap;
+  
+  bool operator [](TypeIdentifier e) => true; 
   
   SourceElement source;
   ConstraintAnalysis constraintAnalysis;
@@ -406,14 +476,14 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor {
   
   visitIntegerLiteral(IntegerLiteral n) {
     super.visitIntegerLiteral(n);
-// {double} \subseteq [n]
-    types[n] = new NominalType(elementAnalysis.resolveClassElement("int", constraintAnalysis.dartCore, source), this.constraintAnalysis);
+    // {double} \subseteq [n]
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement("int", constraintAnalysis.dartCore, source), this.constraintAnalysis));
   }
   
   visitDoubleLiteral(DoubleLiteral n) {
     super.visitDoubleLiteral(n);
     // {double} \subseteq [n]
-    types[n] = new NominalType(elementAnalysis.resolveClassElement("double", constraintAnalysis.dartCore, source), this.constraintAnalysis);
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement("double", constraintAnalysis.dartCore, source), this.constraintAnalysis));
   }
   
   visitVariableDeclaration(VariableDeclaration vd){
@@ -422,25 +492,23 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor {
     Expression name = _normalizeIdentifiers(vd.name);
     
     if ((name is Identifier)){
-      TypeVariable nodeType = types[name];
-      TypeVariable setNameType = types.setter(name);
-      TypeVariable getNameType = types.getter(name);
+      TypeIdentifier vGet = new ExpressionTypeIdentifier(name);
+      TypeIdentifier vSet = new SetTypeIdentifier(vGet);
       
-      // [v] \subseteq [get:v]
-      getNameType.notify((TypeVariable getNameType, AbstractType alpha) => nodeType.add(alpha));
-      nodeType.notify((TypeVariable nodeType, AbstractType alpha) => getNameType.add(alpha));
-      
-      // \forall \alpha \in [get:v] => (\alpha -> void) \in [set:v]
-      getNameType.notify((TypeVariable getNameType, AbstractType alpha) => setNameType.add(new FunctionType(<AbstractType>[alpha], new VoidType())));
-      
-      // \forall (\alpha -> void) \in [set:v] => \alpha \in [get:v] 
-      setNameType.notify((TypeVariable setNameType, AbstractType func) => 
-          (FunctionType.FunctionMatch(func, 1, new VoidType()) && func is FunctionType ? getNameType.add(func.normalParameterTypes[0]) : null));
-      
+      // \forall \alpha \in [v] => (\alpha -> void) \in [v]=
+      foreach(vGet).update((AbstractType alpha) => 
+          types.put(vSet, new FunctionType(<AbstractType>[alpha], new VoidType())));
+
+      // \forall (\alpha -> void) \in [v]= => \alpha \in [v]
+      foreach(vSet)
+        .where((AbstractType func) => FunctionType.FunctionMatch(func, 1, new VoidType()))
+        .update((AbstractType func){
+          if (func is FunctionType)
+            types.put(vGet, func.normalParameterTypes[0]);
+      });
     } else {
       //TODO (jln): assigment to a non identifier on left hand side.
     }
-    
 
     // v = exp;
     _assignmentExpression(vd.name, vd.initializer);
@@ -450,13 +518,16 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor {
     // v = exp;
     leftHandSide = _normalizeIdentifiers(leftHandSide);
     rightHandSide = _normalizeIdentifiers(rightHandSide);
-     
-    TypeVariable rightType = types[rightHandSide];
+    
+    TypeIdentifier vGet = new ExpressionTypeIdentifier(leftHandSide);
+    TypeIdentifier vSet = new SetTypeIdentifier(vGet);
+    TypeIdentifier expGet = new ExpressionTypeIdentifier(rightHandSide);
     
     if (leftHandSide is Identifier){
-      // \forall \alpha \in {exp} => (\alpha -> void) \in {set:v}
-      TypeVariable setLeftType = types.setter(leftHandSide);
-      rightType.notify((TypeVariable rightType, AbstractType alpha) => setLeftType.add(new FunctionType(<AbstractType>[alpha], new VoidType())));
+      // \forall \alpha \in [exp] => (\alpha -> void) \in [v]=
+      foreach(expGet)
+        .update((AbstractType alpha) =>
+            types.put(vSet, new FunctionType(<AbstractType>[alpha], new VoidType())));
     } else {
       //TODO (jln): assigment to a non identifier on left hand side.
     }
@@ -468,39 +539,43 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor {
     // v = exp;
     _assignmentExpression(node.leftHandSide, node.rightHandSide);
     
-    // {exp} \subseteq {v = exp}
-    Expression rightHandSide = _normalizeIdentifiers(node.rightHandSide);
-    TypeVariable rightType = types[rightHandSide];
     
-    TypeVariable nodeType = types[node];
-    rightType.notify((TypeVariable rightType, AbstractType alpha) => nodeType.add(alpha));
+    Expression rightHandSide = _normalizeIdentifiers(node.rightHandSide);
+    
+    TypeIdentifier expGet = new ExpressionTypeIdentifier(rightHandSide);
+    TypeIdentifier nodeGet = new ExpressionTypeIdentifier(node);
+    
+    // [exp] \subseteq [v = exp]
+    foreach(expGet).update((AbstractType alpha) =>
+        types.put(nodeGet, alpha));
   }
   
   visitBinaryExpression(BinaryExpression be) {
     super.visitBinaryExpression(be);
     
-    
+    // exp1 op exp2
     Expression leftOperand = _normalizeIdentifiers(be.leftOperand);
     Expression rightOperand = _normalizeIdentifiers(be.rightOperand);
     
-    // exp1 op exp2
-    TypeVariable leftType = types[leftOperand];
-    TypeVariable rightType = types[rightOperand];
-    TypeVariable nodeType = types[be];
+
+    TypeIdentifier leftGet = new ExpressionTypeIdentifier(leftOperand);
+    TypeIdentifier rightGet = new ExpressionTypeIdentifier(rightOperand);
+    TypeIdentifier nodeGet = new ExpressionTypeIdentifier(be);
     
 
-    // \forall \gamma \in [exp1], \forall \alpha, \beta \in [ \gamma .op ] => \alpha \in [exp2] && \beta \in [exp1 op exp2].
-    var onUpdate;
-    onUpdate = (TypeVariable propType, AbstractType func) {
-      if (func is FunctionType && FunctionType.FunctionMatch(func, 1)) {
-        rightType.add(func.normalParameterTypes[0]);
-        nodeType.add(func.returnType);
-      }
-    };
-    
-    leftType.notify((TypeVariable leftType, AbstractType type) {
-      TypeVariable propType = type.property(be.operator.toString());
-      if (!propType.has_listener(onUpdate)) propType.notify(onUpdate);
+    //  \forall \gamma \in [exp1], 
+    //  \forall (\alpha -> \beta) \in [ \gamma .op ] => 
+    //      \alpha \in [exp2] && \beta \in [exp1 op exp2].
+    foreach(leftGet).update((AbstractType gamma) {
+      TypeIdentifier gammaOpGet = new AbstractTypeIdentifier(gamma, new Name.FromToken(be.operator));
+      foreach(gammaOpGet)
+      .where((AbstractType func) => FunctionType.FunctionMatch(func, 1))
+      .update((AbstractType func){
+        if (func is FunctionType){
+          types.put(rightGet, func.normalParameterTypes[0]);
+          types.put(nodeGet, func.returnType);
+        }            
+      });
     });
   }
 }
