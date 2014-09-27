@@ -1,5 +1,17 @@
 library typanalysis.util;
 
+class SetUtil {
+  static String join(Set xs, String delim) {
+    
+    String res;
+    
+    res = s.fold("", (a, x) => a + x.toString() + delim);
+    res = res.substring(0, 1 + res.length - delim.length);
+    
+    return res;
+  }
+}
+
 class MapUtil {
   
   static dynamic fold(Map map, dynamic initial, dynamic func(dynamic acc, k, v) ) {
