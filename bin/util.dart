@@ -10,7 +10,7 @@ class MapUtil {
   }
   
   static void listAdd(Map map, k, e) {
-    if (map.contains(k)) {
+    if (map.containsKey(k)) {
       map[k].add(e);
     } else {
       map[k] = [e];
