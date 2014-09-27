@@ -258,7 +258,7 @@ class ConstraintAnalysis {
   
   ConstraintAnalysis(Engine this.engine, ElementAnalysis this.elementAnalysis) {
     elementTyper = new ElementTyper(this); 
-    typeMap = new TypeMap();
+    typeMap = new TypeMap(this);
   }
 }
 
@@ -271,6 +271,10 @@ abstract class TypeIdentifier {
       return new ExpressionTypeIdentifier(ident);
     return null;
   }
+  
+  bool get isPropertyLookup => false;
+  Name get propertyIdentifierName => null;
+  AbstractType get propertyIdentifierType => null;
 }
 
 
@@ -280,24 +284,39 @@ class ExpressionTypeIdentifier extends TypeIdentifier {
   ExpressionTypeIdentifier(Expression this.exp);
   
   int get hashCode => exp.hashCode;
+  
+  String toString() => exp.toString(); 
+  
+  bool operator ==(Object other) => other is ExpressionTypeIdentifier && other.exp == exp;
 }
 
 
-class AbstractTypeIdentifier extends TypeIdentifier {
-  AbstractType type;
-  Name name;
+class PropertyTypeIdentifier extends TypeIdentifier {
+  AbstractType _type;
+  Name _name;
   
-  AbstractTypeIdentifier(AbstractType this.type, Name this.name);
+  PropertyTypeIdentifier(AbstractType this._type, Name this._name);
   
-  int get hashCode => type.hashCode + 31 * name.hashCode;
+  int get hashCode => _type.hashCode + 31 * _name.hashCode;
+  
+  bool operator ==(Object other) => other is PropertyTypeIdentifier && other._type == _type && other._name == _name;
+  bool get isPropertyLookup => true;
+  Name get propertyIdentifierName => _name;
+  AbstractType get propertyIdentifierType => _type;
 }
 
-class SetTypeIdentifier extends TypeIdentifier {
+class SetterTypeIdentifier extends TypeIdentifier {
   TypeIdentifier ident;
   
-  SetTypeIdentifier(TypeIdentifier this.ident);
+  SetterTypeIdentifier(TypeIdentifier this.ident);
   
   int get hashCode => ident.hashCode * 37;
+  
+  bool operator ==(Object other) => other is SetterTypeIdentifier && other.ident == ident;
+  bool get isPropertyLookup => ident.isPropertyLookup;
+  //TODO (jln): Should this not add "=" to the name.
+  Name get propertyIdentifierName => ident.propertyIdentifierName;
+  AbstractType get propertyIdentifierType => ident.propertyIdentifierType;
 }
 
 
@@ -305,14 +324,35 @@ class SetTypeIdentifier extends TypeIdentifier {
 class TypeMap {
   Map<TypeIdentifier, TypeVariable> _typeMap = <TypeIdentifier, TypeVariable>{};
   
+  ConstraintAnalysis constraintAnalysis;
+  
+  TypeMap(ConstraintAnalysis this.constraintAnalysis);
+  
+  TypeVariable _lookup(TypeIdentifier ident){
+    if (containsKey(ident))
+      return _typeMap[ident];
+    
+    _typeMap[ident] = new TypeVariable();
+    if (!ident.isPropertyLookup || !(ident.propertyIdentifierType is NominalType))
+      return _typeMap[ident];
+    
+    NominalType type = ident.propertyIdentifierType;
+    ClassMember member = type.element.lookup(ident.propertyIdentifierName);
+    
+    if (member != null)
+      _typeMap[ident].add(constraintAnalysis.elementTyper.typeClassMember(member, type.element.sourceElement.library));
+    
+    return _typeMap[ident];
+  }
+  
   TypeVariable getter(dynamic i) {
     TypeIdentifier ident = TypeIdentifier.ConvertToTypeIdentifier(i);
-    return (containsKey(ident) ? _typeMap[ident] : addEmpty(ident));
+    return _lookup(ident);
   }
   
   TypeVariable setter(dynamic i) {
-    TypeIdentifier ident = new SetTypeIdentifier(TypeIdentifier.ConvertToTypeIdentifier(i));
-    return (containsKey(ident) ? _typeMap[ident] : addEmpty(ident));
+    TypeIdentifier ident = new SetterTypeIdentifier(TypeIdentifier.ConvertToTypeIdentifier(i));
+    return _lookup(ident);
   }
   
   TypeVariable operator [](TypeIdentifier ident) => _typeMap[ident];
@@ -320,7 +360,7 @@ class TypeMap {
   Iterable<TypeIdentifier> get keys => _typeMap.keys;
   
   bool containsKey(TypeIdentifier ident) => _typeMap.containsKey(ident);
-  TypeVariable addEmpty(TypeIdentifier ident) => _typeMap[ident] = new TypeVariable();  
+  //TypeVariable addEmpty(TypeIdentifier ident) => _typeMap[ident] = new TypeVariable();  
   
   void put(dynamic i, AbstractType t){
     TypeIdentifier ident = TypeIdentifier.ConvertToTypeIdentifier(i);
@@ -347,14 +387,14 @@ typedef dynamic NotifyFunc(AbstractType);
 class TypeVariable {
   Set<AbstractType> _types = new Set<AbstractType>();
   
-  List<Function> _event_listeners = <Function>[];
-  Map<Function,Function> _filters = <Function, Function>{};
+  List<NotifyFunc> _event_listeners = <NotifyFunc>[];
+  Map<NotifyFunc,FilterFunc> _filters = <NotifyFunc, FilterFunc>{};
   
   bool _changed = false;
   
   void add(AbstractType t) {
-    //TODO (jln) If the type added is a free-type check if there already exists a free type and merge them. 
-    if (!_types.add(t)) {
+    //TODO (jln) If the type added is a free-type check if there already exists a free type and merge them.
+    if (_types.add(t)) {
       _changed = true;
       trigger(t);
       _changed = false;
@@ -390,9 +430,10 @@ class TypeVariable {
   }
   
   void trigger(AbstractType type){
-    for(Function func in _event_listeners)
+    for(NotifyFunc func in _event_listeners){
       if (_filters[func] == null || _filters[func](type))
         func(type);
+    }
   }
   
   bool has_listener(void f(TypeVariable, AbstractType)) => _event_listeners.contains(f);
@@ -475,7 +516,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   
   visitIntegerLiteral(IntegerLiteral n) {
     super.visitIntegerLiteral(n);
-    // {double} \subseteq [n]
+    // {int} \subseteq [n]
     types.put(n, new NominalType(elementAnalysis.resolveClassElement("int", constraintAnalysis.dartCore, source)));
   }
   
@@ -492,7 +533,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     
     if ((name is Identifier)){
       TypeIdentifier vGet = new ExpressionTypeIdentifier(name);
-      TypeIdentifier vSet = new SetTypeIdentifier(vGet);
+      TypeIdentifier vSet = new SetterTypeIdentifier(vGet);
       
       // \forall \alpha \in [v] => (\alpha -> void) \in [v]=
       foreach(vGet).update((AbstractType alpha) => 
@@ -500,7 +541,8 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
 
       // \forall (\alpha -> void) \in [v]= => \alpha \in [v]
       foreach(vSet)
-        .where((AbstractType func) => FunctionType.FunctionMatch(func, 1, new VoidType()))
+        .where((AbstractType func) {
+        return FunctionType.FunctionMatch(func, 1, new VoidType()); })
         .update((AbstractType func){
           if (func is FunctionType)
             types.put(vGet, func.normalParameterTypes[0]);
@@ -519,14 +561,16 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     rightHandSide = _normalizeIdentifiers(rightHandSide);
     
     TypeIdentifier vGet = new ExpressionTypeIdentifier(leftHandSide);
-    TypeIdentifier vSet = new SetTypeIdentifier(vGet);
+    TypeIdentifier vSet = new SetterTypeIdentifier(vGet);
     TypeIdentifier expGet = new ExpressionTypeIdentifier(rightHandSide);
     
     if (leftHandSide is Identifier){
       // \forall \alpha \in [exp] => (\alpha -> void) \in [v]=
       foreach(expGet)
-        .update((AbstractType alpha) =>
-            types.put(vSet, new FunctionType(<AbstractType>[alpha], new VoidType())));
+        .update((AbstractType alpha) {
+            types.put(vSet, new FunctionType(<AbstractType>[alpha], new VoidType()));
+            
+      });
     } else {
       //TODO (jln): assigment to a non identifier on left hand side.
     }
@@ -566,7 +610,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     //  \forall (\alpha -> \beta) \in [ \gamma .op ] => 
     //      \alpha \in [exp2] && \beta \in [exp1 op exp2].
     foreach(leftGet).update((AbstractType gamma) {
-      TypeIdentifier gammaOpGet = new AbstractTypeIdentifier(gamma, new Name.FromToken(be.operator));
+      TypeIdentifier gammaOpGet = new PropertyTypeIdentifier(gamma, new Name.FromToken(be.operator));
       foreach(gammaOpGet)
       .where((AbstractType func) => FunctionType.FunctionMatch(func, 1))
       .update((AbstractType func){

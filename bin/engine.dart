@@ -209,9 +209,7 @@ class Engine {
   _makeConstraintAnalysis(){
     _constraintAnalysis = new ConstraintAnalysis(this, _elementAnalysis);
     new ConstraintGenerator(_constraintAnalysis);
-    print(_constraintAnalysis.typeMap[_entrySource]);
-    /*new SubstitutionGenerator(this, _constraintAnalysis);
-    print(_constraintAnalysis.substitutions[_entrySource]);*/
+    new PrintConstraintVisitor(_constraintAnalysis, _entrySource);
   }
   
   /*

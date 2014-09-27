@@ -1,6 +1,8 @@
 library typeanalysis.printer;
 
 import 'package:analyzer/src/generated/ast.dart';
+import 'package:analyzer/src/generated/source.dart';
+import 'constraint.dart';
 import 'element.dart' as analysis;
 
 class PrintElementVisitor extends analysis.RecursiveElementVisitor {
@@ -1016,4 +1018,72 @@ class PrintLibraryVisitor extends analysis.RecursiveElementVisitor {
       _ident--;
     }
   }
+}
+
+class PrintConstraintVisitor extends GeneralizingAstVisitor {
+  
+  ConstraintAnalysis constraintAnalaysis;
+  TypeMap get types => constraintAnalaysis.typeMap;
+  analysis.ElementAnalysis get elementAnalysis => constraintAnalaysis.elementAnalysis;
+  Source source = null;
+  analysis.SourceElement sourceElement;
+  
+  PrintConstraintVisitor(ConstraintAnalysis this.constraintAnalaysis, [Source this.source = null]) {
+    if (source == null){
+      elementAnalysis.sources.values.forEach((analysis.SourceElement sourceElement){
+          this.sourceElement = sourceElement;
+          this.sourceElement.ast.visitChildren(this);
+      });
+    } else {
+      this.sourceElement = elementAnalysis.sources[source];
+      this.sourceElement.ast.visitChildren(this);
+    }
+  }
+
+  Expression _normalizeIdentifiers(Expression exp){
+    if (exp is Identifier && sourceElement.resolvedIdentifiers.containsKey(exp))
+      return sourceElement.resolvedIdentifiers[exp].identifier;
+    else
+      return exp;
+  }
+  
+  visitIntegerLiteral(IntegerLiteral n) {    
+    // {int} \subseteq [n]
+    TypeIdentifier nodeTypeIdent = new ExpressionTypeIdentifier(n);
+    //print("${n} // ${types.getter(nodeTypeIdent)}, ${types.setter(nodeTypeIdent)}");
+    super.visitIntegerLiteral(n);
+  }
+  
+  visitDoubleLiteral(DoubleLiteral n) {
+    // {double} \subseteq [n]
+    TypeIdentifier nodeTypeIdent = new ExpressionTypeIdentifier(n);
+    //print("${n} // ${types.getter(nodeTypeIdent)}, ${types.setter(nodeTypeIdent)}");
+    super.visitDoubleLiteral(n);
+  }
+  
+  visitVariableDeclaration(VariableDeclaration vd){
+    // var v = exp;
+    Expression name = _normalizeIdentifiers(vd.name);
+    Expression initializer = _normalizeIdentifiers(vd.initializer);
+    TypeIdentifier vType = new ExpressionTypeIdentifier(name);
+    TypeIdentifier expTyp = new ExpressionTypeIdentifier(initializer);
+    print("${vd} // ${types.getter(vType)}, ${types.setter(vType)}");
+    super.visitVariableDeclaration(vd);
+  }
+  
+  visitAssignmentExpression(AssignmentExpression node){
+    // v = exp;
+    Expression leftHandSide = _normalizeIdentifiers(node.leftHandSide);
+    Expression rightHandSide = _normalizeIdentifiers(node.rightHandSide);
+    TypeIdentifier vType = new ExpressionTypeIdentifier(leftHandSide);
+    print("${node} // ${types.getter(vType)}, ${types.setter(vType)}");
+    super.visitAssignmentExpression(node);
+  }
+  
+  visitBinaryExpression(BinaryExpression be) {
+    super.visitBinaryExpression(be);
+  }
+  
+  
+  
 }

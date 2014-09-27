@@ -50,6 +50,8 @@ class MapUtil {
     String res;
     
     res = MapUtil.fold(map, "", (acc, k, v) => acc + "${k}: ${v}" + delim);
+    if (res.length == 0) 
+      return res;
     res = res.substring(0, res.length - delim.length);
     return res;
   }
@@ -89,8 +91,9 @@ class ListUtil {
     String res;
     
     res = xs.fold("", (a, x) => a + x.toString() + delim);
+    if (res.length == 0) 
+      return res;
     res = res.substring(0, res.length - delim.length);
-    
     return res;
   }
   
