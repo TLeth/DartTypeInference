@@ -143,7 +143,7 @@ class ScopeResolver {
   }
   
   void _makeExportLibraries(SourceElement source){
-    source.exports.forEach((Source exportSource, NamespaceDirective directive) {
+    source.exports.forEach((NamespaceDirective directive, Source exportSource) {
       SourceElement exportSourceElement = analysis.getSource(exportSource);
       new ScopeResolver(this.engine, exportSourceElement, this.analysis);
       source.library.addDependedExport(exportSourceElement.library);
@@ -151,7 +151,7 @@ class ScopeResolver {
   }
   
   void _makeImportLibraries(SourceElement source){
-    source.imports.forEach((Source importSource, NamespaceDirective directive) {
+    source.imports.forEach((NamespaceDirective directive, Source importSource) {
       SourceElement importSourceElement = analysis.getSource(importSource);
       new ScopeResolver(this.engine, importSourceElement, this.analysis);
     });
@@ -231,7 +231,7 @@ class ExportResolver {
     SourceElement source = library.source;
     
     bool exportsChange = false;
-    source.exports.forEach((Source exportSource, NamespaceDirective directive) {
+    source.exports.forEach((NamespaceDirective directive, Source exportSource) {
       SourceElement exportSourceElement = analysis.getSource(exportSource);
       LibraryElement exportLibrary = exportSourceElement.library;
       Iterable<Name> exportNames = ScopeResolver.filterCombinators(exportLibrary.exports.keys, directive.combinators);
@@ -257,60 +257,100 @@ class ExportResolver {
  * `ImportResolver` resolves the import statements.
  **/
 class ImportResolver {
-    Engine engine;
-    ElementAnalysis analysis;
-    LinkedHashSet<LibraryElement> _queue = new LinkedHashSet<LibraryElement>();
+  Engine engine;
+  ElementAnalysis analysis;
+  LinkedHashSet<LibraryElement> _queue = new LinkedHashSet<LibraryElement>();
+  
+  ImportResolver(Engine this.engine, ElementAnalysis this.analysis) {
+    analysis.sources.values.forEach((SourceElement source) {
+      if (source.library == null)
+        engine.errors.addError(new EngineError("A SourceElement ${source} was missing its library, this should not be possible in ExportResolver.", source.source, source.ast.offset, source.ast.length), true);
+      _queue.add(source.library);
+    });
     
-    ImportResolver(Engine this.engine, ElementAnalysis this.analysis) {
-      analysis.sources.values.forEach((SourceElement source) {
-        if (source.library == null)
-          engine.errors.addError(new EngineError("A SourceElement ${source} was missing its library, this should not be possible in ExportResolver.", source.source, source.ast.offset, source.ast.length), true);
-        _queue.add(source.library);
-      });
-      
-      while(!_queue.isEmpty){
-        LibraryElement library = _queue.first;
-        _queue.remove(library);
-        _createImportScope(library);
-      }
+    while(!_queue.isEmpty){
+      LibraryElement library = _queue.first;
+      _queue.remove(library);
+      _createImportScope(library);
     }
-    
-    void _createImportScope(LibraryElement library) {
-      SourceElement source = library.source;
-       
-      source.imports.forEach((Source importSource, ImportDirective directive) {
-        SourceElement importSourceElement = analysis.getSource(importSource);
-        LibraryElement importLibrary = importSourceElement.library;
-        Map<Name, Element> imports;
-        
-        //If the library is dart core library, and it is auto generated, no directive is created, in these cases just add all keys.
-        if (directive == null)
-          imports = MapUtil.filterKeys(importLibrary.exports, importLibrary.exports.keys);
-        else {
-          Iterable<Name> importNames = ScopeResolver.filterCombinators(importLibrary.exports.keys, directive.combinators);
-          //Todo hidding the getter hides also the the setter.
-          imports = MapUtil.filterKeys(importLibrary.exports, importNames);
-          imports = ScopeResolver.applyPrefix(imports, directive);
-        }
-        
-        imports.forEach((name, element) {
-          if (!library.containsDefined(name)){
-            if (element is VariableElement) {
-              if ((Name.IsSetterName(name) && !library.containsDefined(Name.GetterName(name))) ||
-                 (!Name.IsSetterName(name) && !library.containsDefined(Name.SetterName(name)))) {
-                if (!library.containsElement(name) || !library.scope[name].contains(element)) {                
-                  library.addImport(name);
-                  library.addElement(name, element);
-                }
-              }  
-            } else {  
-              if (!library.containsElement(name) || !library.scope[name].contains(element)){
+  }
+  
+  void _createImportScope(LibraryElement library) {
+    SourceElement source = library.source;
+     
+    source.imports.forEach((ImportDirective directive, Source importSource) {
+      SourceElement importSourceElement = analysis.getSource(importSource);
+      LibraryElement importLibrary = importSourceElement.library;
+      Map<Name, Element> imports;
+      
+      //If the library is dart core library, and it is auto generated, no directive is created, in these cases just add all keys.
+      if (directive == null)
+        imports = MapUtil.filterKeys(importLibrary.exports, importLibrary.exports.keys);
+      else {
+        Iterable<Name> importNames = ScopeResolver.filterCombinators(importLibrary.exports.keys, directive.combinators);
+        //Todo hidding the getter hides also the the setter.
+        imports = MapUtil.filterKeys(importLibrary.exports, importNames);
+        imports = ScopeResolver.applyPrefix(imports, directive);
+      }
+      
+      imports.forEach((name, element) {
+        if (!library.containsDefined(name)){
+          if (element is VariableElement) {
+            if ((Name.IsSetterName(name) && !library.containsDefined(Name.GetterName(name))) ||
+               (!Name.IsSetterName(name) && !library.containsDefined(Name.SetterName(name)))) {
+              if (!library.containsElement(name) || !library.scope[name].contains(element)) {                
                 library.addImport(name);
                 library.addElement(name, element);
               }
+            }  
+          } else {  
+            if (!library.containsElement(name) || !library.scope[name].contains(element)){
+              library.addImport(name);
+              library.addElement(name, element);
             }
           }
-        });
+        }
       });
+    });
+  }
+}
+
+/**
+ * `ClassHierarchyResolver` resolves the class hirarchy.
+ **/
+
+class ClassHierarchyResolver {
+  Engine engine;
+  ElementAnalysis analysis;
+  ClassElement objectClassElement; 
+  
+  ClassHierarchyResolver(Engine this.engine, ElementAnalysis this.analysis) {
+    objectClassElement = analysis.resolveClassElement("Object", analysis.dartCore, analysis.dartCore.source);
+    if (objectClassElement == null){
+      engine.errors.addError(new EngineError("`Object` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", analysis.dartCore.source.source, analysis.dartCore.source.ast.offset, analysis.dartCore.source.ast.length), true);
     }
+    
+    analysis.sources.values.forEach((SourceElement source) {
+      source.declaredClasses.values.forEach(_createClassHierarchy);
+    });
+  }
+  
+  
+  void _createClassHierarchy(ClassElement classElement){
+    SourceElement sourceElement = classElement.sourceElement;
+    LibraryElement libraryElement = sourceElement.library;
+    if (classElement.extendsElement == null){
+      //They extendsClause is empty, so instead set Object as the extendedclass (implicit setup i Dart), except if it is the Object it self.
+      if (classElement.superclass == null){
+        if (classElement != objectClassElement)
+          classElement.extendsElement = objectClassElement;
+      } else {
+        ClassElement extendClass = analysis.resolveClassElement(classElement.superclass.name.toString(), libraryElement, sourceElement);
+        if (extendClass == null)
+          engine.errors.addError(new EngineError("`${classElement.superclass.name.toString()}` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", sourceElement.source, sourceElement.ast.offset, sourceElement.ast.length), true);
+        else
+          classElement.extendsElement = extendClass;
+      }
+    }
+  }
 }

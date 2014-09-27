@@ -192,7 +192,7 @@ class Engine {
     CompilationUnit unit = this.getCompilationUnit(_entrySource);
     visitor.visitCompilationUnit(unit);
     
-    _elementAnalysis = new ElementAnalysis();
+    _elementAnalysis = new ElementAnalysis(this);
     new ElementGenerator(this, _entrySource, _elementAnalysis);
     //_elementAnalysis.accept(new PrintElementVisitor());
     new ScopeResolver(this, _elementAnalysis.getSource(_entrySource), _elementAnalysis);
@@ -201,14 +201,17 @@ class Engine {
     //_elementAnalysis.accept(new PrintLibraryVisitor(scope: true, import: true, export: true, defined: true));
     new IdentifierResolver(this, _elementAnalysis);
     //unit.accept(new PrintAstVisitor());
+    new ClassHierarchyResolver(this, _elementAnalysis);
+    //_elementAnalysis.accept(new PrintElementVisitor());
+    
   }
   
   _makeConstraintAnalysis(){
-    _constraintAnalysis = new ConstraintAnalysis();
-    new ConstraintGenerator(this, _elementAnalysis, _constraintAnalysis);
-    print(_constraintAnalysis.constraints[_entrySource]);
-    new SubstitutionGenerator(this, _constraintAnalysis);
-    print(_constraintAnalysis.substitutions[_entrySource]);
+    _constraintAnalysis = new ConstraintAnalysis(this, _elementAnalysis);
+    new ConstraintGenerator(_constraintAnalysis);
+    print(_constraintAnalysis.typeMap[_entrySource]);
+    /*new SubstitutionGenerator(this, _constraintAnalysis);
+    print(_constraintAnalysis.substitutions[_entrySource]);*/
   }
   
   /*

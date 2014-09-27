@@ -1,172 +1,186 @@
 library typeanalysis.constraints;
 
 import 'package:analyzer/src/generated/source.dart';
-import 'package:analyzer/src/generated/ast.dart';
+import 'package:analyzer/src/generated/ast.dart' hide ClassMember;
 import 'engine.dart';
+import 'package:analyzer/src/generated/utilities_dart.dart';
 import 'element.dart';
 import 'util.dart';
 
 class ConstraintAnalysis {
-  Map<Source, Constraints> constraints = <Source, Constraints>{};
-  Map<Source, Substitutions> substitutions = <Source, Substitutions>{};
+  Map<Source, TypeMap> typeMap = <Source, TypeMap>{};
+  
+
+  LibraryElement get dartCore => elementAnalysis.dartCore;
+  Engine engine;
+  ElementAnalysis elementAnalysis;
+  ElementTyper elementTyper;
+  
+  ConstraintAnalysis(Engine this.engine, ElementAnalysis this.elementAnalysis) {
+    elementTyper = new ElementTyper(this); 
+  }
+}
+
+class ParameterTypes { 
+  List<AbstractType> normalParameterTypes = <AbstractType>[];
+  List<AbstractType> optionalParameterTypes = <AbstractType>[];
+  Map<Name, AbstractType> namedParameterTypes = <Name, AbstractType>{};
+}
+
+class ElementTyper {
+  Map<AstNode, AbstractType> types = <AstNode, AbstractType>{};
+  
+  
+  ConstraintAnalysis constraintAnalysis;
+  Engine get engine => constraintAnalysis.engine;
+  ElementAnalysis get elementAnalysis => constraintAnalysis.elementAnalysis;
+  
+  ElementTyper(ConstraintAnalysis this.constraintAnalysis);
+  
+  AbstractType typeClassMember(ClassMember element, LibraryElement library){
+    if (element is MethodElement)
+      return typeMethodElement(element, library);
+    if (element is FieldElement)
+      return typeFieldElement(element, library);
+    if (element is ConstructorElement)
+      return typeConstructorElement(element, library);
+    
+    return null;
+  }
+  
+  AbstractType typeMethodElement(MethodElement element,LibraryElement library){
+    if (types.containsKey(element.ast))
+      return types[element.ast];
+    
+    return types[element.ast] = new FunctionType.FromMethodElement(element, library, this);
+  }
+  
+  AbstractType typeFieldElement(FieldElement element,LibraryElement library){
+    if (types.containsKey(element.ast))
+      return types[element.ast];
+    return types[element.ast] = resolveType(element.annotatedType, library, element.sourceElement);
+  }
+  
+  AbstractType typeConstructorElement(ConstructorElement element,LibraryElement library){
+    if (types.containsKey(element.ast))
+      return types[element.ast];
+    return types[element.ast] = new FunctionType.FromConstructorElement(element, library, this);
+  }
+  
+  AbstractType typeClassElement(ClassElement element){
+    if (types.containsKey(element.ast))
+      return types[element.ast];
+    return types[element.ast] = new NominalType(element, constraintAnalysis);
+  }
+  
+  AbstractType resolveType(TypeName type, LibraryElement library, SourceElement source){
+    return new NominalType(elementAnalysis.resolveClassElement(type.name.toString(), library, source), constraintAnalysis);
+  }
+  
+  ParameterTypes resolveParameters(FormalParameterList paramList, LibraryElement library, SourceElement source){
+    ParameterTypes types = new ParameterTypes();
+    
+    if (paramList.parameters == null || paramList.length == 0) 
+      return types;
+    
+    NodeList<FormalParameter> params = paramList.parameters;
+    
+    for(FormalParameter param in params){
+      NormalFormalParameter normalParam; 
+      if (param is NormalFormalParameter) normalParam = param;
+      else if (param is DefaultFormalParameter) normalParam = param.parameter;
+      
+      AbstractType type; 
+      if (normalParam is SimpleFormalParameter || normalParam is FieldFormalParameter) {
+        if (normalParam.type == null)
+          type = new FreeType();
+        else
+          type = this.resolveType(normalParam.type, library, source);
+      } else if (normalParam is FunctionTypedFormalParameter){
+        type = new FunctionType.FromFunctionTypedFormalParameter(normalParam, library, this, source);
+      }
+      
+      if (normalParam.kind == ParameterKind.REQUIRED)
+        types.normalParameterTypes.add(type);
+      else if (normalParam.kind == ParameterKind.POSITIONAL)
+        types.optionalParameterTypes.add(type);
+      else if (normalParam.kind == ParameterKind.REQUIRED)
+        types.namedParameterTypes[new Name.FromIdentifier(normalParam.identifier)] = type;
+    }
+    
+    return types;
+  }
 }
 
 abstract class AbstractType {
-  AbstractType replace(Expression expression, AbstractType type);
-  AbstractType addProperty(Name name, AbstractType type);
-  AbstractType union(AbstractType type);
-}
 
-class ObjectType extends AbstractType {
-  Map<Name, AbstractType> properties = <Name, AbstractType>{};
-  
-  AbstractType type;
-  
-  ObjectType(AbstractType this.type);
-  
-  AbstractType replace(Expression exp, AbstractType type) {
-    properties.keys.forEach((Name ident) => properties[ident] = properties[ident].replace(exp, type) );
-    this.type = this.type.replace(exp, type);
-    return this;
-  }
-  
-  AbstractType addProperty(Name name, AbstractType type) {
+  Map<String,TypeVariable> properties = <String,TypeVariable>{};
+  TypeVariable property(String name) {
     if (properties.containsKey(name))
-      properties[name] = properties[name].union(type);
-    else
-      properties[name] = type;
-    
-    return this;
-  }
-  
-  AbstractType union(AbstractType type) {
-    if (type == this) 
-      return this;
-    else if (type is ObjectType){
-      type.properties.forEach((Name ident, AbstractType type) {
-        if (properties.containsKey(ident))
-          properties[ident] = properties[ident].union(type);
-        else
-          properties[ident] = type;
-      });
-      this.type = this.type.union(type.type);
-    } else {
-      this.type = this.type.union(type);
-    }
-    return this;
-  }
-  
-  String toString(){
-    StringBuffer sb = new StringBuffer();
-    sb.writeln("${type}, with properties: {");
-    properties.forEach((Name ident, AbstractType type) => sb.writeln("${ident}: ${type}"));
-    sb.write("}");
-    return sb.toString();
+      return properties[name];
+    else 
+      return properties[name] = new TypeVariable();
   }
 }
 
-class UnionType extends AbstractType {
-  List<AbstractType> types;
-  
-  UnionType(List<AbstractType> this.types);
-  
-  AbstractType replace(Expression exp, AbstractType type) {
-    for (var i = 0; i < types.length; i++)
-      types[i] = types[i].replace(exp, type);
-    return this;
-  }
-  
-  AbstractType union(AbstractType type){
-    if (type == this) 
-      return this;
-    else if (type is UnionType){
-      types.addAll(type.types);
-      return this;
-    } else if (type is ObjectType) {
-      return type.union(this);
-    } else {
-      types.add(type);
-      return this;
-    }
-  }
-  
-  AbstractType addProperty(Name name, AbstractType type) {
-     AbstractType res = new ObjectType(this);
-     res.addProperty(name, type);
-     return res;
-  }
-  
-  String toString() => types.toString(); 
-}
-
-abstract class SimpleType extends AbstractType {
- 
-  AbstractType union(AbstractType type) {
-    if (type == this) 
-      return this;
-    else if (type is ObjectType)
-      return type.union(this);
-    else if (type is UnionType)
-      return type.union(this);
-    else
-      return new UnionType(<AbstractType>[this, type]);
-  }
-    
-  AbstractType addProperty(Name name, AbstractType type) {
-    AbstractType res = new ObjectType(this);
-    res.addProperty(name, type);
-    return res;
-  }
-  
-  AbstractType replace(Expression expression, AbstractType type) => this;
-}
-
-class ConcreteType extends SimpleType {
-  String type;
-  ConcreteType(String this.type);
-  
-  String toString() => type; 
-}
-
-class TypeVariable extends SimpleType {
-  Expression expression;
-  TypeVariable(this.expression);
-  
-  String toString() => "[${expression} (${expression.hashCode})]";
-  
-  AbstractType replace(Expression expression, AbstractType type) => 
-      (this.expression == expression ? type : this);
-  
-}
-
-class FreeType extends SimpleType {
-  static int _counter = 0;
+class FreeType extends AbstractType {
+  static int _countID = 0;
   
   int _typeID;
   
-  int get typeID => _typeID;
+  FreeType(): _typeID = _countID++;
   
-  FreeType() {
-    this._typeID = _counter++;
-  }
+  String toString() => "\u{03b1}${_typeID}";
   
-  String toString() => "\u{03b1}${_typeID}"; 
+  //TODO (jln): a free type is equal to any free type right? (check properties map)
+  bool operator ==(Object other) => other is FreeType;
 }
 
-class FunctionType extends SimpleType {
+//TODO (jln): The property map should maybe contain the properties of function.
+class FunctionType extends AbstractType {
   List<AbstractType> normalParameterTypes;
   List<AbstractType> optionalParameterTypes;
   Map<Name, AbstractType> namedParameterTypes;
   AbstractType returnType;
+  Map<String,TypeVariable> properties = <String,TypeVariable>{};
   
   FunctionType(List<AbstractType> this.normalParameterTypes, AbstractType this.returnType, 
               [List<AbstractType> optionalParameterTypes = null, Map<Name, AbstractType> namedParameterTypes = null ] ) :
                 this.optionalParameterTypes = (optionalParameterTypes == null ? <AbstractType>[] : optionalParameterTypes),
                 this.namedParameterTypes = (namedParameterTypes == null ? <Name, AbstractType>{} : namedParameterTypes);
   
+  
+  factory FunctionType.FromElements(TypeName returnType, FormalParameterList paramList, LibraryElement library, SourceElement sourceElement, ElementTyper typer){
+    AbstractType abstractReturnType = null;
+    if (returnType == null)
+      abstractReturnType = new FreeType();
+    else
+      abstractReturnType = typer.resolveType(returnType, library, sourceElement);
+    
+    if (paramList == null)
+      return new FunctionType(<AbstractType>[], abstractReturnType);
+    
+    
+    ParameterTypes params = typer.resolveParameters(paramList, library, sourceElement);
+    return new FunctionType(params.normalParameterTypes, abstractReturnType, params.optionalParameterTypes, params.namedParameterTypes); 
+  }
+
+  factory FunctionType.FromFunctionTypedFormalParameter(FunctionTypedFormalParameter element, LibraryElement library, ElementTyper typer, SourceElement sourceElement){
+    return new FunctionType.FromElements(element.returnType, element.parameters, library, sourceElement, typer);
+  }
+  
+  factory FunctionType.FromMethodElement(MethodElement element, LibraryElement library, ElementTyper typer){
+    return new FunctionType.FromElements(element.returnType, element.ast.parameters, library, element.sourceElement, typer);
+  }
+  
+  factory FunctionType.FromConstructorElement(ConstructorElement element, LibraryElement library, ElementTyper typer){
+    FunctionType functionType = new FunctionType.FromElements(null, element.ast.parameters, library, element.sourceElement, typer);
+    functionType.returnType = typer.typeClassElement(element.classDecl);
+    return functionType;
+  }
 
   String toString() {
-    String res = "";
+    String res = "(";
     res = normalParameterTypes.fold(res, (String res, AbstractType type) => res + "${type} -> ");
 
     if (optionalParameterTypes.length > 0){
@@ -179,118 +193,163 @@ class FunctionType extends SimpleType {
       res = res.substring(0, res.length - 4) + "} -> "; 
     }
 
-    return res + "${returnType}";
+    return res + "${returnType})";
   }
   
-  AbstractType replace(Expression exp, AbstractType type) {
-    for (var i = 0; i < normalParameterTypes.length; i++)
-      normalParameterTypes[i] = normalParameterTypes[i].replace(exp, type);
-    for (var i = 0; i < optionalParameterTypes.length; i++)
-      optionalParameterTypes[i] = optionalParameterTypes[i].replace(exp, type);
-    namedParameterTypes.keys.forEach((Name ident) => namedParameterTypes[ident] = namedParameterTypes[ident].replace(exp, type));
-    returnType = returnType.replace(exp, type);
-    return this;
-  }
+  bool operator ==(Object other) => 
+      other is FunctionType &&
+      ListUtil.equal(other.normalParameterTypes, this.normalParameterTypes) &&
+      ListUtil.equal(other.optionalParameterTypes, this.optionalParameterTypes) &&
+      this.returnType == other.returnType &&
+      MapUtil.equal(other.namedParameterTypes, this.namedParameterTypes);
+  
+  static bool FunctionMatch(AbstractType type, int normalParameters, [AbstractType returnType = null, int optionalParameters = 0, List<Name> namedParameters = null]) => 
+      type is FunctionType &&
+      (returnType == null || returnType == type.returnType) &&
+      type.normalParameterTypes.length == normalParameters &&
+      type.optionalParameterTypes.length == optionalParameters &&
+      ( (namedParameters == null && type.namedParameterTypes.isEmpty) ||
+        (namedParameters != null && ListUtil.complement(namedParameters, type.namedParameterTypes.keys).length == 0));  
 }
 
-
-abstract class Constraint {
-  Expression expression;
+class NominalType extends AbstractType {
   
-  Constraint(this.expression);
-  dynamic accept(ConstraintVisitor visitor);
-  void replace(Expression expression, AbstractType type);
-}
-
-class EqualityConstraint extends Constraint {
-  AbstractType type;
+  ClassElement element;
+  ConstraintAnalysis constraintAnalysis;
+    
   
-  EqualityConstraint(Expression expression,this.type): super(expression);
+  NominalType(ClassElement this.element, ConstraintAnalysis this.constraintAnalysis);
   
-  String toString() => "[${expression}] = ${type}";
-  
-  dynamic accept(ConstraintVisitor visitor) => visitor.visitEqualityConstraint(this);
-  
-  void replace(Expression expression, AbstractType type){ 
-    this.type = this.type.replace(expression, type);
-  }
-}
-
-class MethodConstraint extends Constraint {
-  Name method;
-  List<AbstractType> normalParameterTypes;
-  List<AbstractType> optionalParameterTypes;
-  Map<Name, AbstractType> namedParameterTypes;
-  AbstractType returnType;
-  
-  MethodConstraint(Expression expression, this.method, List<SimpleType> this.normalParameterTypes, this.returnType, [List<SimpleType> optionalParameterTypes = null, Map<Name, SimpleType> namedParameterTypes = null ] ) :
-    super(expression),
-    this.optionalParameterTypes = (optionalParameterTypes == null ? <AbstractType>[] : optionalParameterTypes),
-    this.namedParameterTypes = (namedParameterTypes == null ? <Name, AbstractType>{} : namedParameterTypes);
-  
-  String toString() => "[${expression}] contains method: '${method}', with return '${returnType}', normalParameters: ${normalParameterTypes}, optionalParameters: ${optionalParameterTypes}, namedParameters: ${namedParameterTypes}.";
-  
-  dynamic accept(ConstraintVisitor visitor) => visitor.visitMethodConstraint(this);
-  
-  void replace(Expression exp, AbstractType type) {
-    for (var i = 0; i < normalParameterTypes.length; i++)
-      normalParameterTypes[i] = normalParameterTypes[i].replace(exp, type);
-    for (var i = 0; i < optionalParameterTypes.length; i++)
-      optionalParameterTypes[i] = optionalParameterTypes[i].replace(exp, type);
-    namedParameterTypes.keys.forEach((Name ident) => namedParameterTypes[ident] = namedParameterTypes[ident].replace(exp, type));
-    returnType = returnType.replace(exp, type);
-  }
-}
-
-class Constraints {
-  List<Constraint> _constraints = <Constraint>[];
-  
-  String toString(){
-    StringBuffer sb = new StringBuffer();
-    _constraints.forEach(sb.writeln);
-    return sb.toString();  
-  }
-  
-  void add(Constraint c) => _constraints.add(c);
-  
-  
-  bool get isEmpty => _constraints.isEmpty;
-  
-  Constraint pop() {
-    Constraint constraint = null;
-    if (!isEmpty){
-      constraint = _constraints[0];
-      _constraints.remove(constraint);
+  //TODO (jln): Make lookup on the classElement first. 
+  TypeVariable property(String name) {
+    if (!properties.containsKey(name)){
+      properties[name] = new TypeVariable();
+      
+      ClassMember member = this.element.lookup(new Name(name));
+      if (member != null)
+        properties[name].add(constraintAnalysis.elementTyper.typeClassMember(member, this.element.sourceElement.library));
     }
-    return constraint;
+    return properties[name];
   }
   
-  void replace(Expression expression, AbstractType type){
-    _constraints.forEach((Constraint constraint) => constraint.replace(expression, type));
+  String toString() => element.name.toString();
+  
+  bool operator ==(Object other) => other is NominalType && other.element == this.element;
+  
+  int get hashCode => element.hashCode;
+}
+
+class VoidType extends AbstractType {
+
+  static VoidType _instance = null;
+  factory VoidType() => (_instance == null ? _instance = new VoidType._internal() : _instance);
+  
+  VoidType._internal();
+  
+  String toString() => "void";
+  bool operator ==(Object other) => other is VoidType;
+}
+
+
+class TypeVariable {
+  Set<AbstractType> types = new Set<AbstractType>();
+  
+  List<Function> event_listeners = <Function>[];
+  
+  void add(AbstractType t) {
+    //TODO (jln) If the type added is a free-type check if there already exists a free type and merge them. 
+    if (types.add(t)) trigger(t);
+  }
+  
+  Function notify(void f(TypeVariable, AbstractType)) {
+    event_listeners.add(f);
+    for (AbstractType type in types)
+      f(this, type);
+    return (() => event_listeners.remove(f));
+  }
+  
+  void trigger(AbstractType t){
+    for(Function f in event_listeners)
+      f(this, t);
+  }
+  
+  bool has_listener(void f(TypeVariable, AbstractType)) => event_listeners.contains(f);
+      
+  factory TypeVariable.With(AbstractType type) {
+    TypeVariable t = new TypeVariable();
+    t.add(type);
+    return t;
+  }
+  
+  TypeVariable();
+  
+  String toString() => types.toString();
+}
+
+class TypeMap {
+  Map<Expression, TypeVariable> _typeMap = <Expression, TypeVariable>{};
+  Map<Identifier, TypeVariable> _getters = <Identifier, TypeVariable>{};
+  Map<Identifier, TypeVariable> _setters = <Identifier, TypeVariable>{};
+  
+  TypeVariable operator [](Expression e) => (containsKey(e) ? _typeMap[e] : addEmpty(e));
+  
+  bool containsKey(Expression e) => _typeMap.containsKey(e);
+  TypeVariable addEmpty(Expression e) => _typeMap[e] = new TypeVariable();
+  TypeVariable add(Expression e, TypeVariable type) => _typeMap[e] = type;
+  
+  void operator []=(Expression e, AbstractType t) {
+    if (!_typeMap.containsKey(e))
+      _typeMap[e] = new TypeVariable();
+    _typeMap[e].add(t);
+  }
+  
+  TypeVariable setter(Identifier i) {
+    if (!_setters.containsKey(i))
+      _setters[i] = new TypeVariable();
+    return _setters[i];
+  }
+  
+  TypeVariable getter(Identifier i) {
+    if (!_getters.containsKey(i))
+      _getters[i] = new TypeVariable();
+    return _getters[i];
+  }
+  
+  String toString() {
+    StringBuffer sb = new StringBuffer();
+    
+    for(Expression exp in _typeMap.keys){
+      sb.writeln("${exp}: ${_typeMap[exp]}");
+    }
+    
+    return sb.toString();
   }
 }
+
 
 class ConstraintGenerator {
-  Engine engine;
   
-  ElementAnalysis elementAnalysis;
+  ElementAnalysis get elementAnalysis => constraintAnalysis.elementAnalysis;
   ConstraintAnalysis constraintAnalysis;
   
-  ConstraintGenerator(Engine this.engine, ElementAnalysis this.elementAnalysis, ConstraintAnalysis this.constraintAnalysis) {
+  ConstraintGenerator(ConstraintAnalysis this.constraintAnalysis) {
     elementAnalysis.sources.values.forEach((SourceElement source) {
-      ConstraintGeneratorVisitor constraintVisitor = new ConstraintGeneratorVisitor(source);
-      constraintAnalysis.constraints[ source.source ] = constraintVisitor.constraints;
+      ConstraintGeneratorVisitor constraintVisitor = new ConstraintGeneratorVisitor(source, this.constraintAnalysis);
+      constraintAnalysis.typeMap[ source.source ] = constraintVisitor.types;
     });
   }
 }
 
 class ConstraintGeneratorVisitor extends GeneralizingAstVisitor {
   
-  Constraints constraints = new Constraints();
+  TypeMap types = new TypeMap();
   
   SourceElement source;
+  ConstraintAnalysis constraintAnalysis;
+  ElementTyper get elementTyper => constraintAnalysis.elementTyper;
+  ElementAnalysis get elementAnalysis => constraintAnalysis.elementAnalysis;
   
-  ConstraintGeneratorVisitor(SourceElement this.source) {
+  ConstraintGeneratorVisitor(SourceElement this.source, ConstraintAnalysis this.constraintAnalysis) {
     source.ast.accept(this);
   }
   
@@ -303,110 +362,101 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor {
   
   visitIntegerLiteral(IntegerLiteral n) {
     super.visitIntegerLiteral(n);
-    constraints.add(new EqualityConstraint(n, new ConcreteType("int")));
+// {double} \subseteq [n]
+    types[n] = new NominalType(elementAnalysis.resolveClassElement("int", constraintAnalysis.dartCore, source), this.constraintAnalysis);
   }
   
   visitDoubleLiteral(DoubleLiteral n) {
     super.visitDoubleLiteral(n);
-    constraints.add(new EqualityConstraint(n, new ConcreteType("double")));
-  }
-  
-  visitBinaryExpression(BinaryExpression be) {
-    super.visitBinaryExpression(be);
-    Expression leftOperand = _normalizeIdentifiers(be.leftOperand);
-    Expression rightOperand = _normalizeIdentifiers(be.rightOperand);
-    AbstractType return_type = new FreeType();
-    AbstractType rightOperandType = new TypeVariable(rightOperand);
-
-    constraints.add(new EqualityConstraint(rightOperand, rightOperandType));
-    constraints.add(new MethodConstraint(leftOperand, new Name("+"), [rightOperandType], return_type));
-    constraints.add(new EqualityConstraint(be, return_type));
+    // {double} \subseteq [n]
+    types[n] = new NominalType(elementAnalysis.resolveClassElement("double", constraintAnalysis.dartCore, source), this.constraintAnalysis);
   }
   
   visitVariableDeclaration(VariableDeclaration vd){
+    // var v;
     super.visitVariableDeclaration(vd);
     Expression name = _normalizeIdentifiers(vd.name);
-    constraints.add(new EqualityConstraint(name, new TypeVariable(vd.initializer)));
+    
+    if ((name is Identifier)){
+      TypeVariable nodeType = types[name];
+      TypeVariable setNameType = types.setter(name);
+      TypeVariable getNameType = types.getter(name);
+      
+      // [v] \subseteq [get:v]
+      getNameType.notify((TypeVariable getNameType, AbstractType alpha) => nodeType.add(alpha));
+      
+      // \forall \alpha \in [get:v] => (\alpha -> void) \in [set:v]
+      getNameType.notify((TypeVariable getNameType, AbstractType alpha) => setNameType.add(new FunctionType(<AbstractType>[alpha], new VoidType())));
+      
+      // \forall (\alpha -> void) \in [set:v] => \alpha \in [get:v] 
+      setNameType.notify((TypeVariable setNameType, AbstractType func) => 
+          (FunctionType.FunctionMatch(func, 1, new VoidType()) && func is FunctionType ? getNameType.add(func.normalParameterTypes[0]) : null));
+      
+    } else {
+      //TODO (jln): assigment to a non identifier on left hand side.
+    }
+    
+
+    // v = exp;
+    _assignmentExpression(vd.name, vd.initializer);
+  }
+  
+  _assignmentExpression(Expression leftHandSide, Expression rightHandSide){
+    // v = exp;
+    leftHandSide = _normalizeIdentifiers(leftHandSide);
+    rightHandSide = _normalizeIdentifiers(rightHandSide);
+     
+    TypeVariable rightType = types[rightHandSide];
+    
+    if (leftHandSide is Identifier){
+      // \forall \alpha \in {exp} => (\alpha -> void) \in {set:v}
+      TypeVariable setLeftType = types.setter(leftHandSide);
+      rightType.notify((TypeVariable rightType, AbstractType alpha) => setLeftType.add(new FunctionType(<AbstractType>[alpha], new VoidType())));
+    } else {
+      //TODO (jln): assigment to a non identifier on left hand side.
+    }
   }
   
   visitAssignmentExpression(AssignmentExpression node){
     super.visitAssignmentExpression(node);
-    Expression leftHandSide = _normalizeIdentifiers(node.leftHandSide);
-    constraints.add(new EqualityConstraint(leftHandSide, new TypeVariable(node.rightHandSide)));
+    
+    // v = exp;
+    _assignmentExpression(node.leftHandSide, node.rightHandSide);
+    
+    // {exp} \subseteq {v = exp}
+    Expression rightHandSide = _normalizeIdentifiers(node.rightHandSide);
+    TypeVariable rightType = types[rightHandSide];
+    
+    TypeVariable nodeType = types[node];
+    rightType.notify((TypeVariable rightType, AbstractType alpha) => nodeType.add(alpha));
   }
-}
+  
+  visitBinaryExpression(BinaryExpression be) {
+    super.visitBinaryExpression(be);
+    
+    
+    Expression leftOperand = _normalizeIdentifiers(be.leftOperand);
+    Expression rightOperand = _normalizeIdentifiers(be.rightOperand);
+    
+    // exp1 op exp2
+    TypeVariable leftType = types[leftOperand];
+    TypeVariable rightType = types[rightOperand];
+    TypeVariable nodeType = types[be];
+    
 
-abstract class ConstraintVisitor<R> {
-  R visitEqualityConstraint(EqualityConstraint node);
-  R visitMethodConstraint(MethodConstraint node);
-  R visitConstraint(Constraint node) => node.accept(this);
-}
-
-class Substitutions {
-  Map<Expression, AbstractType> substitutions = <Expression, AbstractType>{};
-  
-  AbstractType operator [](Expression e) => substitutions[e];
-  void operator []=(Expression e, AbstractType type) {
-    if (substitutions.containsKey(e))
-      substitutions[e] = substitutions[e].union(type);
-    else
-      substitutions[e] = type;
-  }
-  
-  void replace(Expression expression, AbstractType type) {
-    substitutions.keys.forEach((Expression key) {
-      substitutions[key] = substitutions[key].replace(expression, type);
-    });
-  }
-  
-  void addProperty(Expression e, Name property, AbstractType type) {
-    if (!substitutions.containsKey(e))
-      substitutions[e] = new TypeVariable(e);
-    substitutions[e] = substitutions[e].addProperty(property, type);
-  }
-  
-  String toString(){
-    StringBuffer sb = new StringBuffer();
-    substitutions.forEach((Expression exp, AbstractType type) => sb.writeln("[${exp}]: $type"));
-    return sb.toString();  
-  }
-}
-
-class SubstitutionGenerator {
-  ConstraintAnalysis constraintAnalysis;
-  Engine engine;
-  
-  SubstitutionGenerator(Engine this.engine, ConstraintAnalysis this.constraintAnalysis) {
-    constraintAnalysis.constraints.keys.forEach((Source source) {
-      ConstraintSolver constraintSolver = new ConstraintSolver(constraintAnalysis.constraints[source]);
-      constraintAnalysis.substitutions[source] = constraintSolver.substitutions;
+    // \forall \gamma \in [exp1], \forall \alpha, \beta \in [ \gamma .op ] => \alpha \in [exp2] && \beta \in [exp1 op exp2].
+    var onUpdate;
+    onUpdate = (TypeVariable propType, AbstractType func) {
+      if (func is FunctionType && FunctionType.FunctionMatch(func, 1)) {
+        rightType.add(func.normalParameterTypes[0]);
+        nodeType.add(func.returnType);
+      }
+    };
+    
+    leftType.notify((TypeVariable leftType, AbstractType type) {
+      TypeVariable propType = type.property(be.operator.toString());
+      if (!propType.has_listener(onUpdate)) propType.notify(onUpdate);
     });
   }
 }
 
-class ConstraintSolver extends ConstraintVisitor {
-  Constraints queue;
-  Substitutions substitutions = new Substitutions();
-  
-  
-  ConstraintSolver(Constraints this.queue) {
-    substitutions = new Substitutions();
-    _solve();
-  }
-  
-  void _solve() {
-    while(!queue.isEmpty) 
-      queue.pop().accept(this);
-  }
-  
-  void visitEqualityConstraint(EqualityConstraint node){
-    substitutions[node.expression] = node.type;
-    queue.replace(node.expression, substitutions[node.expression]); 
-    substitutions.replace(node.expression, substitutions[node.expression]);
-  }
-  
-  void visitMethodConstraint(MethodConstraint node){
-    var method = new FunctionType(node.normalParameterTypes, node.returnType, node.optionalParameterTypes, node.namedParameterTypes);
-    substitutions.addProperty(node.expression, node.method, method);
-  }
-}

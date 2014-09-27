@@ -45,6 +45,17 @@ class MapUtil {
   static Map filterValues(Map map, Iterable values){
     return MapUtil.filter(map, (k,v) => values.contains(v));
   } 
+  
+  static bool equal(Map a, Map b) {
+    if (a == b) return true;
+    if (a == null || b == null) return false;
+    List keys = ListUtil.union(a.keys, b.keys);
+    for (var key in keys) {
+     if (!a.containsKey(key) || !b.containsKey(key) || a[key] != b[key])
+       return false;
+    }
+    return true;
+  }
 
   static Map union(Map a, Map b) {
     Map res = {};
@@ -68,6 +79,22 @@ class ListUtil {
   
   static List complement(Iterable a, Iterable b){
     return ListUtil.filter(a, (v) => !b.contains(v));
+  }
+  
+  static List union(Iterable a, Iterable b) {
+    List res = new List.from(a);
+    res.addAll(b);
+    return res;
+  }
+  
+  static bool equal(List a, List b){
+    if (a == b) return true;
+    if (a == null || b == null) return false;
+    if (a.length != b.length) return false;
+    for(var i = 0; i < a.length; i++){
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
   
   

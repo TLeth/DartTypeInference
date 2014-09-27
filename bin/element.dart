@@ -24,6 +24,8 @@ class ElementAnalysis {
   // the part header source is the SourceElement.  
   Map<Name, SourceElement> librarySources = <Name, SourceElement>{};
   
+  Engine engine;
+  
   bool containsSource(Source source) => sources.containsKey(source);
   SourceElement addSource(Source source, SourceElement element) => sources[source] = element;
   SourceElement getSource(Source source) => sources[source];
@@ -33,6 +35,31 @@ class ElementAnalysis {
   SourceElement getLibrarySource(Name lib) => librarySources[lib];
 
   dynamic accept(ElementVisitor visitor) => visitor.visitElementAnalysis(this);
+  
+  ElementAnalysis(Engine this.engine);
+  
+  LibraryElement get dartCore {
+    var coreName = new Name("dart.core");
+    if (librarySources.containsKey(coreName))
+      return librarySources[coreName].library;
+    else
+      return null;
+  }
+
+  ClassElement resolveClassElement(String stringName, LibraryElement library, SourceElement source) {
+    Name name = new Name(stringName);
+    if (library.scope.containsKey(name)){
+      List<NamedElement> elements = library.scope[name];
+      if (elements.length == 1 && elements[0] is ClassElement)
+        return elements[0];
+      else
+        engine.errors.addError(new EngineError("Resolving classElement in ConstraintGenerator could find: ${name} in ${library.source} but it didn´t have type ClassElement.", source.source, source.ast.offset, source.ast.length), true);
+    } else {
+      engine.errors.addError(new EngineError("Resolving classElement in ConstraintGenerator could not find: ${name} in ${library.source}.", source.source, source.ast.offset, source.ast.length), true);
+    }
+      
+    return null; 
+  }
 }
 
 class Name {
@@ -73,11 +100,13 @@ class PrefixedName implements Name {
   String get name => _name;
   bool get isSetterName => Name.IsSetterName(this);
   
- // int get hashCode => _prefix.hashCode + _postfixName.hashCode;
+ int get hashCode => _prefix.hashCode + _postfixName.hashCode;
       
   bool operator ==(Object other){
     return other is PrefixedName && this._prefix == other._prefix && _postfixName == other._postfixName; 
   }
+  
+  String toString() => "${_prefix}.${_postfixName}";
 }
 
 /** 
@@ -130,8 +159,8 @@ class SourceElement extends Block with Element {
   
   Map<Source, SourceElement> parts = <Source, SourceElement>{};
   
-  Map<Source, ImportDirective> imports = <Source, ImportDirective>{};
-  Map<Source, ExportDirective> exports = <Source, ExportDirective>{};
+  Map<ImportDirective, Source> imports = <ImportDirective, Source>{};
+  Map<ExportDirective, Source> exports = <ExportDirective, Source>{};
   Map<Name, ClassElement> declaredClasses = <Name, ClassElement>{};
   
   Map<Identifier, NamedElement> resolvedIdentifiers = <Identifier, NamedElement>{};
@@ -142,8 +171,8 @@ class SourceElement extends Block with Element {
    
   SourceElement(Source this.source, CompilationUnit this.ast);
   
-  ImportDirective addImport(Source source, ImportDirective directive) => imports[source] = directive;
-  ExportDirective addExport(Source source, ExportDirective directive) => exports[source] = directive;
+  Source addImport(Source source, ImportDirective directive) => imports[directive] = source;
+  Source addExport(Source source, ExportDirective directive) => exports[directive] = source;
   void addPart(Source source, SourceElement element){ parts[source] = element; }
   ClassElement addClass(ClassElement classDecl) => declaredClasses[classDecl.name] = classDecl;
   dynamic accept(ElementVisitor visitor) => visitor.visitSourceElement(this);
@@ -165,18 +194,23 @@ class ClassElement extends NamedElement with Block {
 
   Map<Name, NamedElement> get declaredElements => [declaredFields, declaredMethods, declaredConstructors].reduce(MapUtil.union);
   
-  ClassDeclaration ast;
+  ClassDeclaration _decl;
   
   SourceElement sourceElement;
   
   Name name;
-  Identifier get identifier => this.ast.name;
-  bool get isAbstract => ast.isAbstract;
-  bool get isSynthetic => ast.isSynthetic;
+  ClassElement extendsElement = null;
+  Identifier get identifier => _decl.name;
   
-  ClassElement(ClassDeclaration this.ast, SourceElement this.sourceElement) {
-    name = new Name.FromIdentifier(this.ast.name);
-  }
+  AstNode get ast => _decl;
+  bool get isAbstract => _decl.isAbstract;
+  bool get isSynthetic => _decl.isSynthetic;
+  TypeName get superclass => _decl.extendsClause == null ? null : _decl.extendsClause.superclass;
+  
+  ClassElement._WithName(ClassDeclaration this._decl, SourceElement this.sourceElement, Name this.name);
+  
+  factory ClassElement(ClassDeclaration _decl, SourceElement sourceElement) =>
+    new ClassElement._WithName(_decl, sourceElement, new Name.FromIdentifier(_decl.name));
   
   dynamic accept(ElementVisitor visitor) => visitor.visitClassElement(this);
 
@@ -185,8 +219,8 @@ class ClassElement extends NamedElement with Block {
   ConstructorElement addConstructor(Name name, ConstructorElement constructor) => declaredConstructors[name] = constructor;
 
   String toString() {
-    return "Class [${isAbstract ? ' abstract ' : ''}"+
-            "${isSynthetic ? ' synthetic ' : ''}] ${name}";
+    return "Class [${isAbstract ? ' abstract' : ''}"+
+            "${isSynthetic ? ' synthetic' : ''}] ${name}${extendsElement != null ? ' extends ${extendsElement.name}' : ''}";
   }
   
   ClassMember lookup(Name name) {
@@ -202,8 +236,24 @@ class ClassElement extends NamedElement with Block {
     
     if (res.length == 1) 
       return res[0];
-    else 
+    else if (res.length == 0 && extendsElement != null)
+      return extendsElement.lookup(name);
+    else
       return null;
+  }
+}
+
+class ClassAliasElement extends ClassElement {
+  
+  ClassTypeAlias _alias;
+  TypeName get superclass => _alias.superclass;
+  bool get isAbstract => _alias.isAbstract;
+  bool get isSynthetic => _alias.isSynthetic;
+  AstNode get ast => _alias;
+  
+  ClassAliasElement(ClassTypeAlias _alias, SourceElement sourceElement) : 
+    super._WithName(null, sourceElement, new Name.FromIdentifier(_alias.name)) {
+    this._alias = _alias;
   }
 }
 
@@ -312,6 +362,8 @@ class MethodElement extends NamedElement with Block, ClassMember {
   bool get isSetter => ast.isSetter;
   bool get isStatic => ast.isStatic;
   bool get isSynthetic => ast.isSynthetic;
+  
+  TypeName get returnType => ast.returnType;
     
   dynamic accept(ElementVisitor visitor) => visitor.visitMethodElement(this);
   
@@ -527,7 +579,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
   ElementGenerator(Engine this.engine, Source this.source, ElementAnalysis this.analysis) {
     //print("Generating elements for: ${source} (${source.hashCode}) which is ${analysis.containsSource(source) ? "in already" : "not in already"}");
     if (!analysis.containsSource(source)) {
-      CompilationUnit unit = engine.getCompilationUnit(source); 
+      CompilationUnit unit = engine.getCompilationUnit(source);
       element = new SourceElement(source, unit);
       analysis.addSource(source, element);
       
@@ -611,6 +663,11 @@ class ElementGenerator extends GeneralizingAstVisitor {
     element.addClass(_currentClassElement);
     super.visitClassDeclaration(node);
     _currentClassElement = null;
+  }
+  
+  visitClassTypeAlias(ClassTypeAlias node){
+    element.addClass(new ClassAliasElement(node, element));
+    super.visitClassTypeAlias(node);
   }
   
   visitMethodDeclaration(MethodDeclaration node) {
