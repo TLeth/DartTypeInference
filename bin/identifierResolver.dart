@@ -61,7 +61,6 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
   }
   
   void visitBlock(Our.Block block) {
-    
     this.declaredElements.addAll(block.declaredElements);
     
     visitBlockList(block.nestedBlocks);      
@@ -71,11 +70,12 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
 
 class ScopeVisitor extends GeneralizingAstVisitor {
 
-  Map<Identifier, Our.NamedElement> references = {};
+  Map<Expression, Our.NamedElement> references = {};
   Map<Our.Name, Our.NamedElement> declaredElements;
   Map<String, Our.NamedElement> scope;
   
   var engine;
+  Our.ClassElement _currentClass = null;
   
   ScopeVisitor(this.engine, 
                this.scope, 
@@ -89,7 +89,12 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   visitFormalParameter(FormalParameter node) {
     this.scope[node.identifier.toString()] = this.declaredElements[new Our.Name.FromIdentifier(node.identifier)];
   }
-
+  
+  visitClassDeclaration(ClassDeclaration node){
+    _currentClass = this.declaredElements[new Our.Name.FromIdentifier(node.name)];
+    super.visitClassDeclaration(node);
+    _currentClass = null;
+  }
 
   visitVariableDeclaration(VariableDeclaration node) {
     this.scope[node.name.toString()] = this.declaredElements[new Our.Name.FromIdentifier(node.name)];
@@ -110,6 +115,15 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     } else {
       this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}'));
     }
+    super.visitSimpleIdentifier(node);
+  }
+  
+  visitThisExpression(ThisExpression node){
+    if (_currentClass == null)
+      this.engine.errors.addError(new EngineError('Referenced this without any current class set'), true);
+    else
+      references[node] = _currentClass;
+    super.visitThisExpression(node);
   }
 
 

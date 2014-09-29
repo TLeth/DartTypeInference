@@ -35,6 +35,10 @@ class MapUtil {
     return res;
   }
   
+  static bool submap(Map sub, Map sup){
+    return ListUtil.complement(sub.keys, sup.keys).length == 0;
+  }
+  
   static Map filterKeys(Map map, Iterable keys){
     return MapUtil.filter(map, (k,v) => keys.contains(k));
   }

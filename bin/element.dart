@@ -54,9 +54,9 @@ class ElementAnalysis {
       if (elements.length == 1 && elements[0] is ClassElement)
         return elements[0];
       else
-        engine.errors.addError(new EngineError("Resolving classElement in ConstraintGenerator could find: ${name} in ${library.source} but it didn´t have type ClassElement.", source.source, source.ast.offset, source.ast.length), true);
+        engine.errors.addError(new EngineError("Resolving classElement could find: `${name}` in `${library.source}` but it didn´t have type ClassElement.", source.source, source.ast.offset, source.ast.length));
     } else {
-      engine.errors.addError(new EngineError("Resolving classElement in ConstraintGenerator could not find: ${name} in ${library.source}.", source.source, source.ast.offset, source.ast.length), true);
+      engine.errors.addError(new EngineError("Resolving classElement could not find: `${name}` in `${library.source}`.", source.source, source.ast.offset, source.ast.length));
     }
       
     return null; 
@@ -159,13 +159,15 @@ class SourceElement extends Block with Element {
   Source get librarySource => (partOf == null ? source : partOf.source);
   SourceElement get sourceElement => this;
   
+
+  Map<Name, NamedElement> get declaredElements => [declaredVariables, declaredFunctions, declaredClasses].reduce(MapUtil.union);
   Map<Source, SourceElement> parts = <Source, SourceElement>{};
   
   Map<ImportDirective, Source> imports = <ImportDirective, Source>{};
   Map<ExportDirective, Source> exports = <ExportDirective, Source>{};
   Map<Name, ClassElement> declaredClasses = <Name, ClassElement>{};
   
-  Map<Identifier, NamedElement> resolvedIdentifiers = <Identifier, NamedElement>{};
+  Map<Expression, NamedElement> resolvedIdentifiers = <Expression, NamedElement>{};
   
   bool implicitImportedDartCore = false;
   
@@ -661,9 +663,15 @@ class ElementGenerator extends GeneralizingAstVisitor {
   
   visitClassDeclaration(ClassDeclaration node){
     
+    
     _currentClassElement = new ClassElement(node, element);
+    _currentClassElement.enclosingBlock = _currentBlock;
+    _currentBlock.nestedBlocks.add(_currentClassElement);
+    _currentBlock = _currentClassElement;
     element.addClass(_currentClassElement);
+    
     super.visitClassDeclaration(node);
+    _currentBlock = _currentClassElement.enclosingBlock;
     _currentClassElement = null;
   }
   

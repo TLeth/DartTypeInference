@@ -1,107 +1,12 @@
 library typeanalysis.constraints;
 
-import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/ast.dart' hide ClassMember;
 import 'engine.dart';
-import 'package:analyzer/src/generated/utilities_dart.dart';
 import 'element.dart';
+import 'element_typer.dart';
 import 'util.dart';
 
 
-/************** ElementTyper *****/
-class ParameterTypes { 
-  List<AbstractType> normalParameterTypes = <AbstractType>[];
-  List<AbstractType> optionalParameterTypes = <AbstractType>[];
-  Map<Name, AbstractType> namedParameterTypes = <Name, AbstractType>{};
-}
-
-class ElementTyper {
-  Map<AstNode, AbstractType> types = <AstNode, AbstractType>{};
-  
-  
-  ConstraintAnalysis constraintAnalysis;
-  Engine get engine => constraintAnalysis.engine;
-  ElementAnalysis get elementAnalysis => constraintAnalysis.elementAnalysis;
-  
-  ElementTyper(ConstraintAnalysis this.constraintAnalysis);
-  
-  AbstractType typeClassMember(ClassMember element, LibraryElement library){
-    if (element is MethodElement)
-      return typeMethodElement(element, library);
-    if (element is FieldElement)
-      return typeFieldElement(element, library);
-    if (element is ConstructorElement)
-      return typeConstructorElement(element, library);
-    
-    return null;
-  }
-  
-  AbstractType typeMethodElement(MethodElement element,LibraryElement library){
-    if (types.containsKey(element.ast))
-      return types[element.ast];
-    
-    return types[element.ast] = new FunctionType.FromMethodElement(element, library, this);
-  }
-  
-  AbstractType typeFieldElement(FieldElement element,LibraryElement library){
-    if (types.containsKey(element.ast))
-      return types[element.ast];
-    return types[element.ast] = resolveType(element.annotatedType, library, element.sourceElement);
-  }
-  
-  AbstractType typeConstructorElement(ConstructorElement element,LibraryElement library){
-    if (types.containsKey(element.ast))
-      return types[element.ast];
-    return types[element.ast] = new FunctionType.FromConstructorElement(element, library, this);
-  }
-  
-  AbstractType typeClassElement(ClassElement element){
-    if (types.containsKey(element.ast))
-      return types[element.ast];
-    return types[element.ast] = new NominalType(element);
-  }
-  
-  AbstractType resolveType(TypeName type, LibraryElement library, SourceElement source){
-    return new NominalType(elementAnalysis.resolveClassElement(type.name.toString(), library, source));
-  }
-  
-  ParameterTypes resolveParameters(FormalParameterList paramList, LibraryElement library, SourceElement source){
-    ParameterTypes types = new ParameterTypes();
-    
-    if (paramList.parameters == null || paramList.length == 0) 
-      return types;
-    
-    NodeList<FormalParameter> params = paramList.parameters;
-    
-    for(FormalParameter param in params){
-      var normalParam; 
-      if (param is NormalFormalParameter) normalParam = param;
-      else if (param is DefaultFormalParameter) normalParam = param.parameter;
-      
-      AbstractType type; 
-      if (normalParam is SimpleFormalParameter || normalParam is FieldFormalParameter) {
-        if (normalParam.type == null)
-          type = new FreeType();
-        else
-          type = this.resolveType(normalParam.type, library, source);
-      } else if (normalParam is FunctionTypedFormalParameter){
-        type = new FunctionType.FromFunctionTypedFormalParameter(normalParam, library, this, source);
-      }
-      
-      if (normalParam.kind == ParameterKind.REQUIRED)
-        types.normalParameterTypes.add(type);
-      else if (normalParam.kind == ParameterKind.POSITIONAL)
-        types.optionalParameterTypes.add(type);
-      else if (normalParam.kind == ParameterKind.REQUIRED)
-        types.namedParameterTypes[new Name.FromIdentifier(normalParam.identifier)] = type;
-    }
-    
-    return types;
-  }
-}
-
-
-/***************** TYPES **************/
 abstract class AbstractType {}
 
 class FreeType extends AbstractType {
@@ -131,10 +36,11 @@ class FunctionType extends AbstractType {
   
   factory FunctionType.FromElements(TypeName returnType, FormalParameterList paramList, LibraryElement library, SourceElement sourceElement, ElementTyper typer){
     AbstractType abstractReturnType = null;
-    if (returnType == null)
-      abstractReturnType = new FreeType();
-    else
+    if (returnType != null)
       abstractReturnType = typer.resolveType(returnType, library, sourceElement);
+    
+    if (abstractReturnType == null) 
+      abstractReturnType = new FreeType();
     
     if (paramList == null)
       return new FunctionType(<AbstractType>[], abstractReturnType);
@@ -160,19 +66,13 @@ class FunctionType extends AbstractType {
 
   String toString() {
     StringBuffer sb = new StringBuffer();
-    sb.write("(");
-    sb.write(ListUtil.join(normalParameterTypes, " -> "));
+    sb.write("(${ListUtil.join(normalParameterTypes, " -> ")}");
 
-    if (optionalParameterTypes.length > 0){
-      sb.write("[");
-      sb.write(ListUtil.join(optionalParameterTypes, " -> "));
-      sb.write("]");
-    }
+    if (optionalParameterTypes.length > 0)
+      sb.write("[${ListUtil.join(optionalParameterTypes, " -> ")}]");
 
     if (namedParameterTypes.length > 0){
-      sb.write("{");
-      MapUtil.join(namedParameterTypes, " -> ");
-      sb.write("}");
+      sb.write("{${MapUtil.join(namedParameterTypes, " -> ")}}");
     }
     sb.write(" -> ${returnType})");
     return sb.toString();
@@ -503,77 +403,113 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   ElementTyper get elementTyper => constraintAnalysis.elementTyper;
   ElementAnalysis get elementAnalysis => constraintAnalysis.elementAnalysis;
   
+  FieldDeclaration _currentFieldDeclaration = null;
+  ClassDeclaration _currentClassDeclaration = null;
+  
   ConstraintGeneratorVisitor(SourceElement this.source, ConstraintAnalysis this.constraintAnalysis) {
     source.ast.accept(this);
   }
   
   Expression _normalizeIdentifiers(Expression exp){
-    if (exp is Identifier && source.resolvedIdentifiers.containsKey(exp))
+    if (exp is SimpleIdentifier && source.resolvedIdentifiers.containsKey(exp))
       return source.resolvedIdentifiers[exp].identifier;
     else
       return exp;
   }
   
+  void _equalConstraint(TypeIdentifier aGet, TypeIdentifier bGet){
+    TypeIdentifier aSet = new SetterTypeIdentifier(aGet);
+    TypeIdentifier bSet = new SetterTypeIdentifier(bGet);
+    foreach(aGet).update((AbstractType type) => types.put(bGet, type));
+    foreach(bGet).update((AbstractType type) => types.put(aGet, type));
+    
+    foreach(aSet).update((AbstractType type) => types.put(bSet, type));
+    foreach(bSet).update((AbstractType type) => types.put(aSet, type));
+  }
+  
   visitIntegerLiteral(IntegerLiteral n) {
     super.visitIntegerLiteral(n);
-    // {int} \subseteq [n]
+    // {int} \in [n]
     types.put(n, new NominalType(elementAnalysis.resolveClassElement("int", constraintAnalysis.dartCore, source)));
   }
   
   visitDoubleLiteral(DoubleLiteral n) {
     super.visitDoubleLiteral(n);
-    // {double} \subseteq [n]
+    // {double} \in [n]
     types.put(n, new NominalType(elementAnalysis.resolveClassElement("double", constraintAnalysis.dartCore, source)));
   }
   
-  visitVariableDeclaration(VariableDeclaration vd){
-    // var v;
-    super.visitVariableDeclaration(vd);
-    Expression name = _normalizeIdentifiers(vd.name);
+  visitInstanceCreationExpression(InstanceCreationExpression n){
+    super.visitInstanceCreationExpression(n);
+    // new ClassName(arg_1,..., arg_n);
     
-    if ((name is Identifier)){
-      TypeIdentifier vGet = new ExpressionTypeIdentifier(name);
-      TypeIdentifier vSet = new SetterTypeIdentifier(vGet);
-      
-      // \forall \alpha \in [v] => (\alpha -> void) \in [v]=
-      foreach(vGet).update((AbstractType alpha) => 
-          types.put(vSet, new FunctionType(<AbstractType>[alpha], new VoidType())));
-
-      // \forall (\alpha -> void) \in [v]= => \alpha \in [v]
-      foreach(vSet)
-        .where((AbstractType func) {
-        return FunctionType.FunctionMatch(func, 1, new VoidType()); })
-        .update((AbstractType func){
-          if (func is FunctionType)
-            types.put(vGet, func.normalParameterTypes[0]);
-      });
+    TypeName classType = n.constructorName.type;
+    
+    String className = null;
+    String constructorName = null;
+    if (classType.name is SimpleIdentifier){
+      className = classType.name.toString();
+      constructorName = className;
     } else {
-      //TODO (jln): assigment to a non identifier on left hand side.
+      //TODO (jln): What about generics.
+      //TODO (jln): Factory creations.
     }
-
-    // v = exp;
-    _assignmentExpression(vd.name, vd.initializer);
+    
+    if (className != null && constructorName != null){
+      // {ClassName} \in [n]
+      types.put(n, new NominalType(elementAnalysis.resolveClassElement(className, source.library, source)));
+            
+    }
+    //TODO (jln): constructor is a method call so bind arguments and return type.
   }
   
-  _assignmentExpression(Expression leftHandSide, Expression rightHandSide){
-    // v = exp;
-    leftHandSide = _normalizeIdentifiers(leftHandSide);
-    rightHandSide = _normalizeIdentifiers(rightHandSide);
+  visitFieldDeclaration(FieldDeclaration node) {
+    _currentFieldDeclaration = node;
+    super.visitFieldDeclaration(node);
+    _currentFieldDeclaration = null;
+  }
+  
+  visitClassDeclaration(ClassDeclaration node) {
+    _currentClassDeclaration = node;
+    super.visitClassDeclaration(node);
+    _currentClassDeclaration = null;
+  }
+  
+  visitVariableDeclaration(VariableDeclaration vd){
+     // var v;
+     super.visitVariableDeclaration(vd);
+     Expression name = vd.name;
+     
+     if ((name is SimpleIdentifier)){
+       TypeIdentifier vGet;
+       if (_currentFieldDeclaration == null) {
+         //For variables
+         vGet = new ExpressionTypeIdentifier(name);
+       } else {
+         //For fields
+         ClassElement classElement = source.declaredClasses[new Name.FromIdentifier(_currentClassDeclaration.name)];
+         vGet = new PropertyTypeIdentifier(new NominalType(classElement), new Name.FromIdentifier(name));
+         _equalConstraint(vGet, new ExpressionTypeIdentifier(name));
+       }
+       TypeIdentifier vSet = new SetterTypeIdentifier(vGet);
+       // \forall \alpha \in [v] => (\alpha -> void) \in [v]=
+       foreach(vGet).update((AbstractType alpha) => 
+           types.put(vSet, new FunctionType(<AbstractType>[alpha], new VoidType())));
     
-    TypeIdentifier vGet = new ExpressionTypeIdentifier(leftHandSide);
-    TypeIdentifier vSet = new SetterTypeIdentifier(vGet);
-    TypeIdentifier expGet = new ExpressionTypeIdentifier(rightHandSide);
-    
-    if (leftHandSide is Identifier){
-      // \forall \alpha \in [exp] => (\alpha -> void) \in [v]=
-      foreach(expGet)
-        .update((AbstractType alpha) {
-            types.put(vSet, new FunctionType(<AbstractType>[alpha], new VoidType()));
-            
-      });
-    } else {
-      //TODO (jln): assigment to a non identifier on left hand side.
-    }
+       // \forall (\alpha -> void) \in [v]= => \alpha \in [v]
+       foreach(vSet)
+         .where((AbstractType func) {
+         return FunctionType.FunctionMatch(func, 1, new VoidType()); })
+         .update((AbstractType func){
+           if (func is FunctionType)
+             types.put(vGet, func.normalParameterTypes[0]);
+       });
+     } else {
+       //TODO (jln): assigment to a non identifier on left hand side.
+     }
+     
+     // v = exp;
+     _assignmentExpression(vd.name, vd.initializer);
   }
   
   visitAssignmentExpression(AssignmentExpression node){
@@ -582,10 +518,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     // v = exp;
     _assignmentExpression(node.leftHandSide, node.rightHandSide);
     
-    
-    Expression rightHandSide = _normalizeIdentifiers(node.rightHandSide);
-    
-    TypeIdentifier expGet = new ExpressionTypeIdentifier(rightHandSide);
+    TypeIdentifier expGet = new ExpressionTypeIdentifier(node.rightHandSide);
     TypeIdentifier nodeGet = new ExpressionTypeIdentifier(node);
     
     // [exp] \subseteq [v = exp]
@@ -593,16 +526,136 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
         types.put(nodeGet, alpha));
   }
   
+  _assignmentExpression(Expression leftHandSide, Expression rightHandSide){
+    TypeIdentifier vGet = new ExpressionTypeIdentifier(leftHandSide);
+    TypeIdentifier vSet = new SetterTypeIdentifier(vGet);
+    TypeIdentifier expGet = new ExpressionTypeIdentifier(rightHandSide);
+    
+    if (leftHandSide is SimpleIdentifier || leftHandSide is PrefixedIdentifier){
+      // v = exp;
+      
+      // \forall \alpha \in [exp] => (\alpha -> void) \in [v]=
+      foreach(expGet)
+        .update((AbstractType alpha) {
+            types.put(vSet, new FunctionType(<AbstractType>[alpha], new VoidType()));
+            
+      });
+    } else {
+      //TODO (jln): assigment to a non identifier on left hand side (example v[i]).
+    }
+  }
+  
+  visitSimpleIdentifier(SimpleIdentifier n){
+    super.visitSimpleIdentifier(n);
+    SimpleIdentifier ident = _normalizeIdentifiers(n);
+    
+    if (ident != n){
+      _equalConstraint(new ExpressionTypeIdentifier(ident), new ExpressionTypeIdentifier(n));
+    }
+  }
+  
+  visitPrefixedIdentifier(PrefixedIdentifier n){
+    super.visitPrefixedIdentifier(n);
+    SimpleIdentifier prefix = n.prefix;
+    
+    TypeIdentifier nGet = new ExpressionTypeIdentifier(n);
+    TypeIdentifier nSet = new SetterTypeIdentifier(nGet);
+    
+    TypeIdentifier prefixGet = new ExpressionTypeIdentifier(prefix);
+    
+    foreach(prefixGet).update((AbstractType alpha) {
+        TypeIdentifier alphaFldGet = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.identifier));
+        _equalConstraint(nGet, alphaFldGet);
+    });
+  }
+
+  visitThisExpression(ThisExpression n) {
+    // this
+    super.visitThisExpression(n);
+    
+    if (source.resolvedIdentifiers.containsKey(n)){
+      NamedElement classElement = source.resolvedIdentifiers[n];
+      if (classElement is ClassElement)
+        types.put(n, new NominalType(classElement));
+    } else {
+      //TODO jln: Some times this is not bound correctly in resolvedIdentifiers.
+    }
+  }
+  
+
+  visitMethodInvocation(MethodInvocation node){
+    super.visitMethodInvocation(node);
+
+    TypeIdentifier returnGet = new ExpressionTypeIdentifier(node);
+    
+    if (node.target == null){
+      //Call without any prefix
+      TypeIdentifier methodGet = new ExpressionTypeIdentifier(node.methodName);
+      _methodCall(methodGet, node.argumentList, returnGet);
+    } else {
+      TypeIdentifier targetGet = new ExpressionTypeIdentifier(node.target);
+      foreach(targetGet).update((AbstractType type) { 
+        TypeIdentifier methodGet = new PropertyTypeIdentifier(type, new Name.FromIdentifier(node.methodName)); 
+        _methodCall(methodGet, node.argumentList, returnGet);
+      });
+    }
+  }
+  
+  _methodCall(TypeIdentifier MethodGet, ArgumentList argumentList, TypeIdentifier returnGet){
+    // method(arg_1,...,arg_n) : return
+    List<TypeIdentifier> parameters = <TypeIdentifier>[];
+    Map<Name, TypeIdentifier> namedParameters = <Name, TypeIdentifier>{};
+    
+    for(Expression arg in argumentList.arguments){
+      if (arg is NamedExpression)
+        namedParameters[new Name.FromIdentifier(arg.name.label)] = new ExpressionTypeIdentifier(arg.expression);
+      else
+        parameters.add(new ExpressionTypeIdentifier(arg));
+    }
+    
+    //\forall (\gamma_1 -> ... -> \gamma_n -> \beta) \in [method] =>
+    //  \gamma_i \in [arg_i] &&  \beta \in [method]
+    foreach(MethodGet)
+      .where((AbstractType func) => 
+          func is FunctionType && 
+          MapUtil.submap(namedParameters, func.namedParameterTypes) &&
+          func.optionalParameterTypes.length + func.normalParameterTypes.length >= parameters.length)
+      .update((AbstractType func) {
+        if (func is FunctionType) {
+          for (var i = 0; i < parameters.length;i++){
+            if (i < func.normalParameterTypes.length)
+              types.put(parameters[i], func.normalParameterTypes[i]);
+            else
+              types.put(parameters[i], func.optionalParameterTypes[i]);
+          }
+          for(Name name in namedParameters.keys){
+            types.put(namedParameters[name], func.namedParameterTypes[name]);
+          }
+          types.put(returnGet, func.returnType);
+        }
+      });
+    
+    
+    
+    //TODO (jln): Problems when making the float back into the function, rules below needs to be implemented.
+    // Det kan være smart at kunne linke et typeIdentifier med et funktionsparameter. 
+    // Dette vil også gå fint i sync med hvordan vi opfatter union types nu.
+    
+    // \forall \gamm_i \in [arg_i] => \forall \beta \in [return] 
+    // (\gamma_1 -> ... -> \gamma_n -> \beta) \in [method]
+    
+    // \forall \beta \in [return] => \forall \gamm_i \in [arg_i] 
+    // (\gamma_1 -> ... -> \gamma_n -> \beta) \in [method]
+ 
+    
+  }
+  
   visitBinaryExpression(BinaryExpression be) {
     super.visitBinaryExpression(be);
     
     // exp1 op exp2
-    Expression leftOperand = _normalizeIdentifiers(be.leftOperand);
-    Expression rightOperand = _normalizeIdentifiers(be.rightOperand);
-    
-
-    TypeIdentifier leftGet = new ExpressionTypeIdentifier(leftOperand);
-    TypeIdentifier rightGet = new ExpressionTypeIdentifier(rightOperand);
+    TypeIdentifier leftGet = new ExpressionTypeIdentifier(be.leftOperand);
+    TypeIdentifier rightGet = new ExpressionTypeIdentifier(be.rightOperand);
     TypeIdentifier nodeGet = new ExpressionTypeIdentifier(be);
     
 
