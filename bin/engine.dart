@@ -19,6 +19,8 @@ import 'constraint.dart';
 import 'resolver.dart';
 import 'printer.dart';
 
+//TODO (jln): split files into smaller ones.
+
 
 const int MAX_CACHE_SIZE = 512;
 const String DART_EXT_SCHEME = "dart-ext:";
