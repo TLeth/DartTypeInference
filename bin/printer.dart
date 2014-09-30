@@ -1067,7 +1067,7 @@ class PrintConstraintVisitor extends GeneralizingAstVisitor {
     Expression initializer = _normalizeIdentifiers(vd.initializer);
     TypeIdentifier vType = new ExpressionTypeIdentifier(name);
     TypeIdentifier expTyp = new ExpressionTypeIdentifier(initializer);
-    print("${vd} // ${types.getter(vType)}, ${types.setter(vType)}");
+    print("${vd} // ${types.getter(vType)}");
     super.visitVariableDeclaration(vd);
   }
   
@@ -1076,7 +1076,7 @@ class PrintConstraintVisitor extends GeneralizingAstVisitor {
     Expression leftHandSide = _normalizeIdentifiers(node.leftHandSide);
     Expression rightHandSide = _normalizeIdentifiers(node.rightHandSide);
     TypeIdentifier vType = new ExpressionTypeIdentifier(leftHandSide);
-    print("${node} // ${types.getter(vType)}, ${types.setter(vType)}");
+    print("${node} // ${types.getter(vType)}");
     super.visitAssignmentExpression(node);
   }
   
