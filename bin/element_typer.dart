@@ -7,13 +7,13 @@ import 'element.dart';
 import 'constraint.dart';
 
 class ParameterTypes { 
-  List<AbstractType> normalParameterTypes = <AbstractType>[];
-  List<AbstractType> optionalParameterTypes = <AbstractType>[];
-  Map<Name, AbstractType> namedParameterTypes = <Name, AbstractType>{};
+  List<TypeIdentifier> normalParameterTypes = <TypeIdentifier>[];
+  List<TypeIdentifier> optionalParameterTypes = <TypeIdentifier>[];
+  Map<Name, TypeIdentifier> namedParameterTypes = <Name, TypeIdentifier>{};
 }
 
 class ElementTyper {
-  Map<AstNode, AbstractType> types = <AstNode, AbstractType>{};
+  Map<AstNode, TypeVariable> types = <AstNode, TypeVariable>{};
   
   
   ConstraintAnalysis constraintAnalysis;
@@ -22,7 +22,7 @@ class ElementTyper {
   
   ElementTyper(ConstraintAnalysis this.constraintAnalysis);
   
-  AbstractType typeClassMember(ClassMember element, LibraryElement library){
+  TypeVariable typeClassMember(ClassMember element, LibraryElement library){
     if (element is MethodElement)
       return typeMethodElement(element, library);
     if (element is FieldElement)
