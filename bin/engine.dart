@@ -13,7 +13,7 @@ import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/error.dart';
 import 'package:analyzer/src/analyzer_impl.dart';
 
-import 'identifierResolver.dart';
+import 'name_resolver.dart';
 import 'element.dart';
 import 'constraint.dart';
 import 'resolver.dart';

@@ -421,6 +421,32 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     types.put(n, new NominalType(elementAnalysis.resolveClassElement("double", constraintAnalysis.dartCore, source)));
   }
   
+  visitStringLiteral(StringLiteral n){
+    super.visitStringLiteral(n);
+    // {String} \in [n]
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement("String", constraintAnalysis.dartCore, source)));
+    
+  }
+  
+  visitBooleanLiteral(BooleanLiteral n){
+    super.visitBooleanLiteral(n);
+    // {String} \in [n]
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement("bool", constraintAnalysis.dartCore, source)));
+  }  
+  
+  visitListLiteral(ListLiteral n){
+    super.visitListLiteral(n);
+    // {String} \in [n]
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement("List", constraintAnalysis.dartCore, source)));
+  }
+  
+  visitMapLiteral(MapLiteral n){
+    super.visitMapLiteral(n);
+    // {String} \in [n]
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement("Map", constraintAnalysis.dartCore, source)));
+  }
+  
+  
   visitInstanceCreationExpression(InstanceCreationExpression n){
     super.visitInstanceCreationExpression(n);
     // new ClassName(arg_1,..., arg_n);
