@@ -239,7 +239,9 @@ class TypeMap {
     NominalType type = ident.propertyIdentifierType;
     ClassMember member = type.element.lookup(ident.propertyIdentifierName);
     
-    if (member != null)
+    // We only need assign to the non-setters, because all getters and setters are bounded, 
+    // so if you add to one of them, it is added in the other.
+    if (member != null && !(ident is SetterTypeIdentifier))
       _typeMap[ident].add(constraintAnalysis.elementTyper.typeClassMember(member, type.element.sourceElement.library));
     
     return _typeMap[ident];
@@ -259,8 +261,7 @@ class TypeMap {
   
   Iterable<TypeIdentifier> get keys => _typeMap.keys;
   
-  bool containsKey(TypeIdentifier ident) => _typeMap.containsKey(ident);
-  //TypeVariable addEmpty(TypeIdentifier ident) => _typeMap[ident] = new TypeVariable();  
+  bool containsKey(TypeIdentifier ident) => _typeMap.containsKey(ident);  
   
   void put(dynamic i, AbstractType t){
     TypeIdentifier ident = TypeIdentifier.ConvertToTypeIdentifier(i);
@@ -559,7 +560,6 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     SimpleIdentifier prefix = n.prefix;
     
     TypeIdentifier nGet = new ExpressionTypeIdentifier(n);
-    TypeIdentifier nSet = new SetterTypeIdentifier(nGet);
     
     TypeIdentifier prefixGet = new ExpressionTypeIdentifier(prefix);
     

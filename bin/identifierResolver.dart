@@ -91,9 +91,9 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   }
   
   visitClassDeclaration(ClassDeclaration node){
-    _currentClass = this.declaredElements[new Our.Name.FromIdentifier(node.name)];
+    this.scope["this"] = this.declaredElements[new Our.Name.FromIdentifier(node.name)];
     super.visitClassDeclaration(node);
-    _currentClass = null;
+    this.scope.remove("this");
   }
 
   visitVariableDeclaration(VariableDeclaration node) {
@@ -115,14 +115,13 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     } else {
       this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}'));
     }
-    super.visitSimpleIdentifier(node);
   }
   
   visitThisExpression(ThisExpression node){
-    if (_currentClass == null)
+    if (!this.scope.containsKey("this"))
       this.engine.errors.addError(new EngineError('Referenced this without any current class set'), true);
     else
-      references[node] = _currentClass;
+      references[node] = this.scope["this"];
     super.visitThisExpression(node);
   }
 
