@@ -196,7 +196,7 @@ class ClassElement extends NamedElement with Block {
   Map<Name, MethodElement> declaredMethods = <Name, MethodElement>{};
   Map<Name, ConstructorElement> declaredConstructors = <Name, ConstructorElement>{};
 
-  Map<Name, NamedElement> get declaredElements => [declaredFields, declaredMethods, declaredConstructors].reduce(MapUtil.union);
+  Map<Name, NamedElement> get declaredElements => [declaredFields, declaredMethods].reduce(MapUtil.union);
   
   ClassDeclaration _decl;
   
@@ -253,6 +253,7 @@ class ClassAliasElement extends ClassElement {
   TypeName get superclass => _alias.superclass;
   bool get isAbstract => _alias.isAbstract;
   bool get isSynthetic => _alias.isSynthetic;
+  Identifier get identifier => _alias.name;
   AstNode get ast => _alias;
   
   ClassAliasElement(ClassTypeAlias _alias, SourceElement sourceElement) : 
@@ -398,16 +399,23 @@ class ConstructorElement extends NamedElement with Block, ClassMember {
   ConstructorDeclaration ast;
   ClassElement classDecl;
   
-  Name name;
-  Identifier get identifier => this.ast.name;
+  Name name; 
+  Identifier get identifier => (this.ast.name != null ? this.ast.name : this.ast.returnType);
   bool get isSynthetic => ast.isSynthetic;
   bool get isFactory => ast.factoryKeyword != null;
   bool get isExternal => ast.externalKeyword != null;
+  TypeName _returnType;
+  TypeName get returnType => _returnType;
     
   dynamic accept(ElementVisitor visitor) => visitor.visitConstructorElement(this);
 
   ConstructorElement(ConstructorDeclaration this.ast, ClassElement this.classDecl) {
-    name = new Name.FromIdentifier(this.ast.name);
+    if (this.ast.name != null)
+      name = new PrefixedName.FromIdentifier(this.ast.returnType, new Name.FromIdentifier(this.ast.name));
+    else
+      name = new Name.FromIdentifier(this.ast.returnType);
+    
+    _returnType = new TypeName(ast.returnType, null);
   }
   
   String toString() {

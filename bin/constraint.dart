@@ -3,135 +3,9 @@ library typeanalysis.constraints;
 import 'package:analyzer/src/generated/ast.dart' hide ClassMember;
 import 'engine.dart';
 import 'element.dart';
-import 'element_typer.dart';
+import 'types.dart';
 import 'util.dart';
 
-
-abstract class AbstractType {}
-
-class FreeType extends AbstractType {
-  static int _countID = 0;
-  
-  int _typeID;
-  
-  FreeType(): _typeID = _countID++;
-  
-  String toString() => "\u{03b1}${_typeID}";
-  
-  //TODO (jln): a free type is equal to any free type right?
-  //bool operator ==(Object other) => other is FreeType;
-}
-
-class FunctionType extends AbstractType {
-  List<TypeIdentifier> normalParameterTypes;
-  List<TypeIdentifier> optionalParameterTypes;
-  Map<Name, TypeIdentifier> namedParameterTypes;
-  TypeIdentifier returnType;
-  
-  FunctionType(List<TypeIdentifier> this.normalParameterTypes, TypeIdentifier this.returnType, 
-              [List<TypeIdentifier> optionalParameterTypes = null, Map<Name, TypeIdentifier> namedParameterTypes = null ] ) :
-                this.optionalParameterTypes = (optionalParameterTypes == null ? <TypeIdentifier>[] : optionalParameterTypes),
-                this.namedParameterTypes = (namedParameterTypes == null ? <Name, TypeIdentifier>{} : namedParameterTypes);
-  
-  
-  factory FunctionType.FromElements(Identifier functionIdentifier, TypeName returnType, FormalParameterList paramList, LibraryElement library, SourceElement sourceElement, ElementTyper typer){
-    
-    TypeIdentifier returnIdentifier = typer.typeReturn(functionIdentifier, returnType, library, sourceElement);
-    if (paramList == null)
-      return new FunctionType(<TypeIdentifier>[], returnIdentifier);
-    
-    ParameterTypes params = typer.typeParameters(paramList, library, sourceElement);
-    return new FunctionType(params.normalParameterTypes, returnIdentifier, params.optionalParameterTypes, params.namedParameterTypes); 
-  }
-
-  factory FunctionType.FromFunctionTypedFormalParameter(FunctionTypedFormalParameter element, LibraryElement library, ElementTyper typer, SourceElement sourceElement){
-    return new FunctionType.FromElements(element.identifier, element.returnType, element.parameters, library, sourceElement, typer);
-  }
-  
-  factory FunctionType.FromMethodElement(MethodElement element, LibraryElement library, ElementTyper typer){
-    return new FunctionType.FromElements(element.identifier, element.returnType, element.ast.parameters, library, element.sourceElement, typer);
-  }
-  
-  factory FunctionType.FromConstructorElement(ConstructorElement element, LibraryElement library, ElementTyper typer){
-    FunctionType functionType = new FunctionType.FromElements(element.identifier, null, element.ast.parameters, library, element.sourceElement, typer);
-    typer.typeMap.replace(functionType.returnType, typer.typeMap[typer.typeClassElement(element.classDecl)]);
-    return functionType;
-  }
-
-  String toString() {
-    StringBuffer sb = new StringBuffer();
-    sb.write("(${ListUtil.join(normalParameterTypes, " -> ")}");
-
-    if (optionalParameterTypes.length > 0)
-      sb.write("[${ListUtil.join(optionalParameterTypes, " -> ")}]");
-
-    if (namedParameterTypes.length > 0){
-      sb.write("{${MapUtil.join(namedParameterTypes, " -> ")}}");
-    }
-    sb.write(" -> ${returnType})");
-    return sb.toString();
-  }
-  
-  int get hashCode {
-    int h = returnType.hashCode;
-    for(Name name in namedParameterTypes.keys)
-      h = h + name.hashCode + namedParameterTypes[name].hashCode;
-    for(TypeIdentifier t in normalParameterTypes)
-      h = 31*h + t.hashCode;
-    for(TypeIdentifier t in optionalParameterTypes)
-      h = 31*h + t.hashCode;
-    return h;
-  }
-  
-  bool operator ==(Object other) => 
-      other is FunctionType &&
-      ListUtil.equal(other.normalParameterTypes, this.normalParameterTypes) &&
-      ListUtil.equal(other.optionalParameterTypes, this.optionalParameterTypes) &&
-      this.returnType == other.returnType &&
-      MapUtil.equal(other.namedParameterTypes, this.namedParameterTypes);  
-}
-
-class NominalType extends AbstractType {
-  
-  ClassElement element;
-    
-  
-  NominalType(ClassElement this.element);
- 
-  
-  String toString() => element.name.toString();
-  
-  bool operator ==(Object other) => other is NominalType && other.element == this.element;
-  
-  int get hashCode => element.hashCode;
-}
-
-class UnionType extends AbstractType {
-  Set<AbstractType> types = new Set<AbstractType>();
-  
-  UnionType(Iterable<AbstractType> types) {
-    for(AbstractType type in types){
-      if (type is UnionType)
-        this.types.addAll(type.types);
-    }
-    this.types.addAll(types);
-  }
-  
-  String toString() => "{${ListUtil.join(types, " + ")}}";
-  
-  bool operator ==(Object other) => other is UnionType && other.types == this.types;
-}
-
-class VoidType extends AbstractType {
-
-  static VoidType _instance = null;
-  factory VoidType() => (_instance == null ? _instance = new VoidType._internal() : _instance);
-  
-  VoidType._internal();
-  
-  String toString() => "void";
-  bool operator ==(Object other) => other is VoidType;
-}
 
 class ConstraintAnalysis {
   TypeMap typeMap;
@@ -147,64 +21,6 @@ class ConstraintAnalysis {
     typeMap = new TypeMap(this);
   }
 }
-
-/************ TypeIdentifiers *********************/
-abstract class TypeIdentifier {  
-  static TypeIdentifier ConvertToTypeIdentifier(dynamic ident) {
-    if (ident is TypeIdentifier)
-      return ident;
-    else if (ident is Expression)
-      return new ExpressionTypeIdentifier(ident);
-    return null;
-  }
-  
-  bool get isPropertyLookup => false;
-  Name get propertyIdentifierName => null;
-  AbstractType get propertyIdentifierType => null;
-}
-
-
-class ExpressionTypeIdentifier extends TypeIdentifier {
-  Expression exp;
-  
-  ExpressionTypeIdentifier(Expression this.exp);
-  
-  int get hashCode => exp.hashCode;
-  
-  bool operator ==(Object other) => other is ExpressionTypeIdentifier && other.exp == exp;
-  
-  String toString() => "#{${exp}}";
-}
-
-
-class PropertyTypeIdentifier extends TypeIdentifier {
-  AbstractType _type;
-  Name _name;
-  
-  PropertyTypeIdentifier(AbstractType this._type, Name this._name);
-  
-  int get hashCode => _type.hashCode + 31 * _name.hashCode;
-  
-  bool operator ==(Object other) => other is PropertyTypeIdentifier && other._type == _type && other._name == _name;
-  bool get isPropertyLookup => true;
-  Name get propertyIdentifierName => _name;
-  AbstractType get propertyIdentifierType => _type;
-  
-  String toString() => "#${_type}.${_name}";
-}
-
-class ReturnTypeIdentifier extends TypeIdentifier {
-  Identifier _functionIdentifier;
-  
-  ReturnTypeIdentifier(Identifier this._functionIdentifier);
-  
-  int get hashCode => _functionIdentifier.hashCode * 31;
-  
-  bool operator ==(Object other) => other is ReturnTypeIdentifier && other._functionIdentifier == _functionIdentifier;
-  
-  String toString() => "#ret.${_functionIdentifier}";
-}
-
 
 /************* Type maps ********************/
 class TypeMap {
@@ -432,6 +248,12 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     super.visitBooleanLiteral(n);
     // {String} \in [n]
     types.put(n, new NominalType(elementAnalysis.resolveClassElement("bool", constraintAnalysis.dartCore, source)));
+  }
+  
+  visitSymbolLiteral(SymbolLiteral n){
+    super.visitSymbolLiteral(n);
+    // {String} \in [n]
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement("Symbol", constraintAnalysis.dartCore, source)));
   }  
   
   visitListLiteral(ListLiteral n){
@@ -450,14 +272,17 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   visitInstanceCreationExpression(InstanceCreationExpression n){
     super.visitInstanceCreationExpression(n);
     // new ClassName(arg_1,..., arg_n);
-    
     TypeName classType = n.constructorName.type;
     
-    String className = null;
-    String constructorName = null;
+    SimpleIdentifier className = null;
+    Name constructorName = null;
     if (classType.name is SimpleIdentifier){
-      className = classType.name.toString();
-      constructorName = className;
+      className = classType.name;
+       
+      if (n.constructorName.name != null)
+        constructorName = new PrefixedName.FromIdentifier(classType.name, new Name.FromIdentifier(n.constructorName.name));
+      else
+        constructorName = new Name.FromIdentifier(classType.name);  
     } else {
       //TODO (jln): What about generics.
       //TODO (jln): Factory creations.
@@ -465,10 +290,11 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     
     if (className != null && constructorName != null){
       // {ClassName} \in [n]
-      types.put(n, new NominalType(elementAnalysis.resolveClassElement(className, source.library, source)));
-            
+      TypeIdentifier returnIdent = new ExpressionTypeIdentifier(n);
+      AbstractType classType = new NominalType(elementAnalysis.resolveClassElement(className.toString(), source.library, source));
+      TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, constructorName);
+      _methodCall(constructorIdent, n.argumentList.arguments, returnIdent);      
     }
-    //TODO (jln): constructor is a method call so bind arguments and return type.
   }
   
   visitFieldDeclaration(FieldDeclaration node) {
@@ -614,12 +440,12 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
             if (i < func.normalParameterTypes.length)
               _subsetConstraint(parameters[i], func.normalParameterTypes[i]);              
             else
-              _subsetConstraint(parameters[i], func.optionalParameterTypes[i]);
+              _subsetConstraint(parameters[i], func.optionalParameterTypes[i - func.normalParameterTypes.length]);
           }
           for(Name name in namedParameters.keys){
             _subsetConstraint(namedParameters[name], func.namedParameterTypes[name]);
           }
-          _subsetConstraint(func.returnType, returnIdent);
+          if (returnIdent != null) _subsetConstraint(func.returnType, returnIdent);
         }
       });
     

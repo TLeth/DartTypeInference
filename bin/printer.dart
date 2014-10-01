@@ -3,6 +3,7 @@ library typeanalysis.printer;
 import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/source.dart';
 import 'constraint.dart';
+import 'types.dart';
 import 'element.dart' as analysis;
 
 class PrintElementVisitor extends analysis.RecursiveElementVisitor {
