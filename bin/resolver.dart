@@ -46,7 +46,6 @@ class LibraryElement {
   void addDependedExport(LibraryElement library) => depended_exports.add(library);
   bool containsDependedExport(LibraryElement library) => depended_exports.contains(library);
   
-  
   //Lookup method used for making proper lookup in the scope.
   NamedElement lookup(Name name, [bool notUniqueFail = true]) {
     if (!scope.containsKey(name)){
@@ -325,7 +324,7 @@ class ClassHierarchyResolver {
   ClassElement objectClassElement; 
   
   ClassHierarchyResolver(Engine this.engine, ElementAnalysis this.analysis) {
-    objectClassElement = analysis.resolveClassElement("Object", analysis.dartCore, analysis.dartCore.source);
+    objectClassElement = analysis.resolveClassElement(new Name("Object"), analysis.dartCore, analysis.dartCore.source);
     if (objectClassElement == null){
       engine.errors.addError(new EngineError("`Object` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", analysis.dartCore.source.source, analysis.dartCore.source.ast.offset, analysis.dartCore.source.ast.length), true);
     }
@@ -345,7 +344,7 @@ class ClassHierarchyResolver {
         if (classElement != objectClassElement)
           classElement.extendsElement = objectClassElement;
       } else {
-        ClassElement extendClass = analysis.resolveClassElement(classElement.superclass.name.toString(), libraryElement, sourceElement);
+        ClassElement extendClass = analysis.resolveClassElement(new Name.FromIdentifier(classElement.superclass.name), libraryElement, sourceElement);
         if (extendClass == null)
           engine.errors.addError(new EngineError("`${classElement.superclass.name.toString()}` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", sourceElement.source, sourceElement.ast.offset, sourceElement.ast.length), true);
         else

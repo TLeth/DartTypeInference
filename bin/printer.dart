@@ -1051,14 +1051,12 @@ class PrintConstraintVisitor extends GeneralizingAstVisitor {
   visitIntegerLiteral(IntegerLiteral n) {    
     // {int} \subseteq [n]
     TypeIdentifier nodeTypeIdent = new ExpressionTypeIdentifier(n);
-    //print("${n} // ${types.getter(nodeTypeIdent)}, ${types.setter(nodeTypeIdent)}");
     super.visitIntegerLiteral(n);
   }
   
   visitDoubleLiteral(DoubleLiteral n) {
     // {double} \subseteq [n]
     TypeIdentifier nodeTypeIdent = new ExpressionTypeIdentifier(n);
-    //print("${n} // ${types.getter(nodeTypeIdent)}, ${types.setter(nodeTypeIdent)}");
     super.visitDoubleLiteral(n);
   }
   
@@ -1084,6 +1082,7 @@ class PrintConstraintVisitor extends GeneralizingAstVisitor {
   visitBinaryExpression(BinaryExpression be) {
     super.visitBinaryExpression(be);
   }
+    
   
   
   

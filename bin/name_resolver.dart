@@ -21,6 +21,8 @@ _addToScope(scope, bindings, k) {
   });
 }
 
+//TODO (jln): factories should be handled here. in ConstructorName there should be resolved what is a prefix of another library, and what is a factory call.
+
 class IdentifierResolver extends Our.RecursiveElementVisitor {
 
   Map<Our.Name, Our.NamedElement> declaredElements = {};
@@ -123,6 +125,21 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     else
       references[node] = this.scope["this"];
     super.visitThisExpression(node);
+  }
+  
+  visitConstructorName(ConstructorName node){
+    if (node.name == null){
+      //Only prefixed identifiers needs resolving
+      if (node.type.name is PrefixedIdentifier){
+        PrefixedIdentifier ident = node.type.name;
+        Our.NamedElement element = this.declaredElements[new Our.Name.FromIdentifier(ident.prefix)];
+        if (element is Our.ClassElement){
+          node.name = ident.identifier;
+          node.type.name = ident.prefix;
+          return;
+        }
+      }
+    }
   }
 
 

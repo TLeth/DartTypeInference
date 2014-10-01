@@ -347,9 +347,9 @@ class ElementTyper {
     if (type == null)
       return null;
     else {
-      ClassElement classElement = elementAnalysis.resolveClassElement(type.name.toString(), library, source);
+      ClassElement classElement = elementAnalysis.resolveClassElement(new Name.FromIdentifier(type.name), library, source);
       if (classElement != null)
-        return new NominalType(elementAnalysis.resolveClassElement(type.name.toString(), library, source));
+        return new NominalType(elementAnalysis.resolveClassElement(new Name.FromIdentifier(type.name), library, source));
       else 
         return null;
     }

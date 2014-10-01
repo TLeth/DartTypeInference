@@ -40,8 +40,16 @@ class TypeMap {
     NominalType type = ident.propertyIdentifierType;
     ClassMember member = type.element.lookup(ident.propertyIdentifierName);
     
+    /*if (type.toString() == 'List'){
+      print(member);
+    }*/
+    
+    //print("${ident}: ${member}");
+    
     if (member != null)
       return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeClassMember(member, type.element.sourceElement.library)];
+    
+      
     
     if (!containsKey(ident))
       _typeMap[ident] = new TypeVariable();
@@ -99,6 +107,8 @@ class TypeVariable {
       _changed = false;
     }
   }
+  
+  List<AbstractType> get allTypes => new List.from(_types); 
   
   Function notify(NotifyFunc func, [FilterFunc filter = null]) {
     if (_event_listeners.contains(func))
@@ -228,44 +238,44 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   visitIntegerLiteral(IntegerLiteral n) {
     super.visitIntegerLiteral(n);
     // {int} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement("int", constraintAnalysis.dartCore, source)));
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("int"), constraintAnalysis.dartCore, source)));
   }
   
   visitDoubleLiteral(DoubleLiteral n) {
     super.visitDoubleLiteral(n);
     // {double} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement("double", constraintAnalysis.dartCore, source)));
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("double"), constraintAnalysis.dartCore, source)));
   }
   
   visitStringLiteral(StringLiteral n){
     super.visitStringLiteral(n);
     // {String} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement("String", constraintAnalysis.dartCore, source)));
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("String"), constraintAnalysis.dartCore, source)));
     
   }
   
   visitBooleanLiteral(BooleanLiteral n){
     super.visitBooleanLiteral(n);
     // {String} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement("bool", constraintAnalysis.dartCore, source)));
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("bool"), constraintAnalysis.dartCore, source)));
   }
   
   visitSymbolLiteral(SymbolLiteral n){
     super.visitSymbolLiteral(n);
     // {String} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement("Symbol", constraintAnalysis.dartCore, source)));
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("Symbol"), constraintAnalysis.dartCore, source)));
   }  
   
   visitListLiteral(ListLiteral n){
     super.visitListLiteral(n);
     // {String} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement("List", constraintAnalysis.dartCore, source)));
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("List"), constraintAnalysis.dartCore, source)));
   }
   
   visitMapLiteral(MapLiteral n){
     super.visitMapLiteral(n);
     // {String} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement("Map", constraintAnalysis.dartCore, source)));
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("Map"), constraintAnalysis.dartCore, source)));
   }
   
   
@@ -274,26 +284,27 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     // new ClassName(arg_1,..., arg_n);
     TypeName classType = n.constructorName.type;
     
-    SimpleIdentifier className = null;
-    Name constructorName = null;
-    if (classType.name is SimpleIdentifier){
-      className = classType.name;
-       
-      if (n.constructorName.name != null)
-        constructorName = new PrefixedName.FromIdentifier(classType.name, new Name.FromIdentifier(n.constructorName.name));
-      else
-        constructorName = new Name.FromIdentifier(classType.name);  
-    } else {
-      //TODO (jln): What about generics.
-      //TODO (jln): Factory creations.
-    }
+    Identifier className = classType.name;
     
-    if (className != null && constructorName != null){
+    //TODO (jln): What about generics.
+    
+    if (className != null){
       // {ClassName} \in [n]
       TypeIdentifier returnIdent = new ExpressionTypeIdentifier(n);
-      AbstractType classType = new NominalType(elementAnalysis.resolveClassElement(className.toString(), source.library, source));
-      TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, constructorName);
-      _methodCall(constructorIdent, n.argumentList.arguments, returnIdent);      
+      ClassElement classElement = elementAnalysis.resolveClassElement(new Name.FromIdentifier(className), source.library, source);
+      
+      if (classElement != null){
+        Name constructorName = null;
+        if (n.constructorName.name != null)
+          constructorName = new PrefixedName.FromIdentifier(classElement.identifier, new Name.FromIdentifier(n.constructorName.name));
+        else
+          constructorName = new Name.FromIdentifier(classElement.identifier);
+        
+        AbstractType classType = new NominalType(classElement);
+        TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, constructorName);
+        _methodCall(constructorIdent, n.argumentList.arguments, returnIdent);
+        
+      }
     }
   }
   

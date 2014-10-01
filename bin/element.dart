@@ -47,8 +47,7 @@ class ElementAnalysis {
       return null;
   }
 
-  ClassElement resolveClassElement(String stringName, LibraryElement library, SourceElement source) {
-    Name name = new Name(stringName);
+  ClassElement resolveClassElement(Name name, LibraryElement library, SourceElement source) {
     if (library.scope.containsKey(name)){
       List<NamedElement> elements = library.scope[name];
       if (elements.length == 1 && elements[0] is ClassElement)
@@ -67,7 +66,15 @@ class Name {
   String _name;
   
   Name(String this._name);
-  factory Name.FromIdentifier(Identifier name) => new Name(name.toString());
+  
+  factory Name.FromIdentifier(Identifier name){
+    if (name is PrefixedIdentifier){
+      return new PrefixedName.FromPrefixedIdentifier(name); 
+    } else {
+      return new Name(name.toString());
+    }
+  }
+  
   factory Name.FromToken(Token name) => new Name(name.toString());
   
   bool get isPrivate => Identifier.isPrivateName(_name);
@@ -89,15 +96,16 @@ class Name {
 }
 
 class PrefixedName implements Name {
-  String _prefix;
+  Name _prefix;
   Name _postfixName;
   
-  PrefixedName(String this._prefix, Name this._postfixName);
-  factory PrefixedName.FromIdentifier(Identifier prefix, Name postfixName) => new PrefixedName(prefix.toString(), postfixName);
+  PrefixedName(Name this._prefix, Name this._postfixName);
+  factory PrefixedName.FromIdentifier(Identifier prefix, Name postfixName) => new PrefixedName(new Name.FromIdentifier(prefix), postfixName);
+  factory PrefixedName.FromPrefixedIdentifier(PrefixedIdentifier ident) => new PrefixedName(new Name.FromIdentifier(ident.prefix), new Name.FromIdentifier(ident.identifier));
   
-  bool get isPrivate => Identifier.isPrivateName(_postfixName.toString()) || Identifier.isPrivateName(_prefix);
+  bool get isPrivate => Identifier.isPrivateName(_postfixName.toString()) || Identifier.isPrivateName(_prefix.toString());
   
-  String get _name => _prefix + "." + _postfixName.name;
+  String get _name => _prefix.name + "." + _postfixName.name;
   void set _name(String name) { _postfixName._name = name; }
   String get name => _name;
   bool get isSetterName => Name.IsSetterName(this);
