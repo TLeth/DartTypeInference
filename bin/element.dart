@@ -918,7 +918,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
   }
   
   visitVariableDeclaration(VariableDeclaration node) {
-    if (_currentFieldDeclaration != null) {
+    if (_currentFieldDeclaration != null && _currentBlock  == _currentClassElement) {
       if (_currentClassElement == null)
          engine.errors.addError(new EngineError("Visited variable decl inside a field declaration, but currentClass was null.", source, node.offset, node.length), true);
       
@@ -1017,7 +1017,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
     } else {
       variable = new ParameterElement(node, _currentBlock, _currentVariableType, element);
     }
-    
+
     analysis.addElement(node, variable);
 
     _currentBlock.addVariable(variable);
