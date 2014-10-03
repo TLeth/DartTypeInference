@@ -199,7 +199,9 @@ class Engine {
     //_elementAnalysis.accept(new PrintElementVisitor());
     SourceElement entrySourceElement = _elementAnalysis.getSource(_entrySource); 
     new ScopeResolver(this, entrySourceElement, _elementAnalysis);
-    //_elementAnalysis.accept(new PrintScopeVisitor());
+
+    _elementAnalysis.accept(new PrintScopeVisitor());
+
     new ExportResolver(this, _elementAnalysis);
     new ImportResolver(this, _elementAnalysis);
     //_elementAnalysis.accept(new PrintLibraryVisitor(scope: true, import: true, export: true, defined: true));
