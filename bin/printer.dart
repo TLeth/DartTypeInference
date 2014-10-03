@@ -1,5 +1,6 @@
 library typeanalysis.printer;
 
+import 'package:analyzer/src/services/formatter_impl.dart';
 import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/java_core.dart';
@@ -7,15 +8,54 @@ import 'constraint.dart';
 
 import 'types.dart';
 import 'element.dart' as analysis;
+import 'engine.dart';
 
-class PrintReferenceVisitor extends ToSourceVisitor {
+class PrintResolvedIdentifiers extends CodeFormatterImpl {
+
+  analysis.SourceElement currentSourceElement;
   analysis.ElementAnalysis elementAnalysis;
-  PrintWriter writer;
+  Engine engine;
   
-  factory PrintReferenceVisitor.Print(analysis.ElementAnalysis elementAnalysis) => 
-      new PrintReferenceVisitor(elementAnalysis, new PrintStringWriter()); 
+  PrintResolvedIdentifiers(Engine this.engine, analysis.ElementAnalysis this.elementAnalysis) : super(const FormatterOptions()) {
+      elementAnalysis.sources.keys.forEach((Source src) {
+          if (src == engine.entrySource) {
+              
+              var startToken = tokenize(src.contents.data); //Sets lineInfo
+              var formatter = new PrintReferenceVisitor(engine, elementAnalysis, const FormatterOptions(), lineInfo, src.contents.data, null);
+              elementAnalysis.getSource(src).ast.accept(formatter);
+              print(formatter.writer.toString());
+           }
+      });      
+  }
+
+  FormattedSource format(CodeKind kind, String source, {int offset, int end,
+      int indentationLevel: 0, Selection selection: null}) {
+
+    var startToken = tokenize(source);
+    checkForErrors();
+
+    var node = parse(kind, startToken);
+    checkForErrors();
+
+    var formatter = new PrintReferenceVisitor(engine, elementAnalysis, const FormatterOptions(), lineInfo, source, selection);
+    node.accept(formatter);
+
+    var formattedSource = formatter.writer.toString();
+
+    return new FormattedSource(formattedSource, formatter.selection);
+  }
   
-  PrintReferenceVisitor(analysis.ElementAnalysis this.elementAnalysis, PrintWriter writer) : super(writer) {
+  
+}
+
+class PrintReferenceVisitor extends SourceVisitor {
+  
+  analysis.ElementAnalysis elementAnalysis;
+  Engine engine;
+  
+  PrintReferenceVisitor(this.engine, this.elementAnalysis, options, lineInfo, source, preSelection) : super(options, lineInfo, source, preSelection) {
+    
+    /*
     this.writer = writer;
     //elementAnalysis.sources.values.forEach((analysis.SourceElement source) {
     analysis.SourceElement source = elementAnalysis.sources[elementAnalysis.engine.entrySource]; 
@@ -28,12 +68,26 @@ class PrintReferenceVisitor extends ToSourceVisitor {
       writer.println("*/");
     //});
     print(this.writer.toString());
+    * */
+     
   }
-
-  Object visitSimpleIdentifier(SimpleIdentifier node) {
-    writer.print("${node.token.lexeme}/*${node.hashCode}*/");
-    return null;
-  }
+  
+    visitSimpleIdentifier(SimpleIdentifier node) {
+      super.visitSimpleIdentifier(node);
+      var resolved = elementAnalysis.getSource(engine.entrySource).resolvedIdentifiers[node];
+      
+      
+      
+      if (resolved != null) {
+        append("_${resolved.hashCode}");
+      }
+          
+    }
+  
+//  Object visitSimpleIdentifier(SimpleIdentifier node) {
+  //  writer.print("${node.token.lexeme}/*${node.hashCode}*/");
+    //return null;
+  //}
 }
 
 class PrintScopeVisitor extends analysis.RecursiveElementVisitor {
@@ -48,16 +102,14 @@ class PrintScopeVisitor extends analysis.RecursiveElementVisitor {
     print("${indent}}");
   }
 
-
-  
-  visitSourceElement(SourceElement node) {
+  visitSourceElement(analysis.SourceElement node) {
     printBlock("file: ${node.source.shortName}", (){
       node.declaredVariables.values.forEach(visit);
       node.nestedBlocks.forEach(visit);
     });
   }
 
-  visitClassElement(ClassElement node) {
+  visitClassElement(analysis.ClassElement node) {
     printBlock("class: ${node.name}", (){
       if (!node.declaredVariables.isEmpty){
         print("død og ødelæggelse!!!!!!!");
@@ -69,80 +121,83 @@ class PrintScopeVisitor extends analysis.RecursiveElementVisitor {
     });
   }
 
-  visitBlockElement(BlockElement node) {
+  visitBlockElement(analysis.BlockElement node) {
     printBlock("anonBlock", (){
       node.declaredVariables.values.forEach(visit);
       node.nestedBlocks.forEach(visit);
     });
   }
 
-  visitFunctionElement(FunctionElement node) {
+  visitFunctionElement(analysis.FunctionElement node) {
     printBlock("anonFunction", (){
       node.declaredVariables.values.forEach(visit);
       node.nestedBlocks.forEach(visit);
     });
   }
 
-  visitNamedFunctionElement(NamedFunctionElement node) {
+  visitNamedFunctionElement(analysis.NamedFunctionElement node) {
     printBlock("func: ${node.name}", (){
       node.declaredVariables.values.forEach(visit);
       node.nestedBlocks.forEach(visit);
     });
   }
 
-  visitMethodElement(MethodElement node) {
+  visitMethodElement(analysis.MethodElement node) {
     printBlock("method: ${node.name}", (){
       node.declaredVariables.values.forEach(visit);
       node.nestedBlocks.forEach(visit);
     });
   }
 
-  visitConstructorElement(ConstructorElement node) {
+  visitConstructorElement(analysis.ConstructorElement node) {
     printBlock("ctor: ${node.name}", (){
       node.declaredVariables.values.forEach(visit);
       node.nestedBlocks.forEach(visit);
     });
   }
 
-  visitFunctionParameterElement(FunctionParameterElement node){
-    print("${indent}function param ${node.name}");
+  visitFunctionParameterElement(analysis.FunctionParameterElement node){
+    print("${indent}function param ${node.name} -- ${node.hashCode}");
   }
 
-  visitParameterElement(ParameterElement node){
-    print("${indent}param ${node.name}");
+  visitParameterElement(analysis.ParameterElement node){
+    print("${indent}param ${node.name} -- ${node.hashCode}");
   }
 
-  visitVariableElement(VariableElement node) {
-    print("${indent}var ${node.name}");
+  visitVariableElement(analysis.VariableElement node) {
+    print("${indent}var ${node.name} -- ${node.hashCode}");
   }
 
-  visitFieldElement(FieldElement node) {
+  visitFieldElement(analysis.FieldElement node) {
     print("${indent}field ${node.name}");
   }
 
-  visitClassMember(ClassMember node){
+  visitClassMember(analysis.ClassMember node){
     print("${indent}CLASS MEMBER");
   }
 
-  visitLibraryElement(LibraryElement node) {
-    print("${indent}CLASS MEMBER");
+  visitLibraryElement(analysis.LibraryElement node) {
+    print("${indent}LIB ELEM");
   }
-  visitNamedElement(NamedElement node){
-    print("${indent}CLASS MEMBER");
-  }
-  visitCallableElement(CallableElement node) {
-    print("${indent}CLASS MEMBER");
-  }
-  visitReturnElement(ReturnElement node) {
-    print("${indent}CLASS MEMBER");
-  }
-  visitClassAliasElement(ClassAliasElement node){
-    print("${indent}CLASS MEMBER");
-  }
-
   
-  visitBlock(Block node){
-    print("${indent}CLASS MEMBER");
+  visitNamedElement(analysis.NamedElement node){
+    print("${indent}NAMED ELEM");
+  }
+  
+  visitCallableElement(analysis.CallableElement node) {
+    print("${indent}CALLABLE ELEM");
+  }
+  
+  visitReturnElement(analysis.ReturnElement node) {
+    print("${indent}RETURN ELEM");
+  }
+  
+  visitClassAliasElement(analysis.ClassAliasElement node){
+    print("${indent}CLASS ALIAS");
+  }
+  
+  visitBlock(analysis.Block node){
+    print("${indent}BLOCK MEMBER");
   }
 }
 
