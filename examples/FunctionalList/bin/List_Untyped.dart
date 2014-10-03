@@ -1,5 +1,6 @@
 library list;
 
+
 class List {
   var head = null;
   var tail = null;
@@ -21,17 +22,25 @@ class List {
       return res;
     }
   }
+  
 }
 
 class Element {
-
+  Element();
 }
+test(var a){
+  return a;
+}
+
+var a = 40;
 
 
 main() {
   var xs = new List();
   xs = xs.append(new Element());
   xs = xs.append(new Element());
+  var ys = test(3.0);
+  var a = "str";
   xs = xs.append(new Element());
   xs = xs.append(new Element());
   xs = xs.append(new Element());

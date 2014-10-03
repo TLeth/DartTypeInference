@@ -16,7 +16,7 @@ import 'package:analyzer/src/analyzer_impl.dart';
 import 'name_resolver.dart';
 import 'element.dart';
 import 'constraint.dart';
-import 'resolver.dart';
+import 'resolver.dart' hide IdentifierResolver;
 import 'printer.dart';
 
 //TODO (jln): split files into smaller ones.
@@ -72,7 +72,7 @@ class ErrorCollector {
     }
   }
   
-  void reset() => _errors.removeRange(0, _errors.length-1);
+  void reset() => _errors.clear();
   
   String toString() {
     StringBuffer sb = new StringBuffer();
@@ -197,11 +197,15 @@ class Engine {
     _elementAnalysis = new ElementAnalysis(this);
     new ElementGenerator(this, _entrySource, _elementAnalysis);
     //_elementAnalysis.accept(new PrintElementVisitor());
-    new ScopeResolver(this, _elementAnalysis.getSource(_entrySource), _elementAnalysis);
+    SourceElement entrySourceElement = _elementAnalysis.getSource(_entrySource); 
+    new ScopeResolver(this, entrySourceElement, _elementAnalysis);
+    //_elementAnalysis.accept(new PrintScopeVisitor());
     new ExportResolver(this, _elementAnalysis);
     new ImportResolver(this, _elementAnalysis);
     //_elementAnalysis.accept(new PrintLibraryVisitor(scope: true, import: true, export: true, defined: true));
-    new IdentifierResolver(this, _elementAnalysis);
+    //new IdentifierResolver(this, _elementAnalysis);
+    new IdentifierResolver(this,  _elementAnalysis);
+    //new PrintReferenceVisitor.Print(_elementAnalysis);
     //unit.accept(new PrintAstVisitor());
     new ClassHierarchyResolver(this, _elementAnalysis);
     //_elementAnalysis.accept(new PrintElementVisitor());

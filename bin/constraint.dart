@@ -30,26 +30,22 @@ class TypeMap {
   
   TypeMap(ConstraintAnalysis this.constraintAnalysis);
   
-  TypeVariable _lookup(TypeIdentifier ident){
+  TypeVariable _lookup(TypeIdentifier ident, SourceElement source){
     if (containsKey(ident))
       return _typeMap[ident];
     
-    if (!ident.isPropertyLookup || !(ident.propertyIdentifierType is NominalType))
-      return _typeMap[ident] = new TypeVariable();
+    if (ident.isPropertyLookup && ident.propertyIdentifierType is NominalType){
+      NominalType type = ident.propertyIdentifierType;
+      ClassMember member = type.element.lookup(ident.propertyIdentifierName);
     
-    NominalType type = ident.propertyIdentifierType;
-    ClassMember member = type.element.lookup(ident.propertyIdentifierName);
+      if (member != null)
+        return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeClassMember(member, type.element.sourceElement.library)];
+    } else if (ident is ExpressionTypeIdentifier && source.resolvedIdentifiers.containsKey(ident.exp)){
+      NamedElement namedElement = source.resolvedIdentifiers[ident.exp];
+      return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeNamedElement(namedElement, namedElement.sourceElement.library)];
+    }
     
-    /*if (type.toString() == 'List'){
-      print(member);
-    }*/
     
-    //print("${ident}: ${member}");
-    
-    if (member != null)
-      return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeClassMember(member, type.element.sourceElement.library)];
-    
-      
     
     if (!containsKey(ident))
       _typeMap[ident] = new TypeVariable();
@@ -57,9 +53,9 @@ class TypeMap {
     return _typeMap[ident];
   }
   
-  TypeVariable getter(dynamic i) {
+  TypeVariable getter(dynamic i, SourceElement source) {
     TypeIdentifier ident = TypeIdentifier.ConvertToTypeIdentifier(i);
-    return _lookup(ident);
+    return _lookup(ident, source);
   }
   
   TypeVariable replace(TypeIdentifier i, TypeVariable v) => _typeMap[i] = v;
@@ -165,6 +161,7 @@ abstract class ConstraintHelper {
   FilterFunc _lastWhere = null;
   
   TypeMap get types;
+  SourceElement get source;
   
   ConstraintHelper foreach(dynamic ident) {
     _lastTypeIdentifier = TypeIdentifier.ConvertToTypeIdentifier(ident);
@@ -183,7 +180,7 @@ abstract class ConstraintHelper {
       
       _lastTypeIdentifier = null;
       _lastWhere = null;
-      types.getter(identifier).notify(func, filter);
+      types.getter(identifier, source).notify(func, filter);
     }
   }
 }
@@ -202,7 +199,6 @@ class ConstraintGenerator {
 }
 
 class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintHelper {
-  
   TypeMap get types => constraintAnalysis.typeMap;
   
   bool operator [](TypeIdentifier e) => true; 
@@ -211,9 +207,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   ConstraintAnalysis constraintAnalysis;
   ElementTyper get elementTyper => constraintAnalysis.elementTyper;
   ElementAnalysis get elementAnalysis => constraintAnalysis.elementAnalysis;
-  
-  FieldDeclaration _currentFieldDeclaration = null;
-  ClassDeclaration _currentClassDeclaration = null;
+  Engine get engine => constraintAnalysis.engine;
   
   ConstraintGeneratorVisitor(SourceElement this.source, ConstraintAnalysis this.constraintAnalysis) {
     source.ast.accept(this);
@@ -226,13 +220,14 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       return exp;
   }
   
-  void _equalConstraint(TypeIdentifier a, TypeIdentifier b){ 
+  void _equalConstraint(TypeIdentifier a, TypeIdentifier b){
     _subsetConstraint(a, b);
     _subsetConstraint(b, a);
   }
   
   void _subsetConstraint(TypeIdentifier a, TypeIdentifier b) {
-    foreach(a).update((AbstractType type) => types.put(b, type));
+    if (a != b)
+      foreach(a).update((AbstractType type) => types.put(b, type));
   }
   
   visitIntegerLiteral(IntegerLiteral n) {
@@ -308,36 +303,22 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     }
   }
   
-  visitFieldDeclaration(FieldDeclaration node) {
-    _currentFieldDeclaration = node;
-    super.visitFieldDeclaration(node);
-    _currentFieldDeclaration = null;
-  }
-  
-  visitClassDeclaration(ClassDeclaration node) {
-    _currentClassDeclaration = node;
-    super.visitClassDeclaration(node);
-    _currentClassDeclaration = null;
-  }
-  
   visitVariableDeclaration(VariableDeclaration vd){
      // var v;
      super.visitVariableDeclaration(vd);
-     Expression name = vd.name;
      
-     if ((name is SimpleIdentifier)){
-       if (_currentFieldDeclaration != null) {
-         //For fields
-         ClassElement classElement = source.declaredClasses[new Name.FromIdentifier(_currentClassDeclaration.name)];
-         TypeIdentifier v = new PropertyTypeIdentifier(new NominalType(classElement), new Name.FromIdentifier(name));
-         _equalConstraint(v, new ExpressionTypeIdentifier(name));
-       }
-     } else {
-       //TODO (jln): assigment to a non identifier on left hand side.
+     if (!elementAnalysis.containsElement(vd))
+       engine.errors.addError(new EngineError("A VariableDeclaration was visited, but didn't have a associated elemenet.", source.source, vd.offset, vd.length ), true);
+     
+     Element element = elementAnalysis.elements[vd];
+     if (element is FieldElement){
+       ClassElement classElement = element.classDecl;
+       TypeIdentifier v = new PropertyTypeIdentifier(new NominalType(classElement), element.name);
+       _equalConstraint(v, new ExpressionTypeIdentifier(vd.name));
      }
      
      // v = exp;
-     _assignmentExpression(name, vd.initializer);
+     _assignmentExpression(vd.name, vd.initializer);
   }
   
   visitAssignmentExpression(AssignmentExpression node){
@@ -395,14 +376,8 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   visitThisExpression(ThisExpression n) {
     // this
     super.visitThisExpression(n);
-    
-    if (source.resolvedIdentifiers.containsKey(n)){
-      NamedElement classElement = source.resolvedIdentifiers[n];
-      if (classElement is ClassElement)
-        types.put(n, new NominalType(classElement));
-    } else {
-      //TODO jln: Some times this is not bound correctly in resolvedIdentifiers.
-    }
+    ClassElement classElement = source.thisReferences[n];
+    types.put(n, new NominalType(classElement));
   }
   
 
@@ -458,8 +433,19 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
           }
           if (returnIdent != null) _subsetConstraint(func.returnType, returnIdent);
         }
-      });
+      }); 
+  }
+  
+  visitReturnStatement(ReturnStatement node){
+    super.visitReturnStatement(node);
+    if (node.expression != null){
+      if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is ReturnElement)
+        engine.errors.addError(new EngineError("A ReturnStatement was visited, but didn't have a associated elemenet.", source.source, node.offset, node.length ), true);
     
+      ReturnElement returnElement = elementAnalysis.elements[node];
+    
+      _subsetConstraint(new ExpressionTypeIdentifier(node.expression), new ReturnTypeIdentifier(returnElement.function));
+    }
   }
   
   visitBinaryExpression(BinaryExpression be) {
@@ -478,5 +464,6 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       _methodCall(methodIdent, <Expression>[be.rightOperand], nodeIdent);
     });
   }
+  
 }
 

@@ -1,16 +1,16 @@
 library typeanalysis.resolve;
 
 import 'dart:collection';
-import 'package:analyzer/src/generated/ast.dart';
+import 'package:analyzer/src/generated/ast.dart' hide Block;
 import 'package:analyzer/src/generated/source.dart';
 import 'element.dart';
 import 'engine.dart';
 import 'util.dart';
-
 /** The library resolution step is seperated into tree steps:
  * Resolving local scope
  * Resolving export scope
  * Resolving import scope.
+ * Resolving identifier scope.
  */ 
 
 class LibraryElement {
@@ -47,14 +47,14 @@ class LibraryElement {
   bool containsDependedExport(LibraryElement library) => depended_exports.contains(library);
   
   //Lookup method used for making proper lookup in the scope.
-  NamedElement lookup(Name name, [bool notUniqueFail = true]) {
+  NamedElement lookup(Name name, [bool noFatalError = true]) {
     if (!scope.containsKey(name)){
-      engine.errors.addError(new EngineError("An element with name: '${name}' didn't exists in the scope", source.source), notUniqueFail);
+      if (noFatalError) engine.errors.addError(new EngineError("An element with name: '${name}' didn't exists in the scope", source.source), true);
       return null;
     }
     
     if (scope[name].length > 1){
-      engine.errors.addError(new EngineError("Multiple elements with name: '${name}' existed in scope", source.source), notUniqueFail);
+      if (noFatalError) engine.errors.addError(new EngineError("Multiple elements with name: '${name}' existed in scope", source.source), true);
       return null;
     }
     
@@ -66,14 +66,14 @@ class LibraryElement {
                                (scope[element.getterName].length == 1 && scope[element.getterName][0].librarySource == element.librarySource)))) {
         return element;
       } else {
-        engine.errors.addError(new EngineError("The element: '${name}' did exist but its coresponding getter/setter was from another library.", source.source), notUniqueFail);
+        if (noFatalError) engine.errors.addError(new EngineError("The element: '${name}' did exist but its coresponding getter/setter was from another library.", source.source), true);
         return null;
       }
     } else if (element is VariableElement) {
-      if (scope[element.name].length == 1 && scope[Name.SetterName(element.name)].length == 1){
+      if (scope.containsKey(element.name) && scope[element.name].length == 1 && scope.containsKey(Name.SetterName(element.name)) && scope[Name.SetterName(element.name)].length == 1){
         return element;
       } else {
-        engine.errors.addError(new EngineError("The variable element: '${name}' did exist but the coresponding getter/setter was not unique represented.", source.source), notUniqueFail);
+        if (noFatalError) engine.errors.addError(new EngineError("The variable element: '${name}' did exist but the coresponding getter/setter was not unique represented.", source.source), true);
         return null;
       }
     }else {
@@ -351,5 +351,120 @@ class ClassHierarchyResolver {
           classElement.extendsElement = extendClass;
       }
     }
+  }
+}
+
+class IdentifierResolver extends RecursiveElementVisitor {
+  Engine engine;
+  ElementAnalysis analysis;
+  SourceElement source;
+  Map<String, NamedElement> scope;
+  Block _currentBlock;
+  
+  
+  IdentifierResolver(Engine this.engine, ElementAnalysis this.analysis) {
+    analysis.sources.values.forEach(visitSourceElement);
+  }
+  
+  void visitSourceElement(SourceElement sourceElement){
+    source = sourceElement;
+    scope = <String, NamedElement>{};
+    super.visitSourceElement(sourceElement);
+  }
+  
+  void visitBlock(Block block){
+    _currentBlock = block;
+    Map<String, NamedElement> parent_scope = scope;
+    scope = <String, NamedElement>{};
+    scope.addAll(parent_scope);
+    for (Name name in block.declaredElements.keys){
+      scope[name.toString()] = block.declaredElements[name];
+    }
+    
+    //block.referenceNodes = ListUtil.filter(block.referenceNodes, resolveSimpleIdentifier);
+    //block.referenceNodes = ListUtil.filter(block.referenceNodes, resolvePrefixedIdentifier);
+    //block.referenceNodes = ListUtil.filter(block.referenceNodes, resolveConstructorName);
+    if (block.referenceNodes.length > 0){
+      print("Unresolved Elements:");
+      block.referenceNodes.forEach(unresolvedElements);
+    }
+    super.visitBlock(block);
+    scope = parent_scope;
+    _currentBlock = block.enclosingBlock;
+  }
+  
+  bool resolveSimpleIdentifier(AstNode node){
+    if (node is SimpleIdentifier){
+      if (scope.containsKey(node.toString())){
+        source.resolvedIdentifiers[node] = scope[node.toString()];
+        return false;
+      }
+    }
+    return true;
+  }
+  
+  bool resolvePrefixedIdentifier(AstNode node){
+    if (node is PrefixedIdentifier){
+      //First part already resolved so try to check if the last part can be resolved.
+      if (source.resolvedIdentifiers.containsKey(node.prefix)){
+         NamedElement namedElement = source.resolvedIdentifiers[node.prefix];
+         //Only classes can we resolve statically
+         Name postfixName = new Name.FromIdentifier(node.identifier);
+         if (namedElement is ClassElement && namedElement.declaredElements.containsKey(postfixName)){
+          source.resolvedIdentifiers[node] = namedElement.declaredElements[postfixName];
+         }
+         //Cannot be resolved further so it is fine.
+         return false;  
+      }
+      
+      //Nothing is resolved, so check the library.
+      NamedElement element = source.library.lookup(new Name.FromIdentifier(node), false);
+      if (element != null){
+        source.resolvedIdentifiers[node] = element;
+        return false;
+      }
+      
+      //Nothing else to do.
+      return false;
+    }
+    return true;
+  }
+  
+  bool resolveConstructorName(AstNode node){
+    if (node is ConstructorName){
+      if (node.type.name is PrefixedIdentifier){
+        
+        PrefixedIdentifier ident = node.type.name;
+        
+        //If the hole thing already is resolved, this is fine.
+        if (source.resolvedIdentifiers.containsKey(ident))
+          return false;
+        
+        if (source.resolvedIdentifiers.containsKey(ident.prefix)){
+          NamedElement namedElement = source.resolvedIdentifiers[ident.prefix];
+          if (namedElement is ClassElement){
+            node.name = ident.identifier;
+            node.type.name = ident.prefix;
+            return false;
+          }
+        } else {
+          //Is prefixed identifier, and the identifier prefix cannot be resolved. 
+          return true;
+        }
+      } else if (node.type.name is SimpleIdentifier) {
+        if (source.resolvedIdentifiers.containsKey(node.type.name)){
+          return false;
+        } else {
+          //Is simple identifier, and the identifier cannot be resolved.
+          return true;
+        }
+      }
+      return false;
+    }
+    return true;
+  }
+  
+  void unresolvedElements(AstNode node){
+    print("${node.runtimeType}: ${node}");
   }
 }

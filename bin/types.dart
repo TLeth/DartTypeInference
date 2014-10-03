@@ -34,27 +34,13 @@ class FunctionType extends AbstractType {
                 this.namedParameterTypes = (namedParameterTypes == null ? <Name, TypeIdentifier>{} : namedParameterTypes);
   
   
-  factory FunctionType.FromElements(Identifier functionIdentifier, TypeName returnType, FormalParameterList paramList, LibraryElement library, SourceElement sourceElement, ElementTyper typer){
-    TypeIdentifier returnIdentifier = typer.typeReturn(functionIdentifier, returnType, library, sourceElement);
-    if (paramList == null)
+  factory FunctionType.FromCallableElement(CallableElement element, LibraryElement library, ElementTyper typer){
+    TypeIdentifier returnIdentifier = typer.typeReturn(element, library, element.sourceElement);
+    if (element.parameters == null)
       return new FunctionType(<TypeIdentifier>[], returnIdentifier);
     
-    ParameterTypes params = typer.typeParameters(paramList, library, sourceElement);
+    ParameterTypes params = typer.typeParameters(element, library, element.sourceElement);
     return new FunctionType(params.normalParameterTypes, returnIdentifier, params.optionalParameterTypes, params.namedParameterTypes); 
-  }
-
-  factory FunctionType.FromFunctionTypedFormalParameter(FunctionTypedFormalParameter element, LibraryElement library, ElementTyper typer, SourceElement sourceElement){
-    return new FunctionType.FromElements(element.identifier, element.returnType, element.parameters, library, sourceElement, typer);
-  }
-  
-  factory FunctionType.FromMethodElement(MethodElement element, LibraryElement library, ElementTyper typer){
-    return new FunctionType.FromElements(element.identifier, element.returnType, element.ast.parameters, library, element.sourceElement, typer);
-  }
-  
-  factory FunctionType.FromConstructorElement(ConstructorElement element, LibraryElement library, ElementTyper typer){
-    FunctionType functionType = new FunctionType.FromElements(element.identifier, element.returnType, element.ast.parameters, library, element.sourceElement, typer);
-    //typer.typeMap.replace(functionType.returnType, typer.typeMap[typer.typeClassElement(element.classDecl)]);
-    return functionType;
   }
 
   String toString() {
@@ -178,15 +164,15 @@ class PropertyTypeIdentifier extends TypeIdentifier {
 }
 
 class ReturnTypeIdentifier extends TypeIdentifier {
-  Identifier _functionIdentifier;
+  CallableElement _element;
   
-  ReturnTypeIdentifier(Identifier this._functionIdentifier);
+  ReturnTypeIdentifier(CallableElement this._element);
   
-  int get hashCode => _functionIdentifier.hashCode * 31;
+  int get hashCode => _element.hashCode * 31;
   
-  bool operator ==(Object other) => other is ReturnTypeIdentifier && other._functionIdentifier == _functionIdentifier;
+  bool operator ==(Object other) => other is ReturnTypeIdentifier && other._element == _element;
   
-  String toString() => "#ret.${_functionIdentifier}";
+  String toString() => "#ret.${_element}";
 }
 
 class ParameterTypes { 
@@ -197,7 +183,7 @@ class ParameterTypes {
 
 class ElementTyper {
   Map<AstNode, TypeIdentifier> types = <AstNode, TypeIdentifier>{};
-  Map<AstNode, ReturnTypeIdentifier> returns = <AstNode, ReturnTypeIdentifier>{};
+  Map<CallableElement, ReturnTypeIdentifier> returns = <CallableElement, ReturnTypeIdentifier>{};
   
   
   ConstraintAnalysis constraintAnalysis;
@@ -207,14 +193,29 @@ class ElementTyper {
   
   ElementTyper(ConstraintAnalysis this.constraintAnalysis);
   
+  TypeIdentifier typeNamedElement(NamedElement element, LibraryElement library){
+    if (element is ClassElement)
+      return typeClassElement(element);
+    else if (element is MethodElement)
+      return typeMethodElement(element, library);
+    if (element is AnnotatedElement)
+      return typeAnnotatedElement(element, library);
+    if (element is ConstructorElement)
+      return typeConstructorElement(element, library);
+    if (element is NamedFunctionElement)
+      return typeNamedFunctionElement(element, library);
+    engine.errors.addError(new EngineError("The typeNamedElement method was called with a illigal classMember.", element.sourceElement.source), true);
+    return null;
+  }
+  
   TypeIdentifier typeClassMember(ClassMember element, LibraryElement library){
     if (element is MethodElement)
       return typeMethodElement(element, library);
     if (element is FieldElement)
-      return typeFieldElement(element, library);
+      return typeAnnotatedElement(element, library);
     if (element is ConstructorElement)
       return typeConstructorElement(element, library);
-
+    engine.errors.addError(new EngineError("The typeClassMember method was called with a illigal classMember.", element.sourceElement.source), true);
     return null;
   }
   
@@ -223,17 +224,30 @@ class ElementTyper {
       return types[element.ast];
     
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(element.identifier);
-    AbstractType elementType = new FunctionType.FromMethodElement(element, library, this);
+    AbstractType elementType = new FunctionType.FromCallableElement(element, library, this);
     if (!typeMap.containsKey(elementTypeIdent))
       typeMap.replace(elementTypeIdent, new TypeVariable());
     
     typeMap.put(elementTypeIdent,elementType);
     
+    return types[element.ast] = elementTypeIdent;
+  }
+  
+  TypeIdentifier typeNamedFunctionElement(NamedFunctionElement element, LibraryElement library) {
+    if (types.containsKey(element.ast))
+      return types[element.ast];
+    
+    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(element.identifier);
+    AbstractType elementType = new FunctionType.FromCallableElement(element, library, this);
+    if (!typeMap.containsKey(elementTypeIdent))
+      typeMap.replace(elementTypeIdent, new TypeVariable());
+    
+    typeMap.put(elementTypeIdent,elementType);
     
     return types[element.ast] = elementTypeIdent;
   }
   
-  TypeIdentifier typeFieldElement(FieldElement element,LibraryElement library){
+  TypeIdentifier typeAnnotatedElement(AnnotatedElement element,LibraryElement library){
     if (types.containsKey(element.ast))
       return types[element.ast];
     
@@ -253,7 +267,7 @@ class ElementTyper {
       return types[element.ast];
     
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(element.identifier);
-    AbstractType elementType = new FunctionType.FromConstructorElement(element, library, this);
+    AbstractType elementType = new FunctionType.FromCallableElement(element, library, this);
     if (!typeMap.containsKey(elementTypeIdent))
       typeMap.replace(elementTypeIdent, new TypeVariable());
     
@@ -277,23 +291,24 @@ class ElementTyper {
     return types[element.ast] = elementTypeIdent;
   }
   
-  TypeIdentifier typeReturn(Identifier functionIdentifier, TypeName returnType, LibraryElement library, SourceElement source){
-    if (returns.containsKey(functionIdentifier))
-          return returns[functionIdentifier];
+  TypeIdentifier typeReturn(CallableElement element, LibraryElement library, SourceElement source){
+    if (returns.containsKey(element))
+          return returns[element];
     
-    TypeIdentifier ident = new ReturnTypeIdentifier(functionIdentifier);
+    TypeIdentifier ident = new ReturnTypeIdentifier(element);
     AbstractType type;
     if (!typeMap.containsKey(ident))
         typeMap.replace(ident, new TypeVariable());
     
-    type = resolveType(returnType, library, source);
+    type = resolveType(element.returnType, library, source);
     if (type != null)
       typeMap.put(ident, type);
     
-    return returns[functionIdentifier] = ident;
+    return returns[element] = ident;
   }
   
-  ParameterTypes typeParameters(FormalParameterList paramList, LibraryElement library, SourceElement source){
+  ParameterTypes typeParameters(CallableElement element, LibraryElement library, SourceElement source){
+    FormalParameterList paramList = element.parameters;
     ParameterTypes types = new ParameterTypes();
     
     if (paramList.parameters == null || paramList.length == 0) 
@@ -319,9 +334,15 @@ class ElementTyper {
             type = this.resolveType(normalParam.type, library, source);
             
         } else if (normalParam is FunctionTypedFormalParameter){
-          type = new FunctionType.FromFunctionTypedFormalParameter(normalParam, library, this, source);
+          if (elementAnalysis.containsElement(normalParam) && elementAnalysis.elements[normalParam] is CallableElement){
+            CallableElement callElement = elementAnalysis.elements[normalParam];
+            type = new FunctionType.FromCallableElement(callElement, library, this);
+          } else {
+            //The element should be in the elementAnalysis.
+            engine.errors.addError(new EngineError("A FunctionTypedFormaParameter was found in the typing step, but didn't have a associated elemenet.", source.source, normalParam.offset, normalParam.length ), true);
+            type = new FreeType();
+          }
         }
-        
         
         if (!typeMap.containsKey(paramTypeIdent))
           typeMap.replace(paramTypeIdent, new TypeVariable());

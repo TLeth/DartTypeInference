@@ -5,6 +5,7 @@ import 'package:analyzer/src/generated/ast.dart';
 import 'element.dart' as Our;
 import 'engine.dart';
 
+
 _openNewScope(scope, k) {
   Map curr = {};
   curr.addAll(scope);
@@ -79,17 +80,31 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   var engine;
   Our.ClassElement _currentClass = null;
   
+  List<Map<String,Our.NamedElement>> scopes = <Map<String,Our.NamedElement>>[];
+    
+  _enterScope(){
+    scopes.add(scope);
+    scope = new Map<String, Our.NamedElement>.from(scope);
+  }
+  
+  _leaveScope(){
+    scope = scopes.removeLast();
+  }
+  
   ScopeVisitor(this.engine, 
                this.scope, 
                this.declaredElements, 
                this.references); 
 
   visitBlock(Block node) {
-    _openNewScope(scope, (_) => super.visitBlock(node));
+    _enterScope();
+    super.visitBlock(node);
+    _leaveScope();
   }
 
   visitFormalParameter(FormalParameter node) {
     this.scope[node.identifier.toString()] = this.declaredElements[new Our.Name.FromIdentifier(node.identifier)];
+    super.visitFormalParameter(node);
   }
   
   visitClassDeclaration(ClassDeclaration node){
@@ -102,7 +117,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     this.scope[node.name.toString()] = this.declaredElements[new Our.Name.FromIdentifier(node.name)];
     super.visitVariableDeclaration(node);
   }
-
+  
   visitFunctionDeclaration(FunctionDeclaration node) {
     if (node.name != null) {
       this.scope[node.name.toString()] = this.declaredElements[new Our.Name.FromIdentifier(node.name)];
@@ -117,14 +132,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     } else {
       this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}'));
     }
-  }
-  
-  visitThisExpression(ThisExpression node){
-    if (!this.scope.containsKey("this"))
-      this.engine.errors.addError(new EngineError('Referenced this without any current class set'), true);
-    else
-      references[node] = this.scope["this"];
-    super.visitThisExpression(node);
   }
   
   visitConstructorName(ConstructorName node){

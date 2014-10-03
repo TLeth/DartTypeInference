@@ -2,15 +2,64 @@ library typeanalysis.printer;
 
 import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/source.dart';
+import 'package:analyzer/src/generated/java_core.dart';
 import 'constraint.dart';
+
 import 'types.dart';
 import 'element.dart' as analysis;
+
+class PrintReferenceVisitor extends ToSourceVisitor {
+  analysis.ElementAnalysis elementAnalysis;
+  PrintWriter writer;
+  
+  factory PrintReferenceVisitor.Print(analysis.ElementAnalysis elementAnalysis) => 
+      new PrintReferenceVisitor(elementAnalysis, new PrintStringWriter()); 
+  
+  PrintReferenceVisitor(analysis.ElementAnalysis this.elementAnalysis, PrintWriter writer) : super(writer) {
+    this.writer = writer;
+    //elementAnalysis.sources.values.forEach((analysis.SourceElement source) {
+    analysis.SourceElement source = elementAnalysis.sources[elementAnalysis.engine.entrySource]; 
+      writer.println("/*${source.source}*/");
+      source.ast.accept(this);
+      writer.println("/*");
+      for(Expression e in source.resolvedIdentifiers.keys){
+        writer.println("${e} ${e.hashCode} --> ${source.resolvedIdentifiers[e].identifier} ${source.resolvedIdentifiers[e].identifier.hashCode}");
+      }
+      writer.println("*/");
+    //});
+    print(this.writer.toString());
+  }
+
+  Object visitSimpleIdentifier(SimpleIdentifier node) {
+    writer.print("${node.token.lexeme}/*${node.hashCode}*/");
+    return null;
+  }
+}
+
+class PrintScopeVisitor extends analysis.RecursiveElementVisitor {
+  int _ident = 0;
+  
+  visitSourceElement(analysis.SourceElement sourceElement){
+    print(sourceElement);
+    super.visitSourceElement(sourceElement);
+  }
+  
+  visitBlock(analysis.Block node){
+    _ident++;
+    super.visitBlock(node);
+    _ident--;
+  }
+  
+  visitNamedElement(analysis.NamedElement node){
+    print("${"-" * _ident} ${node} ${node.identifier.hashCode}");
+  }
+}
 
 class PrintElementVisitor extends analysis.RecursiveElementVisitor {
   int _ident = 0;
   
   visitElementAnalysis(analysis.ElementAnalysis node) {
-    node.librarySources.values.forEach(visitSourceElement);
+    node.librarySources.values.forEach(visit);
   }
   
   visitFieldElement(analysis.FieldElement node) {
@@ -31,24 +80,45 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
     print(("-" * _ident) + node.toString());
   }
   
+  visitParameterElement(analysis.ParameterElement node){
+    print(("-" * _ident) + node.toString());
+  }
+  
+  visitFunctionParameterElement(analysis.FunctionParameterElement node){
+    print(("-" * _ident) + node.toString());
+  }
+  
+  visitFunctionElement(analysis.FunctionElement node){
+    print(("-" * _ident) + node.toString());
+    visitBlock(node);
+  }
+  
+  visitClassAliasElement(analysis.ClassAliasElement node){
+    print(("-" * _ident) + node.toString());
+  }
 
   visitClassElement(analysis.ClassElement node) {
     print(("-" * _ident) + node.toString());
     _ident++;
     if (node.declaredMethods.values.length > 0){
       print(("-" * _ident) + "methods: ");
-      node.declaredMethods.values.forEach(visitMethodElement);
+      node.declaredMethods.values.forEach(visit);
     }
     if (node.declaredFields.length > 0){
       print(("-" * _ident) + "fields: ");
-      node.declaredFields.values.forEach(visitFieldElement);
+      node.declaredFields.values.forEach(visit);
+    }
+    if (node.declaredConstructors.length > 0){
+      print("-" * _ident + "constructors: ");
+      node.declaredConstructors.values.forEach(visit);
     }
     _ident--;
+    visitBlock(node);
   }
   
   visitNamedFunctionElement(analysis.NamedFunctionElement node){
     print(("-" * _ident) + node.toString());
-    visitFunctionElement(node);
+    visitBlock(node);
   }
   
   visitSourceElement(analysis.SourceElement node) {
@@ -56,7 +126,7 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
     _ident++;
     if (node.parts.length > 0){
       print(("-" * _ident) + "parts: ");
-      node.parts.values.forEach(visitSourceElement);
+      node.parts.values.forEach(visit);
     }
     if (node.imports.keys.length >0){
       print(("-" * _ident) + "imports: ");
@@ -71,7 +141,7 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
     _ident++;
     if (node.declaredClasses.values.length > 0){
       print(("-" * _ident) + "classes: ");
-      node.declaredClasses.values.forEach(visitClassElement);
+      node.declaredClasses.values.forEach(visit);
     }
     print(" ");
     _ident--;
@@ -82,12 +152,13 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
     _ident++;
     if (node.declaredVariables.values.length > 0){
       print(("-" * _ident) + "variables: ");
-      node.declaredVariables.values.forEach(visitVariableElement);
+      node.declaredVariables.values.forEach(visit);
     }
     if (node.declaredFunctions.values.length > 0){
       print(("-" * _ident) + "functions: ");
-      node.declaredFunctions.values.forEach(visitFunctionElement);
+      node.declaredFunctions.values.forEach(visit);
     }
+    node.nestedBlocks.forEach(visitBlock);
     _ident--;
   }
 }
@@ -1066,7 +1137,7 @@ class PrintConstraintVisitor extends GeneralizingAstVisitor {
     Expression initializer = _normalizeIdentifiers(vd.initializer);
     TypeIdentifier vType = new ExpressionTypeIdentifier(name);
     TypeIdentifier expTyp = new ExpressionTypeIdentifier(initializer);
-    print("${vd} // ${types.getter(vType)}");
+    print("${vd} // ${types.getter(vType, sourceElement)}");
     super.visitVariableDeclaration(vd);
   }
   
@@ -1075,7 +1146,7 @@ class PrintConstraintVisitor extends GeneralizingAstVisitor {
     Expression leftHandSide = _normalizeIdentifiers(node.leftHandSide);
     Expression rightHandSide = _normalizeIdentifiers(node.rightHandSide);
     TypeIdentifier vType = new ExpressionTypeIdentifier(leftHandSide);
-    print("${node} // ${types.getter(vType)}");
+    print("${node} // ${types.getter(vType, sourceElement)}");
     super.visitAssignmentExpression(node);
   }
   
