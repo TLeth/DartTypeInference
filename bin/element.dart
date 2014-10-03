@@ -132,7 +132,7 @@ class PrefixedName implements Name {
  * Instances of the class `Block` represents a static scope of the program. 
  * it could be a Library, a Class, a Method etc.
  * **/ 
-abstract class Block {
+abstract class Block extends Element {
   Block enclosingBlock = null;
   List<Block> nestedBlocks = <Block>[];
   
@@ -152,7 +152,7 @@ abstract class Block {
   NamedFunctionElement lookupFunctionElement(Name name) => declaredFunctions[name];
 }
 
-class BlockElement extends Element with Block {
+class BlockElement extends Block {
   astElement.Block ast;
   SourceElement sourceElement;
   
@@ -186,7 +186,7 @@ abstract class AnnotatedElement extends NamedElement {
 /**
  * Instances of the class `SourceElement` represents a source file and contains all the the information reguarding its content
  **/
-class SourceElement extends Block with Element {
+class SourceElement extends Block {
   
   CompilationUnit ast;
   //If library is `null` it means that the library is implicit named. This means the library name is: ''.
@@ -229,7 +229,7 @@ class SourceElement extends Block with Element {
 /** 
  * Instance of a `ClassElement` is our abstract representation of the class.
  **/
-class ClassElement extends NamedElement with Block {
+class ClassElement extends Block implements NamedElement {
   Map<Name, FieldElement> declaredFields = <Name, FieldElement>{};
   Map<Name, MethodElement> declaredMethods = <Name, MethodElement>{};
   Map<Name, ConstructorElement> declaredConstructors = <Name, ConstructorElement>{};
@@ -241,6 +241,11 @@ class ClassElement extends NamedElement with Block {
   SourceElement sourceElement;
   
   Name name;
+  bool get isPrivate => name.isPrivate;
+  
+  Name get getterName => name;
+  Name get setterName => Name.SetterName(name);
+  
   ClassElement extendsElement = null;
   Identifier get identifier => _decl.name;
   
@@ -412,13 +417,14 @@ class FieldElement extends AnnotatedElement with ClassMember {
 /**
  * Instances of a class`MethodElement` is a our abstract representation of methods
  **/
-class MethodElement extends NamedElement with Block, ClassMember implements CallableElement {
+class MethodElement extends Block with ClassMember implements CallableElement, NamedElement {
   MethodDeclaration ast;
   ClassElement classDecl;
   
   Name _name;
   Name get setterName => Name.SetterName(_name);
   Name get getterName => _name;
+
   Name get name => isSetter ? setterName : getterName;
   Identifier get identifier => this.ast.name;
   bool get isAbstract => ast.isAbstract;
@@ -427,6 +433,8 @@ class MethodElement extends NamedElement with Block, ClassMember implements Call
   bool get isSetter => ast.isSetter;
   bool get isStatic => ast.isStatic;
   bool get isSynthetic => ast.isSynthetic;
+  bool get isPrivate => name.isPrivate;
+
   
   TypeName get returnType => ast.returnType;
   FormalParameterList get parameters => ast.parameters;
@@ -459,11 +467,15 @@ class MethodElement extends NamedElement with Block, ClassMember implements Call
 /**
  * Instances of a class `ConstructorElement` is a our abstract representation of constructors
  **/
-class ConstructorElement extends NamedElement with Block, ClassMember implements CallableElement{
+class ConstructorElement extends Block with ClassMember implements NamedElement, CallableElement{
   ConstructorDeclaration ast;
   ClassElement classDecl;
   
   Name name; 
+  bool get isPrivate => name.isPrivate;
+  
+  Name get getterName => name;
+  Name get setterName => Name.SetterName(name);
   Identifier get identifier => (this.ast.name != null ? this.ast.name : this.ast.returnType);
   bool get isSynthetic => ast.isSynthetic;
   bool get isFactory => ast.factoryKeyword != null;
