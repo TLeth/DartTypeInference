@@ -37,25 +37,116 @@ class PrintReferenceVisitor extends ToSourceVisitor {
 }
 
 class PrintScopeVisitor extends analysis.RecursiveElementVisitor {
-  int _ident = 0;
-  
-  visitSourceElement(analysis.SourceElement sourceElement){
-    print(sourceElement);
-    super.visitSourceElement(sourceElement);
+  int _indent = 0;
+  String get indent => (" " * _indent);
+
+  printBlock(String name, k) {
+    print("${indent}${name} {");
+    _indent += 2;
+    k();
+    _indent -= 2;
+    print("${indent}}");
   }
+
+
   
-  visitBlock(analysis.Block node){
-    _ident++;
-    super.visitBlock(node);
-    _ident--;
+  visitSourceElement(SourceElement node) {
+    printBlock("file: ${node.source.shortName}", (){
+      node.declaredVariables.values.forEach(visit);
+      node.nestedBlocks.forEach(visit);
+    });
   }
+
+  visitClassElement(ClassElement node) {
+    printBlock("class: ${node.name}", (){
+      if (!node.declaredVariables.isEmpty){
+        print("død og ødelæggelse!!!!!!!");
+        print(node.declaredVariables);
+      }
+      
+      node.declaredFields.values.forEach(visit);
+      node.nestedBlocks.forEach(visit);
+    });
+  }
+
+  visitBlockElement(BlockElement node) {
+    printBlock("anonBlock", (){
+      node.declaredVariables.values.forEach(visit);
+      node.nestedBlocks.forEach(visit);
+    });
+  }
+
+  visitFunctionElement(FunctionElement node) {
+    printBlock("anonFunction", (){
+      node.declaredVariables.values.forEach(visit);
+      node.nestedBlocks.forEach(visit);
+    });
+  }
+
+  visitNamedFunctionElement(NamedFunctionElement node) {
+    printBlock("func: ${node.name}", (){
+      node.declaredVariables.values.forEach(visit);
+      node.nestedBlocks.forEach(visit);
+    });
+  }
+
+  visitMethodElement(MethodElement node) {
+    printBlock("method: ${node.name}", (){
+      node.declaredVariables.values.forEach(visit);
+      node.nestedBlocks.forEach(visit);
+    });
+  }
+
+  visitConstructorElement(ConstructorElement node) {
+    printBlock("ctor: ${node.name}", (){
+      node.declaredVariables.values.forEach(visit);
+      node.nestedBlocks.forEach(visit);
+    });
+  }
+
+  visitFunctionParameterElement(FunctionParameterElement node){
+    print("${indent}function param ${node.name}");
+  }
+
+  visitParameterElement(ParameterElement node){
+    print("${indent}param ${node.name}");
+  }
+
+  visitVariableElement(VariableElement node) {
+    print("${indent}var ${node.name}");
+  }
+
+  visitFieldElement(FieldElement node) {
+    print("${indent}field ${node.name}");
+  }
+
+  visitClassMember(ClassMember node){
+    print("${indent}CLASS MEMBER");
+  }
+
+  visitLibraryElement(LibraryElement node) {
+    print("${indent}CLASS MEMBER");
+  }
+  visitNamedElement(NamedElement node){
+    print("${indent}CLASS MEMBER");
+  }
+  visitCallableElement(CallableElement node) {
+    print("${indent}CLASS MEMBER");
+  }
+  visitReturnElement(ReturnElement node) {
+    print("${indent}CLASS MEMBER");
+  }
+  visitClassAliasElement(ClassAliasElement node){
+    print("${indent}CLASS MEMBER");
+  }
+
   
-  visitNamedElement(analysis.NamedElement node){
-    print("${"-" * _ident} ${node} ${node.identifier.hashCode}");
+  visitBlock(Block node){
+    print("${indent}CLASS MEMBER");
   }
 }
 
-class PrintElementVisitor extends analysis.RecursiveElementVisitor {
+class PrintElementVisitor extends analysis.RecursiveElementVisitor { 
   int _ident = 0;
   
   visitElementAnalysis(analysis.ElementAnalysis node) {
