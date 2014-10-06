@@ -5,10 +5,7 @@ import 'package:analyzer/src/generated/ast.dart';
 import 'element.dart' as Our;
 import 'engine.dart';
 
-
 _openNewScope(scope, k) {
-
-
   Map curr = {};
   curr.addAll(scope);
 
@@ -27,7 +24,6 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
   Our.LibraryElement currentLibrary;
   Engine engine;
 
-
   IdentifierResolver(this.engine, Our.ElementAnalysis elem) {
     visitElementAnalysis(elem);
   }
@@ -39,34 +35,23 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
   
   void visitSourceElement(Our.SourceElement element) {
 
-    if (element.source != this.engine.entrySource) return;
+    // if (element.source != this.engine.entrySource) return;
     
     declaredElements.clear();
     currentLibrary = element.library;
     
+    //Pile together all declared elements
     visitBlock(element);
     
-    ScopeVisitor visitor = new ScopeVisitor(this.engine, 
-                                            this.declaredElements,
-        element.resolvedIdentifiers,
-                                            this.currentLibrary);
-
+    ScopeVisitor visitor = new ScopeVisitor(this.engine, this.declaredElements, element.resolvedIdentifiers, this.currentLibrary);
     element.ast.accept(visitor);
   }
   
-  void visitBlockList(List<Our.Block> blocks) {
-    blocks.forEach((block) {
-        visitBlock(block);
-    });      
-  }
-  
   void visitBlock(Our.Block block) {
-    
+    block.nestedBlocks.forEach(visitBlock);
     block.declaredElements.values.forEach((Our.Element elem) {
       this.declaredElements[elem.ast] = elem;
     });
-    
-    visitBlockList(block.nestedBlocks);      
   }
 }
 
@@ -78,12 +63,9 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   Map<AstNode, Our.NamedElement> declaredElements;
   Map<Expression, Our.NamedElement> references = {};
   Map<String, Our.NamedElement> scope;
-
   
-  var engine;
+  Engine engine;
   Our.ClassElement _currentClass = null;
-    
-  
 
   ScopeVisitor(this.engine, this.declaredElements, this.references, this.library) {
     this.scope = {};
@@ -92,10 +74,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   visitBlock(Block node) {
     _openNewScope(scope, (_) =>
         super.visitBlock(node));
-
-    //  _enterScope();
-    //super.visitBlock(node);
-    // _leaveScope();
   }
 
   visitFormalParameter(FormalParameter node) {
@@ -104,29 +82,29 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   }
   
   visitClassDeclaration(ClassDeclaration node){
-    this.scope["this"] = this.declaredElements[node];
-    super.visitClassDeclaration(node);
-    this.scope.remove("this");
+    _openNewScope(scope, (_) {
+      this.scope["this"] = this.declaredElements[node];
+      super.visitClassDeclaration(node);
+    });
   }
 
   visitVariableDeclaration(VariableDeclaration node) {
-    if (node.initializer != null) node.initializer.accept(this);
+    node.safelyVisitChild(node.initializer, this);
     this.scope[node.name.toString()] = this.declaredElements[node];
-    if (node.name != null) node.name.accept(this);
+    node.safelyVisitChild(node.name, this);
   }
   
   visitFunctionDeclaration(FunctionDeclaration node) {
+
     if (node.name != null) {
       this.scope[node.name.toString()] = this.declaredElements[node];
-    }
+    } else { print('ooooookaaaay'); }
 
     if (this.declaredElements[node] == null) {
       print('failed for  -- ${node} -- (${node.hashCode})');
       this.declaredElements.keys.forEach((key){
         print('${key} (${key.hashCode})');
-        
       });
-
     }
     
     _openNewScope(scope, (_) {
@@ -140,6 +118,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     Our.Name n = new Our.Name(node.name.toString());
     var local_element = scope[node.name.toString()];
     var lib_element = library.lookup(n, false);
+
     if (local_element != null) {
       references[node] = local_element;
     } else if (lib_element != null) {
@@ -164,7 +143,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     }
   }
 
-
   //Only resolve the prefix.
   //TODO handle library 'as ...' imports.
   visitPrefixedIdentifier(PrefixedIdentifier node) {
@@ -176,13 +154,10 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     node.safelyVisitChild(node.target, this);
   }
 
-
-
   //Dont visit identifiers in these AST nodes.
   visitLibraryDirective(LibraryDirective node) {}
   visitImportDirective(ImportDirective node) {}
   visitExportDirective(ExportDirective node) {}
   visitPartDirective(PartDirective node) {}
   visitPartOfDirective(PartOfDirective node) {}
-
 }
