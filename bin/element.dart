@@ -555,7 +555,10 @@ class NamedFunctionElement extends FunctionElement implements NamedElement {
   Identifier get identifier => decl.name;
   bool get isGetter => decl.isGetter;
   bool get isSetter => decl.isSetter;
-  
+  AstNode get ast => decl;
+  FormalParameterList get parameters => decl.functionExpression.parameters;
+  bool get isSynthetic => decl.functionExpression.isSynthetic;
+
   TypeName get returnType => decl.returnType;
   
   dynamic accept(ElementVisitor visitor) => visitor.visitNamedFunctionElement(this);
