@@ -25,7 +25,7 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
 
   Map<AstNode, Our.NamedElement> declaredElements = {};
   Our.LibraryElement currentLibrary;
-  var engine;
+  Engine engine;
 
 
   IdentifierResolver(this.engine, Our.ElementAnalysis elem) {
@@ -48,7 +48,8 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
     
     ScopeVisitor visitor = new ScopeVisitor(this.engine, 
                                             this.declaredElements,
-                                            element.resolvedIdentifiers);
+        element.resolvedIdentifiers,
+                                            this.currentLibrary);
 
     element.ast.accept(visitor);
   }
@@ -72,6 +73,8 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
 
 class ScopeVisitor extends GeneralizingAstVisitor {
 
+  Our.LibraryElement library;
+
   Map<AstNode, Our.NamedElement> declaredElements;
   Map<Expression, Our.NamedElement> references = {};
   Map<String, Our.NamedElement> scope;
@@ -80,7 +83,9 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   var engine;
   Our.ClassElement _currentClass = null;
     
-  ScopeVisitor(this.engine, this.declaredElements, this.references) {
+  
+
+  ScopeVisitor(this.engine, this.declaredElements, this.references, this.library) {
     this.scope = {};
   }
 
@@ -116,7 +121,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     }
 
     if (this.declaredElements[node] == null) {
-      print('failed for ${node} (${node.hashCode})');
+      print('failed for  -- ${node} -- (${node.hashCode})');
       this.declaredElements.keys.forEach((key){
         print('${key} (${key.hashCode})');
         
@@ -132,9 +137,13 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   
   visitSimpleIdentifier(SimpleIdentifier node) {
 
-    var element = scope[node.name.toString()];
-    if (element != null) {
-      references[node] = element;
+    Our.Name n = new Our.Name(node.name.toString());
+    var local_element = scope[node.name.toString()];
+    var lib_element = library.lookup(n, false);
+    if (local_element != null) {
+      references[node] = local_element;
+    } else if (lib_element != null) {
+      references[node] = lib_element;
     } else {
       this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}'));
     }
@@ -166,5 +175,14 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   visitPropertyAcces(PropertyAccess node) {
     node.safelyVisitChild(node.target, this);
   }
+
+
+
+  //Dont visit identifiers in these AST nodes.
+  visitLibraryDirective(LibraryDirective node) {}
+  visitImportDirective(ImportDirective node) {}
+  visitExportDirective(ExportDirective node) {}
+  visitPartDirective(PartDirective node) {}
+  visitPartOfDirective(PartOfDirective node) {}
 
 }
