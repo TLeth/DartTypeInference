@@ -128,10 +128,11 @@ class PrefixedName implements Name {
   String toString() => "${_prefix}.${_postfixName}";
 }
 
-/** 
+/*
  * Instances of the class `Block` represents a static scope of the program. 
  * it could be a Library, a Class, a Method etc.
- * **/ 
+ */ 
+
 abstract class Block extends Element {
   Block enclosingBlock = null;
   List<Block> nestedBlocks = <Block>[];
@@ -165,7 +166,9 @@ abstract class Element {
   SourceElement get sourceElement;
   
   bool get fromSystemLibrary => librarySource.isInSystemLibrary;
-  
+  AstNode get ast;
+
+
   dynamic accept(ElementVisitor visitor);
 }
 
