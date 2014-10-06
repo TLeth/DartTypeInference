@@ -13,6 +13,8 @@ import 'util.dart';
  * Resolving identifier scope.
  */ 
 
+
+//TODO (tlj): private names should be shared within a library element
 class LibraryElement {
   Map<Name, List<NamedElement>> scope = <Name, List<NamedElement>>{};
   Map<Name, NamedElement> exports = <Name, NamedElement>{};
