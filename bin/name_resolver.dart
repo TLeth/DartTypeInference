@@ -16,6 +16,8 @@ _openNewScope(scope, k) {
   return ret;
 }
 
+var blah;
+
 //TODO (jln): factories should be handled here. in ConstructorName there should be resolved what is a prefix of another library, and what is a factory call.
 
 class IdentifierResolver extends Our.RecursiveElementVisitor {
@@ -35,7 +37,10 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
   
   void visitSourceElement(Our.SourceElement element) {
 
-    // if (element.source != this.engine.entrySource) return;
+    blah = element.source;
+
+
+    if (element.source != this.engine.entrySource) return;
     
     declaredElements.clear();
     currentLibrary = element.library;
@@ -71,29 +76,53 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     this.scope = {};
   }
 
+  @override
   visitBlock(Block node) {
     _openNewScope(scope, (_) =>
         super.visitBlock(node));
   }
 
+  @override
   visitFormalParameter(FormalParameter node) {
     this.scope[node.identifier.toString()] = this.declaredElements[node];
     super.visitFormalParameter(node);
   }
   
+  @override
   visitClassDeclaration(ClassDeclaration node){
+    
     _openNewScope(scope, (_) {
-      this.scope["this"] = this.declaredElements[node];
+      Our.ClassElement c = this.declaredElements[node];
+
+      c.declaredElements.forEach((k, v) {
+        this.scope[k.toString()] = v;
+      });
+
+      this.scope["this"] = c;
       super.visitClassDeclaration(node);
     });
   }
 
+  @override
   visitVariableDeclaration(VariableDeclaration node) {
     node.safelyVisitChild(node.initializer, this);
-    this.scope[node.name.toString()] = this.declaredElements[node];
+    var namedElem = this.declaredElements[node];
+    if (namedElem != null)
+      this.scope[node.name.toString()] = namedElem;
+
     node.safelyVisitChild(node.name, this);
   }
+
+  @override
+  visitCascadeExpression(CascadeExpression node) {
+  }
   
+  @override
+  visitFieldDeclaration(FieldDeclaration node) {
+    node.visitChildren(this);
+  }
+  
+  @override
   visitFunctionDeclaration(FunctionDeclaration node) {
 
     if (node.name != null) {
@@ -113,8 +142,8 @@ class ScopeVisitor extends GeneralizingAstVisitor {
 
   }
   
-  visitSimpleIdentifier(SimpleIdentifier node) {
-
+  @override
+  visitSimpleIdentifier(SimpleIdentifier node) {    
     Our.Name n = new Our.Name(node.name.toString());
     var local_element = scope[node.name.toString()];
     var lib_element = library.lookup(n, false);
@@ -123,11 +152,14 @@ class ScopeVisitor extends GeneralizingAstVisitor {
       references[node] = local_element;
     } else if (lib_element != null) {
       references[node] = lib_element;
+    } else if (node.name.toString() == 'void') {
+      
     } else {
-      this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}'));
+      this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}', blah, node.offset, node.length));
     }
   }
-  
+ 
+  @override
   visitConstructorName(ConstructorName node){
     if (node.name == null){
       //Only prefixed identifiers needs resolving
@@ -143,21 +175,47 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     }
   }
 
+  @override
+  visitMethodInvocation(MethodInvocation node) {
+    node.safelyVisitChild(node.target, this);
+
+    if (node.target == null)
+      node.safelyVisitChild(node.methodName, this);
+
+    node.safelyVisitChild(node.argumentList, this);
+  }
+
   //Only resolve the prefix.
   //TODO handle library 'as ...' imports.
+  @override
   visitPrefixedIdentifier(PrefixedIdentifier node) {
     node.safelyVisitChild(node.prefix, this);
   }
 
   //Only try to resolve the target.
-  visitPropertyAcces(PropertyAccess node) {
+  @override
+  visitPropertyAccess(PropertyAccess node) {
     node.safelyVisitChild(node.target, this);
   }
 
+  @override
+  visitNamedExpression(NamedExpression node) {
+    node.safelyVisitChild(node.expression, this);
+  }
+
   //Dont visit identifiers in these AST nodes.
+  @override
   visitLibraryDirective(LibraryDirective node) {}
+
+  @override
   visitImportDirective(ImportDirective node) {}
+
+  @override
   visitExportDirective(ExportDirective node) {}
+
+  @override
   visitPartDirective(PartDirective node) {}
+
+  @override
   visitPartOfDirective(PartOfDirective node) {}
 }
