@@ -3,4 +3,4 @@
 cd "`dirname \"$0\"`"
 cd ".."
 dartDir=$(which dart)
-dart "bin/analyze.dart" --dart-sdk ${dartDir%bin/dart} $1
+dart -c "bin/analyze.dart" --dart-sdk ${dartDir%bin/dart} $1
