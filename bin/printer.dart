@@ -1181,8 +1181,9 @@ class PrintLibraryVisitor extends analysis.RecursiveElementVisitor {
   bool import;
   bool export;
   bool defined;
+  bool depended_exports;
   
-  PrintLibraryVisitor({bool this.scope: true, bool this.export: false, bool this.import: false, this.defined: false}) ;
+  PrintLibraryVisitor({bool this.scope: true, bool this.export: false, bool this.import: false, this.defined: false, this.depended_exports: false}) ;
   
   visitElementAnalysis(analysis.ElementAnalysis node) {
     node.sources.values.forEach(visitSourceElement);
@@ -1222,6 +1223,12 @@ class PrintLibraryVisitor extends analysis.RecursiveElementVisitor {
       print(("-" * _ident) + "Defined: ");
       _ident++; 
       node.defined.forEach((analysis.Name name) => print(("-"*_ident) + "${name}: ${node.scope[name]}"));
+      _ident--;
+    }
+    if (depended_exports){
+      print(("-" * _ident) + "Depended exports: ");
+      _ident++; 
+      node.depended_exports.forEach((analysis.LibraryElement element) => print(("-"*_ident) + "${element.source.toString()}"));
       _ident--;
     }
   }

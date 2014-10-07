@@ -147,7 +147,7 @@ class ScopeResolver {
     source.exports.forEach((NamespaceDirective directive, Source exportSource) {
       SourceElement exportSourceElement = analysis.getSource(exportSource);
       new ScopeResolver(this.engine, exportSourceElement, this.analysis);
-      source.library.addDependedExport(exportSourceElement.library);
+      exportSourceElement.library.addDependedExport(source.library);
     });
   }
   
@@ -212,7 +212,7 @@ class ExportResolver {
   
   Engine engine;
   ElementAnalysis analysis;
-  LinkedHashSet<LibraryElement> _queue = new LinkedHashSet<LibraryElement>();
+  Queue<LibraryElement> _queue = new Queue<LibraryElement>();
   
   ExportResolver(Engine this.engine, ElementAnalysis this.analysis) {
     analysis.sources.values.forEach((SourceElement source) {
@@ -222,8 +222,7 @@ class ExportResolver {
     });
     
     while(!_queue.isEmpty){
-      LibraryElement library = _queue.first;
-      _queue.remove(library);
+      LibraryElement library = _queue.removeFirst();
       _createExportScope(library);
     }
   }

@@ -205,7 +205,7 @@ class Engine {
     new ExportResolver(this, _elementAnalysis);
     new ImportResolver(this, _elementAnalysis);
 
-    _elementAnalysis.accept(new PrintLibraryVisitor(scope: false, import: false, export: true, defined: false));    
+    _elementAnalysis.accept(new PrintLibraryVisitor(scope: false, import: false, export: true, defined: false, depended_exports: true));    
 
 
 
