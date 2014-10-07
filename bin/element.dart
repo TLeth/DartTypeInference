@@ -995,6 +995,14 @@ class ElementGenerator extends GeneralizingAstVisitor {
     super.visitBlock(node);
     _leaveBlock();
   }
+
+  visitForStatement(astElement.ForStatement node){
+    BlockElement blockElement = new BlockElement(node, element);
+    analysis.addElement(node, blockElement);
+    _enterBlock(blockElement);
+    super.visitForStatement(node);
+    _leaveBlock();
+  }
   
   visitFunctionTypeAlias(FunctionTypeAlias node){
     //TODO (jln): Do something with the function alias'es.
