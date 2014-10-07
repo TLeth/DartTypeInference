@@ -72,7 +72,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   Engine engine;
   Our.ClassElement _currentClass = null;
 
-  ScopeVisitor(this.engine, this.declaredElements, this.references, this.library) {
+  ScopeVisitor(this.engine, this.declaredElements, this.references, this.library){
     this.scope = {};
   }
 
@@ -90,7 +90,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   
   @override
   visitClassDeclaration(ClassDeclaration node){
-    
     _openNewScope(scope, (_) {
       Our.ClassElement c = this.declaredElements[node];
 
@@ -115,6 +114,13 @@ class ScopeVisitor extends GeneralizingAstVisitor {
 
   @override
   visitCascadeExpression(CascadeExpression node) {
+  }
+
+  visitConstructorDeclaration(ConstructorDeclaration node) {
+    node.safelyVisitChild(node.parameters, this);
+    node.initializers.accept(this);
+    node.safelyVisitChild(node.redirectedConstructor, this);
+    node.safelyVisitChild(node.body, this);
   }
   
   @override
@@ -159,6 +165,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     }
   }
  
+  /*
   @override
   visitConstructorName(ConstructorName node){
     if (node.name == null){
@@ -174,6 +181,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
       }
     }
   }
+  */
 
   @override
   visitMethodInvocation(MethodInvocation node) {
@@ -190,6 +198,24 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   @override
   visitPrefixedIdentifier(PrefixedIdentifier node) {
     node.safelyVisitChild(node.prefix, this);
+    
+    var prefixResult = references[node.prefix];
+    
+    if (prefixResult != null && prefixResult is Our.ClassElement) {
+      var staticElem = prefixResult.declaredElements[new Our.Name.FromIdentifier(node.prefix)],
+          ctorElem = prefixResult.declaredConstructors[new Our.Name.FromIdentifier(node)];
+
+      if (staticElem != null) {
+        // Static element
+        
+      } else if (ctorElem != null) {
+        // Factory ctor
+        
+        references[node] = ctorElem;
+      }
+    }
+
+
   }
 
   //Only try to resolve the target.
