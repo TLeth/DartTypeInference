@@ -19,17 +19,15 @@ do
       rm $file
       mv tmp $file
 
-
-diff -U 0 <(dartfmt $file) <(dartfmt ../../benchmarks/$benchmark/$file) | grep ^[+-]
+      #diff -U 0 <(dartfmt $file) <(dartfmt ../../benchmarks/$benchmark/$file) | grep ^[+-]
 
       total=$((total+$(diff -U 0 <(dartfmt $file) <(dartfmt ../../benchmarks/$benchmark/$file) | grep ^+ | sed "1d" | wc -l)))
   done
-
-  echo $benchmark $(((total-5)*100/total))%
-
-  
+    
   dartDir=$(which dart)
-  #dart "../../bin/analyze.dart" --dart-sdk ${dartDir%bin/dart} $(head -n 1 ./files.info)
+  dart "../../bin/analyze.dart" --dart-sdk ${dartDir%bin/dart} $(head -n 1 ./files.info)
+
+
 
 
   cd "../.."
@@ -40,13 +38,4 @@ diff -U 0 <(dartfmt $file) <(dartfmt ../../benchmarks/$benchmark/$file) | grep ^
 
 
 done)
-#|column -t
-#rm -rf inferred/
 
-
-#    if [ $(diff <(cat expected/$f) <(./bin/strip.dart tests/$f)|wc -l) -eq 0 ]
-#    then echo -e $f '\033[0;32mPass\033[0m'
-#    else echo -e $f '\033[0;31mFail\033[0m'
-#    fi
-    
-#done)|column -t

@@ -66,8 +66,16 @@ class Annotator {
       String annotatedSource = annotateVisitor.writer.toString();
       
       FormattedSource formattedSource = new FormattedSource(annotatedSource, selection);
+
+      new File.fromUri(sourceElement.source.uri).writeAsStringSync(formattedSource.source);
+
+      return;
+
+      print("sourceElement.source.fullName");
+      print(sourceElement.source.fullName);
       CodeFormatter finisher = new CodeFormatter();
       formattedSource = finisher.format(CodeKind.COMPILATION_UNIT, formattedSource.source);
+
       
       new File.fromUri(sourceElement.source.uri).writeAsStringSync(formattedSource.source);
     }

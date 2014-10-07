@@ -200,26 +200,32 @@ class Engine {
     new ElementGenerator(this, _entrySource, _elementAnalysis);
     //_elementAnalysis.accept(new PrintElementVisitor());
     SourceElement entrySourceElement = _elementAnalysis.getSource(_entrySource); 
+
     new ScopeResolver(this, entrySourceElement, _elementAnalysis);
-
-    _elementAnalysis.accept(new PrintScopeVisitor());
-
     new ExportResolver(this, _elementAnalysis);
     new ImportResolver(this, _elementAnalysis);
-    //_elementAnalysis.accept(new PrintLibraryVisitor(scope: true, import: true, export: true, defined: true));
-    //new IdentifierResolver(this, _elementAnalysis);
+
+    _elementAnalysis.accept(new PrintLibraryVisitor(scope: false, import: false, export: true, defined: false));    
+
+
+
     new IdentifierResolver(this,  _elementAnalysis);
+    new ClassHierarchyResolver(this, _elementAnalysis);
+
+
+
     //new PrintReferenceVisitor.Print(_elementAnalysis);
     //unit.accept(new PrintAstVisitor());
-    new ClassHierarchyResolver(this, _elementAnalysis);
     //_elementAnalysis.accept(new PrintElementVisitor());
+    //_elementAnalysis.accept(new PrintScopeVisitor());
     
   }
   
   _makeConstraintAnalysis(){
     _constraintAnalysis = new ConstraintAnalysis(this, _elementAnalysis);
     new ConstraintGenerator(_constraintAnalysis);
-    new PrintConstraintVisitor(_constraintAnalysis, _entrySource);
+
+    //new PrintConstraintVisitor(_constraintAnalysis, _entrySource);
   }
   
   /*
