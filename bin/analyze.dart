@@ -40,7 +40,7 @@ _typeAnnotate(CommandLineOptions options){
       e.analyze(uri, sourceFile);
       
       //Annotate the files.
-      new Annotator(e, <String>['dgrep.dart'], "benchmarks/dgrep/bin/annotated/");
+      new Annotator(e);
   }
 
 }
