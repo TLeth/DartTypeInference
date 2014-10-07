@@ -13,6 +13,7 @@ import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/error.dart';
 import 'package:analyzer/src/analyzer_impl.dart';
 
+import 'annotate.dart';
 import 'name_resolver.dart';
 import 'element.dart';
 import 'constraint.dart';
@@ -110,10 +111,11 @@ class Engine {
     
     _setupAnalaysisContext();
     _makeElementAnalysis();
-    _printErrorsAndReset();
-    
+    errors.reset();
     _makeConstraintAnalysis();
-    
+    errors.reset();
+    _makeAnnotatedSource();
+    _printErrorsAndReset();
   }
  
   void _printErrorsAndReset() {
@@ -205,7 +207,7 @@ class Engine {
     new ExportResolver(this, _elementAnalysis);
     new ImportResolver(this, _elementAnalysis);
 
-    _elementAnalysis.accept(new PrintLibraryVisitor(scope: false, import: false, export: true, defined: false, depended_exports: true));    
+    //    _elementAnalysis.accept(new PrintLibraryVisitor(scope: false, import: false, export: true, defined: false, depended_exports: true));    
 
 
 
@@ -228,6 +230,10 @@ class Engine {
     //new PrintConstraintVisitor(_constraintAnalysis, _entrySource);
   }
   
+  _makeAnnotatedSource() {
+    new Annotator(this);
+  }
+
   /*
   _makeInstrumentedTypeAnalysis() {
     new Convert

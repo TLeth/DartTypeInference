@@ -38,9 +38,6 @@ _typeAnnotate(CommandLineOptions options){
       JavaFile sourceFile = new JavaFile(sourcePath);
       Uri uri = UriUtil.GetUri(sourceFile, sdk);
       e.analyze(uri, sourceFile);
-      
-      //Annotate the files.
-      new Annotator(e);
   }
 
 }

@@ -61,6 +61,7 @@ class Annotator {
     if (sourceElement.source.uriKind == UriKind.FILE_URI) {
       var selection = null;
       
+
       var annotateVisitor = new AnnotateSourceVisitor(this, sourceElement, new FormatterOptions(), sourceElement.ast.lineInfo, sourceElement.sourceContent, selection);
       sourceElement.ast.visitChildren(annotateVisitor);
       String annotatedSource = annotateVisitor.writer.toString();
@@ -68,6 +69,15 @@ class Annotator {
       FormattedSource formattedSource = new FormattedSource(annotatedSource, selection);
 
       new File.fromUri(sourceElement.source.uri).writeAsStringSync(formattedSource.source);
+
+
+      print('----------');
+      print(sourceElement.source.fullName);
+      print(annotatedSource);
+
+
+
+
 
       return;
 
@@ -93,46 +103,19 @@ class AnnotateSourceVisitor extends SourceVisitor {
   
   AnnotateSourceVisitor(this.annotator, this.sourceElement, options, lineInfo, source, preSelection): super(options, lineInfo, source, preSelection);
   
-  List<String> typeArguments = new List<String>();
-  
   static final bool ANNOTATE_GENERIC_TYPES = false;
   static final bool ANNOTATE_METHOD_TYPES = true;
   
-  visitClassDeclaration(ClassDeclaration node) {
-    
-      typeArguments.clear();
-      if (node.typeParameters != null)
-        node.typeParameters.typeParameters.forEach((TypeParameter ty) => typeArguments.add(ty.name.toString()));
-    
-      preserveLeadingNewlines();
-      visitMemberMetadata(node.metadata);
-      modifier(node.abstractKeyword);
-      token(node.classKeyword);
-      space();
-      visit(node.name);
-      allowContinuedLines((){
-        visit(node.typeParameters);
-        visitNode(node.extendsClause, precededBy: space);
-        visitNode(node.withClause, precededBy: space);
-        visitNode(node.implementsClause, precededBy: space);
-        visitNode(node.nativeClause, precededBy: space);
-        space();
-      });
-      token(node.leftBracket);
-      indent();
-      if (!node.members.isEmpty) {
-        visitNodes(node.members, precededBy: newlines, separatedBy: newlines);
-        newlines();
-      } else {
-        preserveLeadingNewlines();
-      }
-      token(node.rightBracket, precededBy: unindent);
-    } 
-  
-  
   visitSimpleFormalParameter(SimpleFormalParameter node) {
-   visitMemberMetadata(node.metadata);
-   modifier(node.keyword);
+
+    visitMemberMetadata(node.metadata);
+
+    if (node.keyword is KeywordToken) {
+      KeywordToken keyword = node.keyword;
+      if (keyword.keyword != Keyword.VAR)
+        modifier(node.keyword);
+    } else
+      modifier(node.keyword);
    
    Element parameterElement = elementAnalysis.elements[node];
    if (parameterElement is ParameterElement) {
@@ -264,19 +247,4 @@ class AnnotateSourceVisitor extends SourceVisitor {
     visit(node.parameters);
   }  
 
-  visitDeclaredIdentifier(DeclaredIdentifier node) {
-    modifier(node.keyword);
-    
-    
-    //In for loops if there is a type used in the variable decl, we put a 'var' in instead. 
-    /*bool isGenericType = (node.type != null && typeArguments.contains(node.type.name.toString()));
-    
-    if (isGenericType && KEEP_GENERIC_TYPES) {
-      visitNode(node.type, followedBy: space);  
-    } else if (node.type != null && node.keyword == null) {
-      Identifier ident = new SimpleIdentifier(new KeywordToken(Keyword.VAR, node.type.offset));
-      visitNode(ident, followedBy: space);
-    }*/
-    visit(node.identifier);
-  }
 }
