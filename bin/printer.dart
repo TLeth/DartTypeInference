@@ -53,11 +53,27 @@ class PrintReferenceVisitor extends SourceVisitor {
   
   PrintReferenceVisitor(this.engine, this.elementAnalysis, options, lineInfo, source, preSelection) : super(options, lineInfo, source, preSelection);
   
+  bool isResolved = false;
+
+  visitPrefixedIdentifier(PrefixedIdentifier node) {
+    var resolved = elementAnalysis.getSource(engine.entrySource).resolvedIdentifiers[node];
+    if (resolved != null) isResolved = true;
+
+    super.visitPrefixedIdentifier(node);
+    
+    if (resolved != null) {
+      append("_${resolved.hashCode}");
+      isResolved = false;
+    }
+
+    
+  }
+  
   visitSimpleIdentifier(SimpleIdentifier node) {
     super.visitSimpleIdentifier(node);
     var resolved = elementAnalysis.getSource(engine.entrySource).resolvedIdentifiers[node];
     
-    if (resolved != null) {
+    if (resolved != null && !isResolved) {
       append("_${resolved.hashCode}");
     }
   }
