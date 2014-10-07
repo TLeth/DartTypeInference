@@ -92,7 +92,9 @@ class Engine {
   ErrorCollector errors;
   
   ElementAnalysis _elementAnalysis;
+  ElementAnalysis get elementAnalysis => _elementAnalysis;
   ConstraintAnalysis _constraintAnalysis;
+  ConstraintAnalysis get constraintAnalysis => _constraintAnalysis;
   
   Source get entrySource => _entrySource;
   

@@ -4,7 +4,7 @@ import 'package:analyzer/src/generated/engine.dart';
 import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/sdk_io.dart';
 import 'package:analyzer/src/generated/java_io.dart';
-import 'package:analyzer/src/generated/source_io.dart';
+import 'annotate.dart';
 import 'engine.dart';
 
 DartSdk sdk;
@@ -39,6 +39,8 @@ _typeAnnotate(CommandLineOptions options){
       Uri uri = UriUtil.GetUri(sourceFile, sdk);
       e.analyze(uri, sourceFile);
       
+      //Annotate the files.
+      new Annotator(e, <String>['dgrep.dart'], "benchmarks/dgrep/bin/annotated/");
   }
 
 }

@@ -193,6 +193,7 @@ class SourceElement extends Block {
   String libraryName = null;
   SourceElement partOf = null;
   Source source;
+  String get sourceContent => source.contents.data;
   Source get librarySource => (partOf == null ? source : partOf.source);
   SourceElement get sourceElement => this;
   
@@ -203,7 +204,6 @@ class SourceElement extends Block {
   Map<ImportDirective, Source> imports = <ImportDirective, Source>{};
   Map<ExportDirective, Source> exports = <ExportDirective, Source>{};
   Map<Name, ClassElement> declaredClasses = <Name, ClassElement>{};
-  
   Map<ThisExpression, ClassElement> thisReferences = <ThisExpression, ClassElement>{};
   Map<Identifier, NamedElement> resolvedIdentifiers = <Identifier, NamedElement>{};
   
@@ -246,8 +246,42 @@ class ClassElement extends Block implements NamedElement {
   Name get getterName => name;
   Name get setterName => Name.SetterName(name);
   
+  //Is only null if the element is object.
   ClassElement extendsElement = null;
   Identifier get identifier => _decl.name;
+  
+  bool isSubtypeOf(ClassElement element) {
+    if (element == this) return true;
+    if (extendsElement == null) return false;
+    return extendsElement.isSubtypeOf(element);
+  }
+  
+  /**
+   * Return `true` if this type is a supertype of the given type. A type <i>S</i> is a
+   * supertype of <i>T</i>, written <i>S</i> :> <i>T</i>, iff <i>T</i> is a subtype of <i>S</i>.
+   *
+   */
+  bool isSupertypeOf(ClassElement element) => element.isSubtypeOf(this);
+
+  /**
+   * Return the least upper bound of this type and the given type, or `null` if there is no
+   * least upper bound.
+   *
+   */
+   ClassElement getLeastUpperBound(ClassElement element) {     
+     if (isSubtypeOf(element)) return element;
+     if (isSupertypeOf(element)) return this;
+     if (extendsElement == null) return null;
+     else return extendsElement.getLeastUpperBound(element);
+   }
+  
+  /**
+   * Return `true` if this type is assignable to the given type. A type <i>T</i> may be
+   * assigned to a type <i>S</i>, written <i>T</i> &hArr; <i>S</i>, iff either <i>T</i> <: <i>S</i>
+   * or <i>S</i> <: <i>T</i>.
+   *
+   */
+  bool isAssignableTo(ClassElement element) => element.isSupertypeOf(this) || isSupertypeOf(element);
   
   AstNode get ast => _decl;
   bool get isAbstract => _decl.isAbstract;
