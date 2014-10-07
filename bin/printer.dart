@@ -29,23 +29,21 @@ class PrintResolvedIdentifiers extends CodeFormatterImpl {
   }
 
   FormattedSource format(CodeKind kind, String source, {int offset, int end,
-      int indentationLevel: 0, Selection selection: null}) {
-
+    int indentationLevel: 0, Selection selection: null}) {
+    
     var startToken = tokenize(source);
     checkForErrors();
-
+    
     var node = parse(kind, startToken);
     checkForErrors();
-
+    
     var formatter = new PrintReferenceVisitor(engine, elementAnalysis, const FormatterOptions(), lineInfo, source, selection);
     node.accept(formatter);
-
+    
     var formattedSource = formatter.writer.toString();
 
     return new FormattedSource(formattedSource, formatter.selection);
   }
-  
-  
 }
 
 class PrintReferenceVisitor extends SourceVisitor {
@@ -53,41 +51,16 @@ class PrintReferenceVisitor extends SourceVisitor {
   analysis.ElementAnalysis elementAnalysis;
   Engine engine;
   
-  PrintReferenceVisitor(this.engine, this.elementAnalysis, options, lineInfo, source, preSelection) : super(options, lineInfo, source, preSelection) {
+  PrintReferenceVisitor(this.engine, this.elementAnalysis, options, lineInfo, source, preSelection) : super(options, lineInfo, source, preSelection);
+  
+  visitSimpleIdentifier(SimpleIdentifier node) {
+    super.visitSimpleIdentifier(node);
+    var resolved = elementAnalysis.getSource(engine.entrySource).resolvedIdentifiers[node];
     
-    /*
-    this.writer = writer;
-    //elementAnalysis.sources.values.forEach((analysis.SourceElement source) {
-    analysis.SourceElement source = elementAnalysis.sources[elementAnalysis.engine.entrySource]; 
-      writer.println("/*${source.source}*/");
-      source.ast.accept(this);
-      writer.println("/*");
-      for(Expression e in source.resolvedIdentifiers.keys){
-        writer.println("${e} ${e.hashCode} --> ${source.resolvedIdentifiers[e].identifier} ${source.resolvedIdentifiers[e].identifier.hashCode}");
-      }
-      writer.println("*/");
-    //});
-    print(this.writer.toString());
-    * */
-     
-  }
-  
-    visitSimpleIdentifier(SimpleIdentifier node) {
-      super.visitSimpleIdentifier(node);
-      var resolved = elementAnalysis.getSource(engine.entrySource).resolvedIdentifiers[node];
-      
-      
-      
-      if (resolved != null) {
-        append("_${resolved.hashCode}");
-      }
-          
+    if (resolved != null) {
+      append("_${resolved.hashCode}");
     }
-  
-//  Object visitSimpleIdentifier(SimpleIdentifier node) {
-  //  writer.print("${node.token.lexeme}/*${node.hashCode}*/");
-    //return null;
-  //}
+  }
 }
 
 class PrintScopeVisitor extends analysis.RecursiveElementVisitor {

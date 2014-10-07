@@ -5,31 +5,26 @@ import 'package:analyzer/src/generated/ast.dart';
 import 'element.dart' as Our;
 import 'engine.dart';
 
-
 _openNewScope(scope, k) {
   Map curr = {};
   curr.addAll(scope);
+
   var ret = k(scope);
+
   scope.clear();
   scope.addAll(curr);
   return ret;
 }
 
-_addToScope(scope, bindings, k) {
-  return _openNewScope(scope, (scope) {
-    scope.addAll(bindings);
-    k(scope);
-  });
-}
+var blah;
 
 //TODO (jln): factories should be handled here. in ConstructorName there should be resolved what is a prefix of another library, and what is a factory call.
 
 class IdentifierResolver extends Our.RecursiveElementVisitor {
 
-  Map<Our.Name, Our.NamedElement> declaredElements = {};
+  Map<AstNode, Our.NamedElement> declaredElements = {};
   Our.LibraryElement currentLibrary;
-  var engine;
-
+  Engine engine;
 
   IdentifierResolver(this.engine, Our.ElementAnalysis elem) {
     visitElementAnalysis(elem);
@@ -41,99 +36,130 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
   }
   
   void visitSourceElement(Our.SourceElement element) {
+
+    blah = element.source;
+
+
     if (element.source != this.engine.entrySource) return;
     
     declaredElements.clear();
     currentLibrary = element.library;
     
+    //Pile together all declared elements
     visitBlock(element);
     
-    Map<String, Our.NamedElement> scope = {};
-    ScopeVisitor visitor = new ScopeVisitor(this.engine, 
-                                            scope, 
-                                            this.declaredElements,
-                                            element.resolvedIdentifiers);
-
-    _openNewScope(scope, (scope) => element.ast.accept(visitor));
-  }
-  
-  void visitBlockList(List<Our.Block> blocks) {
-    blocks.forEach((block) {
-        visitBlock(block);
-    });      
+    ScopeVisitor visitor = new ScopeVisitor(this.engine, this.declaredElements, element.resolvedIdentifiers, this.currentLibrary);
+    element.ast.accept(visitor);
   }
   
   void visitBlock(Our.Block block) {
-    this.declaredElements.addAll(block.declaredElements);
-    
-    visitBlockList(block.nestedBlocks);      
+    block.nestedBlocks.forEach(visitBlock);
+    block.declaredElements.values.forEach((Our.Element elem) {
+      this.declaredElements[elem.ast] = elem;
+    });
   }
 }
 
 
 class ScopeVisitor extends GeneralizingAstVisitor {
 
+  Our.LibraryElement library;
+
+  Map<AstNode, Our.NamedElement> declaredElements;
   Map<Expression, Our.NamedElement> references = {};
-  Map<Our.Name, Our.NamedElement> declaredElements;
   Map<String, Our.NamedElement> scope;
   
-  var engine;
+  Engine engine;
   Our.ClassElement _currentClass = null;
-  
-  List<Map<String,Our.NamedElement>> scopes = <Map<String,Our.NamedElement>>[];
-    
-  _enterScope(){
-    scopes.add(scope);
-    scope = new Map<String, Our.NamedElement>.from(scope);
-  }
-  
-  _leaveScope(){
-    scope = scopes.removeLast();
-  }
-  
-  ScopeVisitor(this.engine, 
-               this.scope, 
-               this.declaredElements, 
-               this.references); 
 
+  ScopeVisitor(this.engine, this.declaredElements, this.references, this.library) {
+    this.scope = {};
+  }
+
+  @override
   visitBlock(Block node) {
-    _enterScope();
-    super.visitBlock(node);
-    _leaveScope();
+    _openNewScope(scope, (_) =>
+        super.visitBlock(node));
   }
 
+  @override
   visitFormalParameter(FormalParameter node) {
-    this.scope[node.identifier.toString()] = this.declaredElements[new Our.Name.FromIdentifier(node.identifier)];
+    this.scope[node.identifier.toString()] = this.declaredElements[node];
     super.visitFormalParameter(node);
   }
   
+  @override
   visitClassDeclaration(ClassDeclaration node){
-    this.scope["this"] = this.declaredElements[new Our.Name.FromIdentifier(node.name)];
-    super.visitClassDeclaration(node);
-    this.scope.remove("this");
+    
+    _openNewScope(scope, (_) {
+      Our.ClassElement c = this.declaredElements[node];
+
+      c.declaredElements.forEach((k, v) {
+        this.scope[k.toString()] = v;
+      });
+
+      this.scope["this"] = c;
+      super.visitClassDeclaration(node);
+    });
   }
 
+  @override
   visitVariableDeclaration(VariableDeclaration node) {
-    this.scope[node.name.toString()] = this.declaredElements[new Our.Name.FromIdentifier(node.name)];
-    super.visitVariableDeclaration(node);
+    node.safelyVisitChild(node.initializer, this);
+    var namedElem = this.declaredElements[node];
+    if (namedElem != null)
+      this.scope[node.name.toString()] = namedElem;
+
+    node.safelyVisitChild(node.name, this);
+  }
+
+  @override
+  visitCascadeExpression(CascadeExpression node) {
   }
   
+  @override
+  visitFieldDeclaration(FieldDeclaration node) {
+    node.visitChildren(this);
+  }
+  
+  @override
   visitFunctionDeclaration(FunctionDeclaration node) {
+
     if (node.name != null) {
-      this.scope[node.name.toString()] = this.declaredElements[new Our.Name.FromIdentifier(node.name)];
+      this.scope[node.name.toString()] = this.declaredElements[node];
+    } else { print('ooooookaaaay'); }
+
+    if (this.declaredElements[node] == null) {
+      print('failed for  -- ${node} -- (${node.hashCode})');
+      this.declaredElements.keys.forEach((key){
+        print('${key} (${key.hashCode})');
+      });
     }
-    super.visitFunctionDeclaration(node);
+    
+    _openNewScope(scope, (_) {
+      super.visitFunctionDeclaration(node);      
+    });
+
   }
   
-  visitSimpleIdentifier(SimpleIdentifier node) {
-    var element = scope[node.name.toString()];
-    if (element != null) {
-      references[node] = element;
+  @override
+  visitSimpleIdentifier(SimpleIdentifier node) {    
+    Our.Name n = new Our.Name(node.name.toString());
+    var local_element = scope[node.name.toString()];
+    var lib_element = library.lookup(n, false);
+
+    if (local_element != null) {
+      references[node] = local_element;
+    } else if (lib_element != null) {
+      references[node] = lib_element;
+    } else if (node.name.toString() == 'void') {
+      
     } else {
-      this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}'));
+      this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}', blah, node.offset, node.length));
     }
   }
-  
+ 
+  @override
   visitConstructorName(ConstructorName node){
     if (node.name == null){
       //Only prefixed identifiers needs resolving
@@ -149,16 +175,47 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     }
   }
 
+  @override
+  visitMethodInvocation(MethodInvocation node) {
+    node.safelyVisitChild(node.target, this);
+
+    if (node.target == null)
+      node.safelyVisitChild(node.methodName, this);
+
+    node.safelyVisitChild(node.argumentList, this);
+  }
 
   //Only resolve the prefix.
   //TODO handle library 'as ...' imports.
+  @override
   visitPrefixedIdentifier(PrefixedIdentifier node) {
     node.safelyVisitChild(node.prefix, this);
   }
 
   //Only try to resolve the target.
-  visitPropertyAcces(PropertyAccess node) {
+  @override
+  visitPropertyAccess(PropertyAccess node) {
     node.safelyVisitChild(node.target, this);
   }
 
+  @override
+  visitNamedExpression(NamedExpression node) {
+    node.safelyVisitChild(node.expression, this);
+  }
+
+  //Dont visit identifiers in these AST nodes.
+  @override
+  visitLibraryDirective(LibraryDirective node) {}
+
+  @override
+  visitImportDirective(ImportDirective node) {}
+
+  @override
+  visitExportDirective(ExportDirective node) {}
+
+  @override
+  visitPartDirective(PartDirective node) {}
+
+  @override
+  visitPartOfDirective(PartOfDirective node) {}
 }
