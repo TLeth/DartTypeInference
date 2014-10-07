@@ -1,0 +1,24 @@
+body {
+    background-color: #000000;
+    color: #eeeeee;
+}
+
+a {
+    color: #8080ff;
+}
+
+#consoleHolder {
+    position: relative;
+    width: 640px;
+    height: 480px;
+    margin: auto;
+    overflow-y: auto;
+    word-wrap: break-word;
+}
+
+#game {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    background-color: #404040;
+}

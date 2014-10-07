@@ -154,10 +154,10 @@ abstract class Block extends Element {
 }
 
 class BlockElement extends Block {
-  astElement.Block ast;
+  AstNode ast;
   SourceElement sourceElement;
   
-  BlockElement(astElement.Block this.ast, SourceElement this.sourceElement);
+  BlockElement(AstNode this.ast, SourceElement this.sourceElement);
   dynamic accept(ElementVisitor visitor) => visitor.visitBlockElement(this);
 }
 
@@ -1030,7 +1030,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
     _leaveBlock();
   }
 
-  visitForStatement(astElement.ForStatement node){
+  visitForStatement(ForStatement node){
     BlockElement blockElement = new BlockElement(node, element);
     analysis.addElement(node, blockElement);
     _enterBlock(blockElement);
