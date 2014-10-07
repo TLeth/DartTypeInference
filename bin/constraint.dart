@@ -5,6 +5,7 @@ import 'engine.dart';
 import 'element.dart';
 import 'types.dart';
 import 'util.dart';
+import 'dart:collection';
 
 
 class ConstraintAnalysis {
@@ -104,7 +105,7 @@ class TypeVariable {
     }
   }
   
-  List<AbstractType> get allTypes => new List.from(_types); 
+  List<AbstractType> get types => new List.from(_types); 
   
   Function notify(NotifyFunc func, [FilterFunc filter = null]) {
     if (_event_listeners.contains(func))
@@ -139,6 +140,23 @@ class TypeVariable {
       if (_filters[func] == null || _filters[func](type))
         func(type);
     }
+  }
+  
+  //TODO (jln): returning dynamic is maybe not the best solution.
+  /**
+   * Return the least upper bound of this type and the given type, or `dynamic` if there is no
+   * least upper bound.
+   *
+   */
+  AbstractType getLeastUpperBound() {
+    if (_types.length == 0) return new DynamicType();
+    Queue<AbstractType> queue = new Queue<AbstractType>.from(_types);
+    AbstractType res = queue.removeFirst();
+    res = queue.fold(res, (AbstractType res, AbstractType t) => res.getLeastUpperBound(t));
+    if (res == null)
+      return new DynamicType();
+    else 
+      return res;
   }
   
   bool has_listener(void f(TypeVariable, AbstractType)) => _event_listeners.contains(f);

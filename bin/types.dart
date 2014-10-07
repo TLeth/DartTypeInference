@@ -7,9 +7,38 @@ import 'element.dart';
 import 'constraint.dart';
 import 'util.dart';
 
-abstract class AbstractType {}
+abstract class AbstractType {
+  
+  /**
+   * Return the least upper bound of this type and the given type, or `null` if there is no
+   * least upper bound.
+   *
+   */
+   AbstractType getLeastUpperBound(AbstractType type);
+  
+  /**
+   * Return `true` if this type is assignable to the given type. A type <i>T</i> may be
+   * assigned to a type <i>S</i>, written <i>T</i> &hArr; <i>S</i>, iff either <i>T</i> <: <i>S</i>
+   * or <i>S</i> <: <i>T</i>.
+   *
+   */
+  bool isAssignableTo(AbstractType type) => type.isSupertypeOf(this) || isSupertypeOf(type);
+  
+  /**
+   * Return `true` if this type is a subtype of the given type.
+   *
+   */
+  bool isSubtypeOf(AbstractType type);
 
-class FreeType extends AbstractType {
+  /**
+   * Return `true` if this type is a supertype of the given type. A type <i>S</i> is a
+   * supertype of <i>T</i>, written <i>S</i> :> <i>T</i>, iff <i>T</i> is a subtype of <i>S</i>.
+   *
+   */
+  bool isSupertypeOf(AbstractType type) => type.isSubtypeOf(this);
+}
+
+/*class FreeType extends AbstractType {
   static int _countID = 0;
   
   int _typeID;
@@ -18,9 +47,11 @@ class FreeType extends AbstractType {
   
   String toString() => "\u{03b1}${_typeID}";
   
+  bool isSubtypeOf(AbstractType type) => type is FreeType;
+  
   //TODO (jln): a free type is equal to any free type right?
   //bool operator ==(Object other) => other is FreeType;
-}
+}*/
 
 class FunctionType extends AbstractType {
   List<TypeIdentifier> normalParameterTypes;
@@ -68,6 +99,21 @@ class FunctionType extends AbstractType {
     return h;
   }
   
+  bool isSubtypeOf(AbstractType t){
+    //TODO (jln): If t is a NominalType with classELement function it should be OK.
+    //TODO (jln): Implement this.
+    
+    return false;
+  }
+  
+  AbstractType getLeastUpperBound(AbstractType t) {
+    if (t is DynamicType || t is VoidType)
+          return t;
+    
+    //TODO (jln): Implement this, a simple implementation could be if t is a FunctionType then return the nominalType Function.
+    return new DynamicType();
+  }
+  
   bool operator ==(Object other) => 
       other is FunctionType &&
       ListUtil.equal(other.normalParameterTypes, this.normalParameterTypes) &&
@@ -79,19 +125,57 @@ class FunctionType extends AbstractType {
 class NominalType extends AbstractType {
   
   ClassElement element;
-    
   
   NominalType(ClassElement this.element);
  
-  
   String toString() => element.name.toString();
   
   bool operator ==(Object other) => other is NominalType && other.element == this.element;
   
+  bool isSubtypeOf(AbstractType type) {
+    if (type is NominalType)
+      return element.isSubtypeOf(type.element);
+    else if (type is DynamicType)
+      return true;
+    else
+      return false;
+  }
+  
+  AbstractType getLeastUpperBound(AbstractType t){
+    if (t is NominalType) {
+      ClassElement leastUpperBound = element.getLeastUpperBound(t.element);
+      if (leastUpperBound == null)
+        return null;
+      else
+        return new NominalType(leastUpperBound);
+    } 
+    
+    if (t is DynamicType || t is VoidType)
+      return t;
+
+    //TODO (jln): If t is FunctionType the only possible case would be if this nominalType is FunctionType.
+    return null;
+  }
+  
   int get hashCode => element.hashCode;
 }
 
-class UnionType extends AbstractType {
+class DynamicType extends AbstractType {
+  static DynamicType _instance = null;
+  factory DynamicType() => (_instance == null ? _instance = new DynamicType._internal() : _instance);
+  
+  DynamicType._internal();
+  
+  bool isSubtypeOf(DynamicType t) => true;
+  
+  AbstractType getLeastUpperBound(AbstractType t) => this;
+  
+  String toString() => "void";
+  bool operator ==(Object other) => other is VoidType;
+  
+}
+
+/*class UnionType extends AbstractType {
   Set<AbstractType> types = new Set<AbstractType>();
   
   UnionType(Iterable<AbstractType> types) {
@@ -105,7 +189,7 @@ class UnionType extends AbstractType {
   String toString() => "{${ListUtil.join(types, " + ")}}";
   
   bool operator ==(Object other) => other is UnionType && other.types == this.types;
-}
+}*/
 
 class VoidType extends AbstractType {
 
@@ -113,6 +197,10 @@ class VoidType extends AbstractType {
   factory VoidType() => (_instance == null ? _instance = new VoidType._internal() : _instance);
   
   VoidType._internal();
+  
+  bool isSubtypeOf(AbstractType t) => t is VoidType;
+  
+  AbstractType getLeastUpperBound(AbstractType t) => (t is DynamicType ? t : this);
   
   String toString() => "void";
   bool operator ==(Object other) => other is VoidType;
@@ -340,7 +428,7 @@ class ElementTyper {
           } else {
             //The element should be in the elementAnalysis.
             engine.errors.addError(new EngineError("A FunctionTypedFormaParameter was found in the typing step, but didn't have a associated elemenet.", source.source, normalParam.offset, normalParam.length ), true);
-            type = new FreeType();
+            type = null;
           }
         }
         
