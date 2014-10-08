@@ -7,10 +7,10 @@ library dgrep;
 import 'dart:io';
 import 'package:args/args.dart';
 
-const USAGE = 'usage: dart dgrep.dart [-rnS] patterns file_or_directory';
-const RECURSIVE = 'recursive';
-const LINE_NUMBER = 'line-number';
-const FOLLOW_LINKS = 'follow-links';
+const String USAGE = 'usage: dart dgrep.dart [-rnS] patterns file_or_directory';
+const String RECURSIVE = 'recursive';
+const String LINE_NUMBER = 'line-number';
+const String FOLLOW_LINKS = 'follow-links';
 
 ArgResults argResults;
 
@@ -37,7 +37,7 @@ searchFile(File file, searchTerms) {
 }
 
 void main(List<String> arguments) {
-  final parser = new ArgParser()
+  final ArgParser parser = new ArgParser()
       ..addFlag(RECURSIVE, negatable: false, abbr: 'r')
       ..addFlag(LINE_NUMBER, negatable: false, abbr: 'n')
       ..addFlag(FOLLOW_LINKS, negatable: false, abbr: 'S');
@@ -50,8 +50,8 @@ void main(List<String> arguments) {
     exit(1);
   }
 
-  final searchPath = argResults.rest.last;
-  final searchTerms = argResults.rest.sublist(0, argResults.rest.length - 1);
+  final String searchPath = argResults.rest.last;
+  final List<String> searchTerms = argResults.rest.sublist(0, argResults.rest.length - 1);
 
   FileSystemEntity.isDirectory(searchPath).then((isDir) {
     if (isDir) {

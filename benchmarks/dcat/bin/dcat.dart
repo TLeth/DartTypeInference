@@ -10,8 +10,8 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 
-const LINE_NUMBER = 'line-number';
-var NEWLINE = '\n';
+const String LINE_NUMBER = 'line-number';
+String NEWLINE = '\n';
 
 ArgResults argResults;
 

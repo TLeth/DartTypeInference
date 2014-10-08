@@ -69,6 +69,11 @@ class Annotator {
       
       FormattedSource formattedSource = new FormattedSource(annotatedSource, selection);
 
+<<<<<<< HEAD
+=======
+      new File.fromUri(sourceElement.source.uri).writeAsStringSync(formattedSource.source);
+
+>>>>>>> 09a0d62c7d88204a06a86acc8c4e313ce38051e1
       CodeFormatter finisher = new CodeFormatter();
       formattedSource = finisher.format(CodeKind.COMPILATION_UNIT, formattedSource.source);
       
@@ -133,7 +138,6 @@ class AnnotateSourceVisitor extends SourceVisitor {
     preserveLeadingNewlines();
     visitMemberMetadata(node.metadata);
     modifier(node.externalKeyword);
-    
     Element functionElement = elementAnalysis.elements[node];
     if (functionElement is FunctionElement) {
       ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(functionElement);

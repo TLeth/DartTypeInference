@@ -11,23 +11,52 @@ import 'package:analyzer/src/generated/error.dart';
 
 
 class Result {
-  int val;
-  Result(int this.val);
+  int type_mismatch = 0;
+  int generic_misses = 0;
+  int generic_mismatch = 0;
+  Result(int this.type_mismatch);
   factory Result.Empty() => new Result(0);
 
   void add(Result other){
-    this.val += other.val;
+    this.type_mismatch += other.type_mismatch;
+    this.generic_misses += other.generic_misses;
+    this.generic_mismatch += other.generic_mismatch;
   }
 
-  String toString() => val.toString();
+  String toString() => "${type_mismatch} ${generic_misses} ${generic_mismatch}";
 }
 
 //expected always non-null
 //actual may be null
 Result classify(TypeName expected, TypeName actual) {
+  Result res = new Result(0);
   if (actual == null || 
-      actual.name.toString() != expected.name.toString()) return new Result(1);
-  return new Result(0);
+      actual.name.toString() != expected.name.toString()) res.type_mismatch++;
+  
+  if (actual != null && (expected.typeArguments != null && actual.typeArguments == null || expected.typeArguments == null && actual.typeArguments != null))
+    res.generic_misses++;
+  
+  if (actual != null && (expected.typeArguments != null && actual.typeArguments != null)) {
+    NodeList<TypeName> a = actual.typeArguments.arguments, b = expected.typeArguments.arguments;
+    if (a.length < b.length){
+      a = b;
+      b = actual.typeArguments.arguments;
+    }
+    
+    //generic mismatches can only be counted as one.
+    for(var i = 0; i < a.length; i++){
+      if (b.length <= i) {
+        res.generic_mismatch++;
+      } else {
+        Result r = classify(a[i], b[i]);
+        if (r.type_mismatch > 0) res.generic_mismatch++;
+      }
+    }
+      
+  }
+   
+  
+  return res;
 }
 
 main(List<String> args) {
