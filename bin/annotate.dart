@@ -134,7 +134,6 @@ class AnnotateSourceVisitor extends SourceVisitor {
     preserveLeadingNewlines();
     visitMemberMetadata(node.metadata);
     modifier(node.externalKeyword);
-    
     Element functionElement = elementAnalysis.elements[node];
     if (functionElement is FunctionElement) {
       ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(functionElement);
