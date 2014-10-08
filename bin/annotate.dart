@@ -70,22 +70,8 @@ class Annotator {
 
       new File.fromUri(sourceElement.source.uri).writeAsStringSync(formattedSource.source);
 
-
-      print('----------');
-      print(sourceElement.source.fullName);
-      print(annotatedSource);
-
-
-
-
-
-      return;
-
-      print("sourceElement.source.fullName");
-      print(sourceElement.source.fullName);
       CodeFormatter finisher = new CodeFormatter();
       formattedSource = finisher.format(CodeKind.COMPILATION_UNIT, formattedSource.source);
-
       
       new File.fromUri(sourceElement.source.uri).writeAsStringSync(formattedSource.source);
     }
