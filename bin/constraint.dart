@@ -119,9 +119,8 @@ class TypeVariable {
     List<AbstractType> copyTypes;
     do {
       reset = false;
-      //TODO (jln): Changes in the map wile running through it. make a change here.
-      copyTypes = new List<AbstractType>.from(_types);
-      for(AbstractType type in copyTypes){
+      //Uses types instead of _types, types is a copy of the _types so if there is changes it is OK.
+      for(AbstractType type in types){
         if (_changed){
           reset = true;
           break;
@@ -358,12 +357,12 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   
   visitParenthesizedExpression(ParenthesizedExpression node){
     super.visitParenthesizedExpression(node);
-    //(exp)
-    // [exp] \subseteq [(exp)]
-    
-    TypeIdentifier expIdent = new ExpressionTypeIdentifier(node.expression);
-    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
-    _subsetConstraint(expIdent, nodeIdent);
+//(exp)
+  // [exp] \subseteq [(exp)]
+  
+  TypeIdentifier expIdent = new ExpressionTypeIdentifier(node.expression);
+  TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+  _subsetConstraint(expIdent, nodeIdent);
   }
   
   visitAssignmentExpression(AssignmentExpression node){
@@ -584,6 +583,35 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     
       _subsetConstraint(new ExpressionTypeIdentifier(node.expression), new ReturnTypeIdentifier(returnElement.function));
     }
+    
+  }
+  
+  visitFunctionExpression(FunctionExpression node){
+    
+    if (source.source.shortName == 'a.dart')
+      print("Function Expression: ${node}");
+    super.visitFunctionExpression(node);
+  }
+  
+  visitFunctionDeclaration(FunctionDeclaration node){
+    
+    if (source.source.shortName == 'a.dart')
+      print("Function Decl: ${node}");
+    super.visitFunctionDeclaration(node);
+    
+  }
+  
+  visitFunctionBody(FunctionBody node){
+    if (source.source.shortName == 'a.dart')
+      print("Function Body: ${node}");
+    super.visitFunctionBody(node);
+  }
+  
+  visitMethodDeclaration(MethodDeclaration node){
+    
+    if (source.source.shortName == 'a.dart')
+        print("method Decl: ${node}");
+    super.visitMethodDeclaration(node);
   }
   
   visitConditionalExpression(ConditionalExpression node){
@@ -602,8 +630,14 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   bool _isIncrementOperator(String operator) => operator == '--' || operator == '++';
   
   visitPostfixExpression(PostfixExpression node){
-    //TODO (jln): fix postfix.
     super.visitPostfixExpression(node);
+    //The postfix is just keeping the type for the expression. 
+    
+    //(exp)
+    // [exp] \subseteq [exp op]
+    TypeIdentifier expIdent = new ExpressionTypeIdentifier(node.operand);
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+    _subsetConstraint(expIdent, nodeIdent);
   }
   
   // op v
