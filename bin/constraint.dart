@@ -595,7 +595,6 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     // [exp2] \union [exp3] \subseteq [exp1 ? exp2 : exp3]
     _subsetConstraint(new ExpressionTypeIdentifier(node.thenExpression), nodeIdent);
     _subsetConstraint(new ExpressionTypeIdentifier(node.elseExpression), nodeIdent);
-    //super.visitParenthesizedExpression(node)
     //super.visitInterpolationExpression(node)
     //super.visitNamedExpression();
   }
@@ -604,10 +603,13 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   
   visitPostfixExpression(PostfixExpression node){
     //print("POSTFIX: ${node.operand} ${node.operator}");
+    super.visitPostfixExpression(node);
   }
   
   // op v
   visitPrefixExpression(PrefixExpression node){
+    super.visitPrefixExpression(node);
+    
     // If increment operator (-- or ++)
     if (_isIncrementOperator(node.operator.toString())) {
       String operator = node.operator.toString();
@@ -629,7 +631,11 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       });
       
     } else if (node.operator.toString() == '!'){
+      //If the is a negate it is the same as writing (e ? false : true), the result will always be a bool.
       types.put(node, new NominalType(elementAnalysis.resolveClassElement(new Name("bool"), constraintAnalysis.dartCore, source))); 
+    } else { 
+      //In all other cases the prefix should just be a method call.
+      
     }
     //print("Prefix:  ${node.operator} ${node.operand}");
   }
