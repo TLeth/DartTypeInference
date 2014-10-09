@@ -1,6 +1,7 @@
 library typeanalysis.constraints;
 
 import 'package:analyzer/src/generated/ast.dart' hide ClassMember;
+import 'package:analyzer/src/generated/scanner.dart';
 import 'engine.dart';
 import 'element.dart';
 import 'types.dart';
@@ -349,9 +350,20 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
      }
      
      
-     if (vd.initializer != null)
+     if (vd.initializer != null){
        // v = exp;
       _assignmentExpression(vd.name, vd.initializer);
+     }
+  }
+  
+  visitParenthesizedExpression(ParenthesizedExpression node){
+    super.visitParenthesizedExpression(node);
+    //(exp)
+    // [exp] \subseteq [(exp)]
+    
+    TypeIdentifier expIdent = new ExpressionTypeIdentifier(node.expression);
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+    _subsetConstraint(expIdent, nodeIdent);
   }
   
   visitAssignmentExpression(AssignmentExpression node){
@@ -572,6 +584,54 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     
       _subsetConstraint(new ExpressionTypeIdentifier(node.expression), new ReturnTypeIdentifier(returnElement.function));
     }
+  }
+  
+  visitConditionalExpression(ConditionalExpression node){
+    super.visitConditionalExpression(node);
+    
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node); 
+    
+    // exp1 ? exp2 : exp3
+    // [exp2] \union [exp3] \subseteq [exp1 ? exp2 : exp3]
+    _subsetConstraint(new ExpressionTypeIdentifier(node.thenExpression), nodeIdent);
+    _subsetConstraint(new ExpressionTypeIdentifier(node.elseExpression), nodeIdent);
+    //super.visitParenthesizedExpression(node)
+    //super.visitInterpolationExpression(node)
+    //super.visitNamedExpression();
+  }
+  
+  bool _isIncrementOperator(String operator) => operator == '--' || operator == '++';
+  
+  visitPostfixExpression(PostfixExpression node){
+    //print("POSTFIX: ${node.operand} ${node.operator}");
+  }
+  
+  // op v
+  visitPrefixExpression(PrefixExpression node){
+    // If increment operator (-- or ++)
+    if (_isIncrementOperator(node.operator.toString())) {
+      String operator = node.operator.toString();
+      operator = operator.substring(0, operator.length - 1);
+      
+      TypeIdentifier vIdent = new ExpressionTypeIdentifier(node.operand);
+      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+      
+      //Make the operation
+      foreach(vIdent).update((AbstractType alpha) {
+        TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name(operator));
+        TypeIdentifier returnIdent = new SyntheticTypeIdentifier(methodIdent);
+        _methodCall(methodIdent, <Expression>[new IntegerLiteral(new StringToken(TokenType.INT, "1", 0), 1)], returnIdent);
+        //Result of (leftHandSide op RightHandSide) should be the result of the hole node.
+        _subsetConstraint(returnIdent, nodeIdent);
+        
+        //Make the assignment from the returnIdent to the leftHandSide.
+        _assignmentExpression(node.operand, returnIdent);
+      });
+      
+    } else if (node.operator.toString() == '!'){
+      types.put(node, new NominalType(elementAnalysis.resolveClassElement(new Name("bool"), constraintAnalysis.dartCore, source))); 
+    }
+    //print("Prefix:  ${node.operator} ${node.operand}");
   }
   
   visitBinaryExpression(BinaryExpression be) {

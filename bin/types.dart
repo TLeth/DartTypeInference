@@ -270,7 +270,7 @@ class ReturnTypeIdentifier extends TypeIdentifier {
   
   bool operator ==(Object other) => other is ReturnTypeIdentifier && other._element == _element;
   
-  String toString() => "#ret.${_element}";
+  String toString() => "#ret.[${_element}]";
 }
 
 class ParameterTypes { 
