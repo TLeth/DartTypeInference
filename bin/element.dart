@@ -416,6 +416,7 @@ abstract class CallableElement extends Element {
   TypeName get returnType;
   FormalParameterList get parameters;
   List<ReturnElement> get returns;
+  bool get isSynthetic;
   void addReturn(ReturnElement);
 }
 
@@ -483,7 +484,8 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
   dynamic accept(ElementVisitor visitor) => visitor.visitMethodElement(this);
   
   MethodElement(MethodDeclaration this.ast, ClassElement this.classDecl) {
-    if (this.ast.name.toString() == '-' && this.ast.parameters.length == 0){
+    
+    if (this.ast.name.toString() == '-' && this.ast.parameters != null && this.ast.parameters.parameters != null && this.ast.parameters.parameters.length == 0){
       _name = Name.UnaryMinusName();
     } else if (isSetter) {
       _name = Name.SetterName(new Name.FromIdentifier(this.ast.name));
@@ -918,6 +920,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
     
     _currentMethodElement = new MethodElement(node, _currentClassElement);
     analysis.addElement(node, _currentMethodElement);
+    
     _currentClassElement.addMethod(_currentMethodElement.name, _currentMethodElement);
     
     _currentCallableElement = _currentMethodElement;

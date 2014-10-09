@@ -226,7 +226,7 @@ class Engine {
     _constraintAnalysis = new ConstraintAnalysis(this, _elementAnalysis);
     new ConstraintGenerator(_constraintAnalysis);
 
-    new PrintConstraintVisitor(_constraintAnalysis, _entrySource);
+    //new PrintConstraintVisitor(_constraintAnalysis, _entrySource);
   }
   
   _makeAnnotatedSource() {

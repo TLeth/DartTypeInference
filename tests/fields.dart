@@ -4,8 +4,7 @@ class A {
   dynamic c;
   static dynamic d;
 }
-
-void main (){
+void main() {
   A a = new A();
   a.a = "test";
   A.b = "test";

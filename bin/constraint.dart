@@ -505,7 +505,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
         
     //TODO (jln): This does not take library prefix into account.
     foreach(targetIdent).update((AbstractType alpha) {
-      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name("[]="));
+      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name("[]"));
       _methodCall(methodIdent, <Expression>[n.index], nodeIdent);
     });
   }
@@ -562,7 +562,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
           MapUtil.submap(namedParameters, func.namedParameterTypes) &&
           func.optionalParameterTypes.length + func.normalParameterTypes.length >= parameters.length; })
       .update((AbstractType func) {
-        if (func is FunctionType) {
+        if (func is FunctionType) {          
           for (var i = 0; i < parameters.length;i++){
             if (i < func.normalParameterTypes.length)
               _subsetConstraint(parameters[i], func.normalParameterTypes[i]);              
@@ -597,10 +597,9 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   }
   
   
-  bool _returnsVoid(CallableElement node) =>
-    node.returns.fold(true, (bool res, ReturnElement r) => res && r.ast.expression == null);
-  
-
+  bool _returnsVoid(CallableElement node) {
+    return node.returns.fold(true, (bool res, ReturnElement r) => res && r.ast.expression == null);
+  }
   
   visitFunctionExpression(FunctionExpression node){
     super.visitFunctionExpression(node);
@@ -614,12 +613,14 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   }
   
   visitMethodDeclaration(MethodDeclaration node){
-    if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is CallableElement)
-      engine.errors.addError(new EngineError("A MethodDeclaration was visited, but didn't have a associated CallableElement.", source.source, node.offset, node.length ), true);
+    super.visitMethodDeclaration(node);
+    if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is MethodElement)
+      engine.errors.addError(new EngineError("A MethodDeclaration was visited, but didn't have a associated MethodElement.", source.source, node.offset, node.length ), true);
         
-    CallableElement callableElement = elementAnalysis.elements[node];
-    if (_returnsVoid(callableElement)){
-      types.put(new ReturnTypeIdentifier(callableElement), new VoidType());
+    MethodElement methodElement = elementAnalysis.elements[node];
+    
+    if (!methodElement.isAbstract && _returnsVoid(methodElement)) {
+      types.put(new ReturnTypeIdentifier(methodElement), new VoidType());
     }
   }
   
@@ -677,10 +678,14 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       //If the is a negate it is the same as writing (e ? false : true), the result will always be a bool.
       types.put(node, new NominalType(elementAnalysis.resolveClassElement(new Name("bool"), constraintAnalysis.dartCore, source))); 
     } else {
+      Name operator;
+      if (node.operator.toString() == '-') operator = Name.UnaryMinusName();
+      else operator = new Name.FromToken(node.operator);
+      
       TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.operand);
       TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
       foreach(targetIdent).update((AbstractType type) { 
-        TypeIdentifier methodIdent = new PropertyTypeIdentifier(type, new Name.FromToken(node.operator)); 
+        TypeIdentifier methodIdent = new PropertyTypeIdentifier(type, operator); 
         _methodCall(methodIdent, [], nodeIdent);
       });
     }
