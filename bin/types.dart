@@ -234,6 +234,16 @@ class ExpressionTypeIdentifier extends TypeIdentifier {
   String toString() => "#{${exp}}";
 }
 
+class SyntheticTypeIdentifier extends TypeIdentifier {
+  TypeIdentifier _relation;
+  
+  SyntheticTypeIdentifier(TypeIdentifier this._relation);
+  
+  int get hashCode => _relation.hashCode * 31;
+  
+  bool operator ==(Object other) => other is SyntheticTypeIdentifier && other._relation == _relation;
+}
+
 
 class PropertyTypeIdentifier extends TypeIdentifier {
   AbstractType _type;

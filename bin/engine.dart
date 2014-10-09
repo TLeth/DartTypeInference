@@ -68,8 +68,7 @@ class ErrorCollector {
   addError(EngineError err, [bool faliure = false]) {
     _errors.add(err);
     if (faliure) {
-      print(this);
-      exit(0);
+      throw err;
     }
   }
   

@@ -115,9 +115,12 @@ class TypeVariable {
     _filters[func] = filter;
     
     bool reset;
+    List<AbstractType> copyTypes;
     do {
       reset = false;
-      for(AbstractType type in _types){
+      //TODO (jln): Changes in the map wile running through it. make a change here.
+      copyTypes = new List<AbstractType>.from(_types);
+      for(AbstractType type in copyTypes){
         if (_changed){
           reset = true;
           break;
@@ -248,6 +251,16 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       foreach(a).update((AbstractType type) => types.put(b, type));
   }
   
+  TypeIdentifier _normalizeExpressionToTypeIdentifier(dynamic rightHandSide){
+    if (rightHandSide is TypeIdentifier)
+      return rightHandSide;
+    else if (rightHandSide is Expression)
+      return new ExpressionTypeIdentifier(rightHandSide);
+    else
+      engine.errors.addError(new EngineError("_normalizeRightHandSide in constraint was called with a bad rightHandSide `${rightHandSide.runtimeType}`", source.source), true);
+    return null;
+  }
+  
   visitIntegerLiteral(IntegerLiteral n) {
     super.visitIntegerLiteral(n);
     // {int} \in [n]
@@ -335,35 +348,102 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
        _equalConstraint(v, new ExpressionTypeIdentifier(vd.name));
      }
      
-     // v = exp;
-     _assignmentExpression(vd.name, vd.initializer);
+     
+     if (vd.initializer != null)
+       // v = exp;
+      _assignmentExpression(vd.name, vd.initializer);
   }
   
   visitAssignmentExpression(AssignmentExpression node){
     super.visitAssignmentExpression(node);
     
-    // v = exp;
-    _assignmentExpression(node.leftHandSide, node.rightHandSide);
+    Expression leftHandSide = node.leftHandSide;
+    Expression rightHandSide = node.rightHandSide;
     
-    TypeIdentifier exp = new ExpressionTypeIdentifier(node.rightHandSide);
-    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
-    
-    // [exp] \subseteq [v = exp]
-    _subsetConstraint(exp, nodeIdent);
+    if (node.operator.toString() != '='){
+      //Make method invocation for the node.operator.
+      String operator = node.operator.toString();
+      operator = operator.substring(0, operator.length - 1);
+      
+      TypeIdentifier vIdent = new ExpressionTypeIdentifier(leftHandSide);
+      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+      
+      //Make the operation
+      foreach(vIdent).update((AbstractType alpha) {
+        TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name(operator));
+        TypeIdentifier returnIdent = new SyntheticTypeIdentifier(methodIdent);
+        _methodCall(methodIdent, <Expression>[rightHandSide], returnIdent);
+        
+        //Result of (leftHandSide op RightHandSide) should be the result of the hole node.
+        _subsetConstraint(returnIdent, nodeIdent);
+        
+        //Make the assignment from the returnIdent to the leftHandSide.
+        _assignmentExpression(leftHandSide, returnIdent);
+      });
+    } else {
+      // In case of exp_1 = exp_2
+      _assignmentExpression(leftHandSide, rightHandSide);
+      
+      TypeIdentifier exp = new ExpressionTypeIdentifier(rightHandSide);
+      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+      
+      // [exp] \subseteq [v = exp]
+      _subsetConstraint(exp, nodeIdent);
+    }
   }
   
-  _assignmentExpression(Expression leftHandSide, Expression rightHandSide){
-    TypeIdentifier v = new ExpressionTypeIdentifier(leftHandSide);
-    TypeIdentifier exp = new ExpressionTypeIdentifier(rightHandSide);
-    
-    if (leftHandSide is SimpleIdentifier || leftHandSide is PrefixedIdentifier){
-      // v = exp;
-      
-      // [exp] \subseteq [v]
-      _subsetConstraint(exp, v);
-    } else {
+  // v = exp
+  _assignmentExpression(Expression leftHandSide, dynamic rightHandSide){
+    TypeIdentifier expIdent = _normalizeExpressionToTypeIdentifier(rightHandSide);
+    if (leftHandSide is SimpleIdentifier)
+      _assignmentSimpleIdentifier(leftHandSide, expIdent);
+    else if (leftHandSide is PrefixedIdentifier)
+      _assignmentPrefixedIdentifier(leftHandSide, expIdent);
+    else if (leftHandSide is PropertyAccess)
+      _assignmentPropertyAccess(leftHandSide, expIdent);
+    else if (leftHandSide is IndexExpression)
+      _assignmentIndexExpression(leftHandSide, expIdent);
+    else {
+      engine.errors.addError(new EngineError("_assignmentExpression was called with a bad leftHandSide: `${leftHandSide.runtimeType}`", source.source), true);
       //TODO (jln): assigment to a non identifier on left hand side (example v[i]).
     }
+  }
+  
+   // v = exp;
+   // [exp] \subseteq [v]
+  _assignmentSimpleIdentifier(SimpleIdentifier leftHandSide, TypeIdentifier expIdent){
+    TypeIdentifier vIdent = new ExpressionTypeIdentifier(leftHandSide);
+    _subsetConstraint(expIdent, vIdent);
+  }
+  
+  // v.prop = exp;
+  // \alpha \in [v] => [exp] \subseteq [\alpha.prop]
+  _assignmentPropertyAccess(PropertyAccess leftHandSide, TypeIdentifier expIdent){
+    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(leftHandSide.realTarget);
+    foreach(targetIdent).update((AbstractType alpha){
+      TypeIdentifier alphapropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.propertyName));
+      _subsetConstraint(expIdent, alphapropertyIdent);
+    });
+  }
+
+  // v.prop = exp;
+  // \alpha \in [v] => [exp] \subseteq [\alpha.prop]
+  _assignmentPrefixedIdentifier(PrefixedIdentifier leftHandSide, TypeIdentifier expIdent){
+    TypeIdentifier prefixIdent = new ExpressionTypeIdentifier(leftHandSide.prefix);
+    foreach(prefixIdent).update((AbstractType alpha){
+      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.identifier));
+      _subsetConstraint(expIdent, alphaPropertyIdent);
+    });
+  }
+  
+  // v[i] = exp;
+  // \alpha \in [v] => (\beta => \gamma => void) \in [v.[]=] => [i] \subseteq [\beta] && [exp] \subseteq [\gamma]
+  _assignmentIndexExpression(IndexExpression leftHandSide, TypeIdentifier expIdent){
+    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(leftHandSide.realTarget);
+    foreach(targetIdent).update((AbstractType alpha) {
+      TypeIdentifier indexEqualMethodIdent = new PropertyTypeIdentifier(alpha, new Name("[]="));
+      _methodCall(indexEqualMethodIdent, [leftHandSide.index, expIdent], null);
+    });
   }
   
   visitSimpleIdentifier(SimpleIdentifier n){
@@ -386,8 +466,32 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     TypeIdentifier prefixIdent = new ExpressionTypeIdentifier(prefix);
     //TODO (jln): This does not take library prefix into account.
     foreach(prefixIdent).update((AbstractType alpha) {
-      TypeIdentifier alphaFld = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.identifier));
-      _equalConstraint(nodeIdent, alphaFld);
+      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.identifier));
+      _subsetConstraint(alphaPropertyIdent, nodeIdent);
+    });
+  }
+  
+  visitPropertyAccess(PropertyAccess n){
+    super.visitPropertyAccess(n);
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
+    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(n.realTarget);
+    
+    //TODO (jln): This does not take library prefix into account.
+    foreach(targetIdent).update((AbstractType alpha) {
+      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.propertyName));
+      _subsetConstraint(alphaPropertyIdent, nodeIdent);
+    });
+  }
+  
+  visitIndexExpression(IndexExpression n){
+    super.visitIndexExpression(n);
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
+    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(n.realTarget);
+        
+    //TODO (jln): This does not take library prefix into account.
+    foreach(targetIdent).update((AbstractType alpha) {
+      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name("[]="));
+      _methodCall(methodIdent, <Expression>[n.index], nodeIdent);
     });
   }
 
@@ -403,14 +507,14 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     super.visitMethodInvocation(node);
 
     TypeIdentifier returnIdent = new ExpressionTypeIdentifier(node);
-    if (node.target == null){
+    if (node.realTarget == null){
       //Call without any prefix
       TypeIdentifier methodIdent = new ExpressionTypeIdentifier(node.methodName);
       _methodCall(methodIdent, node.argumentList.arguments, returnIdent);
     } else {
       //Called with a prefix
       //TODO (jln): This does not take library prefix into account.
-      TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.target);
+      TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.realTarget);
       foreach(targetIdent).update((AbstractType type) { 
         TypeIdentifier methodIdent = new PropertyTypeIdentifier(type, new Name.FromIdentifier(node.methodName)); 
         _methodCall(methodIdent, node.argumentList.arguments, returnIdent);
@@ -418,17 +522,21 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     }
   }
   
-  _methodCall(TypeIdentifier method, List<Expression> argumentList, TypeIdentifier returnIdent){
+  _methodCall(TypeIdentifier method, List argumentList, TypeIdentifier returnIdent){
     // method(arg_1,...,arg_n) : return
     List<TypeIdentifier> parameters = <TypeIdentifier>[];
     Map<Name, TypeIdentifier> namedParameters = <Name, TypeIdentifier>{};
     
     if (argumentList != null){
-      for(Expression arg in argumentList){
+      for(var arg in argumentList){
         if (arg is NamedExpression)
           namedParameters[new Name.FromIdentifier(arg.name.label)] = new ExpressionTypeIdentifier(arg.expression);
-        else
+        else if (arg is Expression)
           parameters.add(new ExpressionTypeIdentifier(arg));
+        else if (arg is TypeIdentifier)
+          parameters.add(arg);
+        else
+          engine.errors.addError(new EngineError("_methodCall in constraint.dart was called with a unreal argument: `${arg.runtimeType}`", source.source), true);
       }
     }
     //\forall (\gamma_1 -> ... -> \gamma_n -> \beta) \in [method] =>
@@ -482,6 +590,37 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       _methodCall(methodIdent, <Expression>[be.rightOperand], nodeIdent);
     });
   }
+  
+  visitIsExpression(IsExpression n){
+    super.visitIsExpression(n);
+
+    // {bool} \in [e is T]
+    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("bool"), constraintAnalysis.dartCore, source)));
+  }
+  
+  visitAsExpression(AsExpression n){
+    super.visitAsExpression(n);
+    
+    // {T} \in [e as T]
+    // {T} \in [e]
+    NominalType castType = new NominalType(elementAnalysis.resolveClassElement(new Name.FromIdentifier(n.type.name), source.library, source));
+    types.put(n, castType);
+    types.put(n.expression, castType);
+  } 
+  
+  visitCascadeExpression(CascadeExpression node){
+    super.visitCascadeExpression(node);
+    
+    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.target);
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+    
+    _subsetConstraint(targetIdent, nodeIdent);
+  }
+  
+  
+  
+  
+
   
 }
 
