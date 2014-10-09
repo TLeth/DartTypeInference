@@ -577,41 +577,36 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     super.visitReturnStatement(node);
     if (node.expression != null){
       if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is ReturnElement)
-        engine.errors.addError(new EngineError("A ReturnStatement was visited, but didn't have a associated elemenet.", source.source, node.offset, node.length ), true);
+        engine.errors.addError(new EngineError("A ReturnStatement was visited, but didn't have a associated ReturnElement.", source.source, node.offset, node.length ), true);
     
       ReturnElement returnElement = elementAnalysis.elements[node];
-    
       _subsetConstraint(new ExpressionTypeIdentifier(node.expression), new ReturnTypeIdentifier(returnElement.function));
-    }
-    
+    } 
   }
+  
+  visitExpressionFunctionBody(ExpressionFunctionBody node){
+    super.visitExpressionFunctionBody(node);
+    if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is ReturnElement)
+      engine.errors.addError(new EngineError("A ExpressionFunctionBody was visited, but didn't have a associated ReturnElement.", source.source, node.offset, node.length ), true);
+    ReturnElement returnElement = elementAnalysis.elements[node];
+    _subsetConstraint(new ExpressionTypeIdentifier(node.expression), new ReturnTypeIdentifier(returnElement.function));
+  }
+  
+  
+  bool _returnsVoid(CallableElement node) =>
+    node.returns.fold(true, (bool res, ReturnElement r) => res && r.ast.expression == null);
+  
+
   
   visitFunctionExpression(FunctionExpression node){
-    
-    if (source.source.shortName == 'a.dart')
-      print("Function Expression: ${node}");
     super.visitFunctionExpression(node);
-  }
-  
-  visitFunctionDeclaration(FunctionDeclaration node){
-    
-    if (source.source.shortName == 'a.dart')
-      print("Function Decl: ${node}");
-    super.visitFunctionDeclaration(node);
-    
-  }
-  
-  visitFunctionBody(FunctionBody node){
-    if (source.source.shortName == 'a.dart')
-      print("Function Body: ${node}");
-    super.visitFunctionBody(node);
-  }
-  
-  visitMethodDeclaration(MethodDeclaration node){
-    
-    if (source.source.shortName == 'a.dart')
-        print("method Decl: ${node}");
-    super.visitMethodDeclaration(node);
+    if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is CallableElement)
+      engine.errors.addError(new EngineError("A FunctionDeclaration was visited, but didn't have a associated CallableElement.", source.source, node.offset, node.length ), true);
+      
+    CallableElement callableElement = elementAnalysis.elements[node];
+    if (_returnsVoid(callableElement)){
+      types.put(new ReturnTypeIdentifier(callableElement), new VoidType());
+    }
   }
   
   visitConditionalExpression(ConditionalExpression node){

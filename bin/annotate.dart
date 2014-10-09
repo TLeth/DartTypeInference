@@ -13,8 +13,9 @@ import 'types.dart';
 class TypeAnnotator {
   
   TypeMap typemap;
+  ElementAnalysis analysis;
   
-  TypeAnnotator(TypeMap this.typemap);
+  TypeAnnotator(TypeMap this.typemap, ElementAnalysis this.analysis);
   
   TypeName annotateIdentifier(Identifier identifier, [int offset = 0]){
     TypeIdentifier typeIdent = new ExpressionTypeIdentifier(identifier);
@@ -38,8 +39,13 @@ class TypeAnnotator {
     else if (t is FunctionType)
       //This sould be more specific.
       identifier = new SimpleIdentifier(new StringToken(TokenType.IDENTIFIER, 'Function', offset));
-    else if (t is NominalType)
-      identifier = new SimpleIdentifier(new StringToken(TokenType.IDENTIFIER, t.toString(), offset));
+    else if (t is NominalType){
+      ClassElement objectClassElement = analysis.resolveClassElement(new Name("Object"), analysis.dartCore, analysis.dartCore.source);
+      if (t.element == objectClassElement)
+        identifier = new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset));
+      else
+        identifier = new SimpleIdentifier(new StringToken(TokenType.IDENTIFIER, t.toString(), offset));
+    }
     
     return new TypeName(identifier, null);
   }
@@ -52,7 +58,7 @@ class Annotator {
   TypeAnnotator typeAnnotator;
   
   Annotator(Engine this.engine){    
-    typeAnnotator = new TypeAnnotator(engine.constraintAnalysis.typeMap);
+    typeAnnotator = new TypeAnnotator(engine.constraintAnalysis.typeMap, elementAnalysis);
     
     elementAnalysis.sources.values.forEach(annotateSource); 
   }

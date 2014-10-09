@@ -1,5 +1,4 @@
 String x = "Str";
-
 void main(){
-     x = "test";
+  x = "test";
 }
