@@ -602,7 +602,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   bool _isIncrementOperator(String operator) => operator == '--' || operator == '++';
   
   visitPostfixExpression(PostfixExpression node){
-    //print("POSTFIX: ${node.operand} ${node.operator}");
+    //TODO (jln): fix postfix.
     super.visitPostfixExpression(node);
   }
   
@@ -633,11 +633,14 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     } else if (node.operator.toString() == '!'){
       //If the is a negate it is the same as writing (e ? false : true), the result will always be a bool.
       types.put(node, new NominalType(elementAnalysis.resolveClassElement(new Name("bool"), constraintAnalysis.dartCore, source))); 
-    } else { 
-      //In all other cases the prefix should just be a method call.
-      
+    } else {
+      TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.operand);
+      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+      foreach(targetIdent).update((AbstractType type) { 
+        TypeIdentifier methodIdent = new PropertyTypeIdentifier(type, new Name.FromToken(node.operator)); 
+        _methodCall(methodIdent, [], nodeIdent);
+      });
     }
-    //print("Prefix:  ${node.operator} ${node.operand}");
   }
   
   visitBinaryExpression(BinaryExpression be) {
