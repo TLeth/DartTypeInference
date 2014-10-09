@@ -471,13 +471,14 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
   bool get isStatic => ast.isStatic;
   bool get isSynthetic => ast.isSynthetic;
   bool get isPrivate => name.isPrivate;
-
+  
+  
   
   TypeName get returnType => ast.returnType;
   FormalParameterList get parameters => ast.parameters;
   List<ReturnElement> _returns = <ReturnElement>[];
   List<ReturnElement> get returns => _returns;
-  void addReturn(ReturnElement r) => _returns.add(r); 
+  void addReturn(ReturnElement r) => _returns.add(r);
     
   dynamic accept(ElementVisitor visitor) => visitor.visitMethodElement(this);
   
@@ -995,6 +996,8 @@ class ElementGenerator extends GeneralizingAstVisitor {
     _lastSeenFunctionDeclaration = node;
     super.visitFunctionDeclaration(node);
   }
+    
+  
 
   visitFunctionExpression(FunctionExpression node) {
     if (_currentBlock == null){
@@ -1057,6 +1060,14 @@ class ElementGenerator extends GeneralizingAstVisitor {
   visitReturnStatement(ReturnStatement node){
     ReturnElement returnElement = new ReturnElement(node, _currentCallableElement, element);
     super.visitReturnStatement(node);
+    _currentCallableElement.addReturn(returnElement);
+    analysis.addElement(node, returnElement);
+  }
+
+  
+  visitExpressionFunctionBody(ExpressionFunctionBody node){
+    ReturnElement returnElement = new ReturnElement(new ReturnStatement(null, node.expression, null), _currentCallableElement, element);
+    super.visitExpressionFunctionBody(node);
     _currentCallableElement.addReturn(returnElement);
     analysis.addElement(node, returnElement);
   }

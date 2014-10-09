@@ -316,20 +316,24 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     
     if (className != null){
       // {ClassName} \in [n]
-      TypeIdentifier returnIdent = new ExpressionTypeIdentifier(n);
       ClassElement classElement = elementAnalysis.resolveClassElement(new Name.FromIdentifier(className), source.library, source);
       
       if (classElement != null){
-        Name constructorName = null;
-        if (n.constructorName.name != null)
-          constructorName = new PrefixedName.FromIdentifier(classElement.identifier, new Name.FromIdentifier(n.constructorName.name));
-        else
-          constructorName = new Name.FromIdentifier(classElement.identifier);
-        
-        AbstractType classType = new NominalType(classElement);
-        TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, constructorName);
-        _methodCall(constructorIdent, n.argumentList.arguments, returnIdent);
-        
+        if (classElement.declaredConstructors.isEmpty){
+          //No constructors is declard so this must be a implicit constructor.
+          types.put(n, new NominalType(classElement));
+        } else {
+          TypeIdentifier returnIdent = new ExpressionTypeIdentifier(n);
+          Name constructorName = null;
+          if (n.constructorName.name != null)
+            constructorName = new PrefixedName.FromIdentifier(classElement.identifier, new Name.FromIdentifier(n.constructorName.name));
+          else
+            constructorName = new Name.FromIdentifier(classElement.identifier);
+          
+          AbstractType classType = new NominalType(classElement);
+          TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, constructorName);
+          _methodCall(constructorIdent, n.argumentList.arguments, returnIdent);
+        }
       }
     }
   }
@@ -603,6 +607,16 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is CallableElement)
       engine.errors.addError(new EngineError("A FunctionDeclaration was visited, but didn't have a associated CallableElement.", source.source, node.offset, node.length ), true);
       
+    CallableElement callableElement = elementAnalysis.elements[node];
+    if (_returnsVoid(callableElement)){
+      types.put(new ReturnTypeIdentifier(callableElement), new VoidType());
+    }
+  }
+  
+  visitMethodDeclaration(MethodDeclaration node){
+    if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is CallableElement)
+      engine.errors.addError(new EngineError("A MethodDeclaration was visited, but didn't have a associated CallableElement.", source.source, node.offset, node.length ), true);
+        
     CallableElement callableElement = elementAnalysis.elements[node];
     if (_returnsVoid(callableElement)){
       types.put(new ReturnTypeIdentifier(callableElement), new VoidType());
