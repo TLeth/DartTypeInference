@@ -1,5 +1,0 @@
-num x = 3;
-
-void main(){
-     x = 4.0;
-}
