@@ -61,15 +61,19 @@ class Annotator {
     if (sourceElement.source.uriKind == UriKind.FILE_URI) {
       var selection = null;
       
+      
 
       var annotateVisitor = new AnnotateSourceVisitor(this, sourceElement, new FormatterOptions(), sourceElement.ast.lineInfo, sourceElement.sourceContent, selection);
-      sourceElement.ast.visitChildren(annotateVisitor);
+      sourceElement.ast.accept(annotateVisitor);
       String annotatedSource = annotateVisitor.writer.toString();
       
       FormattedSource formattedSource = new FormattedSource(annotatedSource, selection);
 
+<<<<<<< HEAD
+=======
       new File.fromUri(sourceElement.source.uri).writeAsStringSync(formattedSource.source);
 
+>>>>>>> 09a0d62c7d88204a06a86acc8c4e313ce38051e1
       CodeFormatter finisher = new CodeFormatter();
       formattedSource = finisher.format(CodeKind.COMPILATION_UNIT, formattedSource.source);
       
@@ -139,9 +143,10 @@ class AnnotateSourceVisitor extends SourceVisitor {
       ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(functionElement);
       visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent), followedBy: space);
     } else {
-      engine.errors.addError(new EngineError("A FunctionDeclaration was not mapped to a FunctionElement", sourceElement.source, node.offset, node.length), false);
+      engine.errors.addError(new EngineError("A FunctionDeclaration was not mapped to a FunctionElement", sourceElement.source, node.offset, node.length), false);     
     }
-   
+  
+  
     modifier(node.propertyKeyword);
     visit(node.name);
     visit(node.functionExpression);
