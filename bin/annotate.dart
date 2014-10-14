@@ -135,14 +135,14 @@ class AnnotateSourceVisitor extends SourceVisitor {
    }
 
   visitFunctionDeclaration(FunctionDeclaration node) {
-
     preserveLeadingNewlines();
     visitMemberMetadata(node.metadata);
     modifier(node.externalKeyword);
     Element functionElement = elementAnalysis.elements[node];
+    
     if (functionElement is FunctionElement) {
       ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(functionElement);
-      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent), followedBy: space);
+      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, node.name.offset), followedBy: space);
     } else {
       engine.errors.addError(new EngineError("A FunctionDeclaration was not mapped to a FunctionElement", sourceElement.source, node.offset, node.length), false);     
     }
@@ -170,7 +170,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
     if (node.variables.length > 0) {
       Element variableElement = elementAnalysis.elements[node.variables[0]];
       if (variableElement is NamedElement) {
-        visitNode(typeAnnotator.annotateIdentifier(variableElement.identifier), followedBy: space);
+        visitNode(typeAnnotator.annotateIdentifier(variableElement.identifier, node.offset), followedBy: space);
       } else {
         engine.errors.addError(new EngineError("A VariableDeclaration was not mapped to a NamedElement", sourceElement.source, node.variables[0].offset, node.variables[0].length), false);
       }
