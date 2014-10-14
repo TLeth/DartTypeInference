@@ -12,7 +12,6 @@ for f in $(ls tests_stripped/)
 do
     echo -ne $f'                  \r'
     strip.dart tests_stripped/$f > tmp.dart
-    rm tests_stripped/$f
     mv tmp.dart tests_stripped/$f
 done
 
@@ -20,7 +19,10 @@ dart ./bin/analyze.dart --dart-sdk ${dartDir%bin/dart} tests_stripped/tests.dart
 
 (for f in $(ls tests/)
 do
-  if [ $(diff <(dartfmt tests/$f) <(dartfmt tests_stripped/$f) | wc -l) -eq 0 ]
+  dartfmt -w tests_stripped/$f
+  dartfmt -w tests/$f
+
+  if [ $(diff <(cat tests/$f) <(cat tests_stripped/$f) | wc -l) -eq 0 ]
   then echo -e $f '\033[0;32mPass\033[0m'
   else 
       echo -e $f '\033[0;31mFail\033[0m'

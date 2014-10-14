@@ -15,3 +15,4 @@ void main() {
   A.d = "test";
   A.d = 3;
 }
+

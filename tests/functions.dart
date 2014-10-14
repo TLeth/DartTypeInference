@@ -9,13 +9,14 @@ dynamic c(String d) {
 }
 dynamic d(dynamic g) => g;
 String e(num g) => "String";
-void main(){
+void main() {
   a("test");
   b("test");
   c("test");
   e(2);
   e(3.0);
-  
+
   d(2);
   d("test");
 }
+

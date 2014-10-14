@@ -48,4 +48,5 @@ import 'binop_mult_double.dart';
 import 'var_assign_str.dart';
 import 'binop_mult_int.dart';
 
-main(){}
+void main() {}
+

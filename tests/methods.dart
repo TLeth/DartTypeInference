@@ -13,14 +13,15 @@ class B extends A {
   dynamic d(dynamic g) => g;
   String e(num g) => "String";
 }
-void main(){
+void main() {
   B b = new B();
   B.c("test");
   b.d(2);
   b.d("test");
   b.e(3.0);
   b.e(2);
-  
+
   A.a("test");
   b.b("test");
 }
+

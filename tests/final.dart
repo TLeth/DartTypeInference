@@ -1,3 +1,4 @@
 library tests.test_final;
 
-final String l = "Test"; 
+final String l = "Test";
+
