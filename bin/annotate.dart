@@ -76,7 +76,10 @@ class Annotator {
       CodeFormatter finisher = new CodeFormatter();
       formattedSource = finisher.format(CodeKind.COMPILATION_UNIT, formattedSource.source);
       
-      new File.fromUri(sourceElement.source.uri).writeAsStringSync(formattedSource.source);
+      if (engine.options.noOverride)
+        print(formattedSource.source);
+      else
+        new File.fromUri(sourceElement.source.uri).writeAsStringSync(formattedSource.source);
     }
   }
 }

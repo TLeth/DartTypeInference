@@ -1,7 +1,6 @@
 library typeanalysis.engine;
 
 import 'dart:io';
-import 'package:analyzer/options.dart';
 import 'package:analyzer/src/generated/engine.dart';
 import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/java_io.dart';
@@ -13,6 +12,7 @@ import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/error.dart';
 import 'package:analyzer/src/analyzer_impl.dart';
 
+import 'analyze.dart';
 import 'annotate.dart';
 import 'name_resolver.dart';
 import 'element.dart';
@@ -86,7 +86,7 @@ class Engine {
   Source _entrySource;
   JavaFile _entryFile;
   DartSdk _sdk;
-  CommandLineOptions _options;
+  CommandLineOptions options;
   SourceFactory _sourceFactory;
   AnalysisContextImpl _analysisContext;
   ErrorCollector errors;
@@ -98,7 +98,7 @@ class Engine {
   
   Source get entrySource => _entrySource;
   
-  Engine(CommandLineOptions this._options, DartSdk this._sdk) {
+  Engine(CommandLineOptions this.options, DartSdk this._sdk) {
     errors = new ErrorCollector(this);
   }
   
@@ -127,8 +127,8 @@ class Engine {
     List<UriResolver> resolvers = [new DartUriResolver(_sdk), new FileUriResolver()];
       {
         JavaFile packageDirectory;
-        if (_options.packageRootPath != null) {
-          packageDirectory = new JavaFile(_options.packageRootPath);
+        if (options.packageRootPath != null) {
+          packageDirectory = new JavaFile(options.packageRootPath);
         } else {
           packageDirectory = AnalyzerImpl.getPackageDirectoryFor(_entryFile);
         }
@@ -142,20 +142,13 @@ class Engine {
   _setupAnalaysisContext(){
     _analysisContext = new AnalysisContextImpl();
     _analysisContext.sourceFactory = _sourceFactory;
-    Map<String, String> definedVariables = _options.definedVariables;
-    if (!definedVariables.isEmpty) {
-      DeclaredVariables declaredVariables = _analysisContext.declaredVariables;
-      definedVariables.forEach((String variableName, String value) {
-        declaredVariables.define(variableName, value);
-      });
-    }
 
     // set options for context
     AnalysisOptionsImpl contextOptions = new AnalysisOptionsImpl();
     contextOptions.cacheSize = MAX_CACHE_SIZE;
-    contextOptions.hint = !_options.disableHints;
-    contextOptions.enableAsync = _options.enableAsync;
-    contextOptions.enableEnum = _options.enableEnum;
+    contextOptions.hint = !options.disableHints;
+    contextOptions.enableAsync = options.enableAsync;
+    contextOptions.enableEnum = options.enableEnum;
     _analysisContext.analysisOptions = contextOptions;
   }
   
@@ -226,7 +219,7 @@ class Engine {
     _constraintAnalysis = new ConstraintAnalysis(this, _elementAnalysis);
     new ConstraintGenerator(_constraintAnalysis);
 
-    //new PrintConstraintVisitor(_constraintAnalysis, _entrySource);
+    new PrintConstraintVisitor(_constraintAnalysis, _entrySource);
   }
   
   _makeAnnotatedSource() {
