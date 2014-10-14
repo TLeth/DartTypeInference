@@ -66,7 +66,6 @@ class ElementAnalysis {
     } else {
       engine.errors.addError(new EngineError("Resolving classElement could not find: `${name}` in `${library.source}`.", source.source, source.ast.offset, source.ast.length));
     }
-      
     return null; 
   }
 }

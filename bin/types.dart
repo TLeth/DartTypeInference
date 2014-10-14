@@ -170,7 +170,7 @@ class DynamicType extends AbstractType {
   
   AbstractType getLeastUpperBound(AbstractType t) => this;
   
-  String toString() => "void";
+  String toString() => "dynamic";
   bool operator ==(Object other) => other is VoidType;
   
 }
