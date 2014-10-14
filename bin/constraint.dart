@@ -35,7 +35,6 @@ class TypeMap {
   TypeVariable _lookup(TypeIdentifier ident, SourceElement source){
     if (containsKey(ident))
       return _typeMap[ident];
-    
     if (ident.isPropertyLookup && ident.propertyIdentifierType is NominalType){
       NominalType type = ident.propertyIdentifierType;
       ClassMember member = type.element.lookup(ident.propertyIdentifierName);
@@ -43,11 +42,10 @@ class TypeMap {
       if (member != null)
         return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeClassMember(member, type.element.sourceElement.library)];
     } else if (ident is ExpressionTypeIdentifier && source.resolvedIdentifiers.containsKey(ident.exp)){
+
       NamedElement namedElement = source.resolvedIdentifiers[ident.exp];
       return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeNamedElement(namedElement, namedElement.sourceElement.library)];
     }
-    
-    
     
     if (!containsKey(ident))
       _typeMap[ident] = new TypeVariable();
@@ -364,8 +362,6 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
      Element element = elementAnalysis.elements[vd];
      if (element is FieldElement){
        ClassElement classElement = element.classDecl;
-       if (classElement == null)
-         print("line 356: element: ${element}.");
        TypeIdentifier v = new PropertyTypeIdentifier(new NominalType(classElement), element.name);
        _equalConstraint(v, new ExpressionTypeIdentifier(vd.name));
      }
@@ -616,7 +612,10 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   
   
   bool _returnsVoid(CallableElement node) {
-    return node.returns.fold(true, (bool res, ReturnElement r) => res && r.ast.expression == null);
+    if (node.isExternal)
+      return false;
+    else
+      return node.returns.fold(true, (bool res, ReturnElement r) => res && r.ast.expression == null);
   }
   
   visitFunctionExpression(FunctionExpression node){
