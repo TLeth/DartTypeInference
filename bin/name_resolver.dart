@@ -1,6 +1,7 @@
 library typeanalysis.Local;
 
 import 'package:analyzer/src/generated/ast.dart';
+import 'package:analyzer/src/generated/source.dart';
 
 import 'element.dart' as Our;
 import 'engine.dart';
@@ -16,8 +17,6 @@ _openNewScope(scope, k) {
   return ret;
 }
 
-var blah;
-
 //TODO (jln): factories should be handled here. in ConstructorName there should be resolved what is a prefix of another library, and what is a factory call.
 
 class IdentifierResolver extends Our.RecursiveElementVisitor {
@@ -25,6 +24,7 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
   Map<AstNode, Our.NamedElement> declaredElements = {};
   Our.LibraryElement currentLibrary;
   Engine engine;
+  
 
   IdentifierResolver(this.engine, Our.ElementAnalysis elem) {
     visitElementAnalysis(elem);
@@ -36,11 +36,6 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
   }
   
   void visitSourceElement(Our.SourceElement element) {
-
-    blah = element.source;
-
-
-    if (element.source != this.engine.entrySource) return;
     
     declaredElements.clear();
     currentLibrary = element.library;
@@ -48,7 +43,7 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
     //Pile together all declared elements
     visitBlock(element);
     
-    ScopeVisitor visitor = new ScopeVisitor(this.engine, this.declaredElements, element.resolvedIdentifiers, this.currentLibrary);
+    ScopeVisitor visitor = new ScopeVisitor(element.source, this.engine, this.declaredElements, element.resolvedIdentifiers, this.currentLibrary);
     element.ast.accept(visitor);
   }
   
@@ -69,10 +64,12 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   Map<Expression, Our.NamedElement> references = {};
   Map<String, Our.NamedElement> scope;
   
+  Source source;
+  
   Engine engine;
   Our.ClassElement _currentClass = null;
 
-  ScopeVisitor(this.engine, this.declaredElements, this.references, this.library){
+  ScopeVisitor(this.source, this.engine, this.declaredElements, this.references, this.library){
     this.scope = {};
   }
 
@@ -161,7 +158,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     } else if (node.name.toString() == 'void') {
       
     } else {
-      this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}', blah, node.offset, node.length));
+      this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}', source, node.offset, node.length));
     }
   }
  
