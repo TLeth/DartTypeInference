@@ -206,8 +206,6 @@ class Engine {
     new IdentifierResolver(this,  _elementAnalysis);
     new ClassHierarchyResolver(this, _elementAnalysis);
 
-
-
     //new PrintReferenceVisitor.Print(_elementAnalysis);
     //unit.accept(new PrintAstVisitor());
     //_elementAnalysis.accept(new PrintElementVisitor());

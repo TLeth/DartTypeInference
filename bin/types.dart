@@ -146,7 +146,8 @@ class NominalType extends AbstractType {
     if (t is NominalType) {
       ClassElement leastUpperBound = element.getLeastUpperBound(t.element);
       if (leastUpperBound == null)
-        return null;
+        //In some cases the element cannot find the least upper bound, then return a dynamic type.
+        return new DynamicType();
       else
         return new NominalType(leastUpperBound);
     } 
@@ -155,7 +156,7 @@ class NominalType extends AbstractType {
       return t;
 
     //TODO (jln): If t is FunctionType the only possible case would be if this nominalType is FunctionType.
-    return null;
+    return new DynamicType();
   }
   
   int get hashCode => element.hashCode;

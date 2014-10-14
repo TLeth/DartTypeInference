@@ -130,7 +130,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
 
     if (node.name != null) {
       this.scope[node.name.toString()] = this.declaredElements[node];
-    } else { print('ooooookaaaay'); }
+    }
 
     if (this.declaredElements[node] == null) {
       print('failed for  -- ${node} -- (${node.hashCode})');
