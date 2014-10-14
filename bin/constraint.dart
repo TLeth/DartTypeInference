@@ -66,6 +66,12 @@ class TypeMap {
   bool containsKey(TypeIdentifier ident) => _typeMap.containsKey(ident);  
   
   void put(dynamic i, AbstractType t){
+    
+    if (t == null) {
+          print('fuuuck');
+    }
+    
+    
     TypeIdentifier ident = TypeIdentifier.ConvertToTypeIdentifier(i);
     if (!_typeMap.containsKey(ident))
       _typeMap[ident] = new TypeVariable();
@@ -96,6 +102,12 @@ class TypeVariable {
   
   void add(AbstractType t) {
     //TODO (jln) If the type added is a free-type check if there already exists a free type and merge them.
+    
+    if (t == null) {
+        print('gaaay');
+        
+    }
+    
     if (_types.add(t))
       trigger(t);
   }
@@ -736,8 +748,11 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   
   visitAsExpression(AsExpression n){
     super.visitAsExpression(n);
+
+    AbstractType castType = _getAbstractType(new Name.FromIdentifier(n.type.name), source.library, source);
+
     
-    if (n.type.name.toString() == 'dynamic') {
+    if (n.type.name.toString() == 'dynamic' || castType == null) {
       //as dynamic doesn't give you any info, so just make them equal.
       TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
       TypeIdentifier expIdent = new ExpressionTypeIdentifier(n.expression);
@@ -745,7 +760,6 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     } else {
       // {T} \in [e as T]
       // {T} \in [e]
-      AbstractType castType = _getAbstractType(new Name.FromIdentifier(n.type.name), source.library, source);
       types.put(n, castType);
       types.put(n.expression, castType);
     }
