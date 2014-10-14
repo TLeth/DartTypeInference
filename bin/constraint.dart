@@ -8,8 +8,6 @@ import 'types.dart';
 import 'util.dart';
 import 'dart:collection';
 
-bool debugStop = false;
-
 class ConstraintAnalysis {
   TypeMap typeMap;
   
@@ -120,18 +118,19 @@ class TypeVariable {
     _filters[func] = filter;
     
     bool reset;
-    List current_types = types;
+    List current_types;
     do {
-      reset = false;    
+      reset = false;
+      current_types = types;
+      
       for(AbstractType type in current_types){
-        if (filter == null || filter(type)) {
+        if (filter == null || filter(type))
           func(type);
   
-          if (_types.length != current_types.length){
-            //Changes has been made, so make another notify loop.
-            reset = true;
-            break;
-          }
+        if (_types.length != current_types.length){
+          //Changes has been made, so make another notify loop.
+          reset = true;
+          break;
         }
       }
     } while(reset);
@@ -246,23 +245,8 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   }
   
   void _subsetConstraint(TypeIdentifier a, TypeIdentifier b) {
-
-   
-      if (a.toString() == '#_DoubleLinkedQueueEntrySentinel._next' &&
-          b.toString() == '#{entry._next}') {
-       print('foo'); 
-       debugStop = true;
-      }
-      
     if (a != b)
       foreach(a).update((AbstractType type) => types.put(b, type));
-    
-    
-    if (a.toString() == '#_DoubleLinkedQueueEntrySentinel._next' &&
-        b.toString() == '#{entry._next}') {
-      debugStop = false;
-    }
-
   }
   
   AbstractType _getAbstractType(Name className, LibraryElement library, SourceElement source){
