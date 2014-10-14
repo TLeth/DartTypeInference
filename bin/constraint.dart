@@ -233,9 +233,9 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   }
   
   Expression _normalizeIdentifiers(Expression exp){
-    if (exp is SimpleIdentifier && source.resolvedIdentifiers.containsKey(exp))
+    if (exp is SimpleIdentifier && source.resolvedIdentifiers.containsKey(exp)) {
       return source.resolvedIdentifiers[exp].identifier;
-    else
+    } else
       return exp;
   }
   
