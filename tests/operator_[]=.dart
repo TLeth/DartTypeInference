@@ -1,3 +1,5 @@
+library tests.operator_arrayassign;
+
 class A {
   void operator []=(int index, String str) {
     str;

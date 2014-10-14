@@ -1,3 +1,5 @@
+library tests.functions;
+
 String a(String b) => b;
 dynamic b(String c) {
   if (1 > 2) return b; else return 2;

@@ -1,3 +1,5 @@
+library tests.methods;
+
 class A {
   static String a(String b) => b;
   dynamic b(String c) {

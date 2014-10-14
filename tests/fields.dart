@@ -1,3 +1,5 @@
+library tests.fields;
+
 class A {
   String a;
   static String b;
