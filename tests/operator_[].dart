@@ -1,3 +1,5 @@
+library tests.operator_arrayindex;
+
 class A {
   String operator [](int index) {
     return "Str";

@@ -2,7 +2,12 @@
 .DS_Store
 build/
 packages/
+
+# dont include tests related output
 inferred/
+tests_stripped/
+log
+
 
 # Or the files created by dart2js.
 *.dart.js

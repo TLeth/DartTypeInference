@@ -1,3 +1,5 @@
+library tests.classes;
+
 class A {
   dynamic c;
   
