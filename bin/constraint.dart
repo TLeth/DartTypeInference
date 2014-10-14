@@ -90,7 +90,7 @@ class TypeVariable {
   Set<AbstractType> _types = new Set<AbstractType>();
   
   List<NotifyFunc> _event_listeners = <NotifyFunc>[];
-  Map<NotifyFunc,FilterFunc> _filters = <NotifyFunc, FilterFunc>{};
+ // Map<NotifyFunc, FilterFunc> _filters = new HashMap<NotifyFunc, FilterFunc>();
   
   bool _changed = false;
   
@@ -102,19 +102,18 @@ class TypeVariable {
   void trigger(AbstractType type){
     List event_listeners = new List.from(_event_listeners);
     for(NotifyFunc func in event_listeners){
-      if (_filters[func] == null || _filters[func](type))
+      //if (_filters[func] == null || _filters[func](type))
         func(type);
     }
   }
   
   List<AbstractType> get types => new List.from(_types); 
   
-  Function onchange(NotifyFunc func, [FilterFunc filter = null]) {
+  Function onChange(NotifyFunc func) {
     if (_event_listeners.contains(func))
       return (() => this.remove(func));
     
     _event_listeners.add(func);
-    _filters[func] = filter;
     
     bool reset;
     List current_types;
@@ -123,11 +122,9 @@ class TypeVariable {
       current_types = types;
       
       for(AbstractType type in current_types){
-        if (filter == null || filter(type))
           func(type);
   
         if (_types.length != current_types.length){
-          //Changes has been made, so make another notify loop.
           reset = true;
           break;
         }
@@ -138,7 +135,7 @@ class TypeVariable {
   }
   
   bool remove(void func(AbstractType)){
-    _filters.remove(func);
+    //_filters.remove(func);
     return _event_listeners.remove(func);
   }
   
@@ -198,7 +195,10 @@ abstract class ConstraintHelper {
       
       _lastTypeIdentifier = null;
       _lastWhere = null;
-      types.getter(identifier, source).onchange(func, filter);
+      types.getter(identifier, source).onChange((AbstractType t) {
+        if (filter == null || filter(t))
+           func(t);
+      });
     }
   }
 }

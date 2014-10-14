@@ -1,6 +1,7 @@
 library typeanalysis.engine;
 
 import 'dart:io';
+import 'dart:profiler';
 import 'package:analyzer/src/generated/engine.dart';
 import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/java_io.dart';
@@ -108,12 +109,37 @@ class Engine {
     _setupSourceFactory();
     _entrySource = _sourceFactory.forUri2(uri);
     
+    UserTag last;
+    
+    last = new UserTag('Setup').makeCurrent();
+    
     _setupAnalaysisContext();
+
+    last.makeCurrent();
+    last = new UserTag('ElementAnalysis').makeCurrent();
+        
     _makeElementAnalysis();
+    
+    
     errors.reset();
+
+    last.makeCurrent();
+    last = new UserTag('ConstraintAnalysis').makeCurrent();
+    
+    
     _makeConstraintAnalysis();
+    
     errors.reset();
+
+    last.makeCurrent();
+    last = new UserTag('Annotate').makeCurrent();
+    
+    
     _makeAnnotatedSource();
+    
+    last.makeCurrent();
+   
+    
     _printErrorsAndReset();
   }
  
@@ -168,7 +194,7 @@ class Engine {
       print(errors);
       exit(0);
     }
-    
+   
     Parser parser = new Parser(source, errorListener);
     parser.parseFunctionBodies = options.analyzeFunctionBodies;
     parser.parseAsync = options.enableAsync;
