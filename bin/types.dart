@@ -67,6 +67,7 @@ class FunctionType extends AbstractType {
   
   factory FunctionType.FromCallableElement(CallableElement element, LibraryElement library, ElementTyper typer){
     TypeIdentifier returnIdentifier = typer.typeReturn(element, library, element.sourceElement);
+
     if (element.parameters == null)
       return new FunctionType(<TypeIdentifier>[], returnIdentifier);
     
@@ -170,7 +171,7 @@ class DynamicType extends AbstractType {
   
   AbstractType getLeastUpperBound(AbstractType t) => this;
   
-  String toString() => "void";
+  String toString() => "dynamic";
   bool operator ==(Object other) => other is VoidType;
   
 }

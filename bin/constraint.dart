@@ -35,7 +35,6 @@ class TypeMap {
   TypeVariable _lookup(TypeIdentifier ident, SourceElement source){
     if (containsKey(ident))
       return _typeMap[ident];
-    
     if (ident.isPropertyLookup && ident.propertyIdentifierType is NominalType){
       NominalType type = ident.propertyIdentifierType;
       ClassMember member = type.element.lookup(ident.propertyIdentifierName);
@@ -43,11 +42,10 @@ class TypeMap {
       if (member != null)
         return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeClassMember(member, type.element.sourceElement.library)];
     } else if (ident is ExpressionTypeIdentifier && source.resolvedIdentifiers.containsKey(ident.exp)){
+
       NamedElement namedElement = source.resolvedIdentifiers[ident.exp];
       return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeNamedElement(namedElement, namedElement.sourceElement.library)];
     }
-    
-    
     
     if (!containsKey(ident))
       _typeMap[ident] = new TypeVariable();
@@ -251,6 +249,22 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       foreach(a).update((AbstractType type) => types.put(b, type));
   }
   
+  AbstractType _getAbstractType(Name className, LibraryElement library, SourceElement source){
+    ClassElement classElement = elementAnalysis.resolveClassElement(className, library, source);
+    if (classElement != null){
+      return new NominalType(classElement);
+    } else {
+      if (className.toString() == 'dynamic')
+        return new DynamicType();
+      else if (className.toString() == 'void')
+        return new VoidType();
+      else {
+        engine.errors.addError(new EngineError("_getAbstractType was called and the classElement could not be found: ${className}", source.source));
+        return null;
+      }
+    }
+  }
+  
   TypeIdentifier _normalizeExpressionToTypeIdentifier(dynamic rightHandSide){
     if (rightHandSide is TypeIdentifier)
       return rightHandSide;
@@ -264,44 +278,44 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   visitIntegerLiteral(IntegerLiteral n) {
     super.visitIntegerLiteral(n);
     // {int} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("int"), constraintAnalysis.dartCore, source)));
+    types.put(n, _getAbstractType(new Name('int'), constraintAnalysis.dartCore, source));
   }
   
   visitDoubleLiteral(DoubleLiteral n) {
     super.visitDoubleLiteral(n);
     // {double} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("double"), constraintAnalysis.dartCore, source)));
+    types.put(n, _getAbstractType(new Name("double"), constraintAnalysis.dartCore, source));
   }
   
   visitStringLiteral(StringLiteral n){
     super.visitStringLiteral(n);
     // {String} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("String"), constraintAnalysis.dartCore, source)));
+    types.put(n, _getAbstractType(new Name("String"), constraintAnalysis.dartCore, source));
     
   }
   
   visitBooleanLiteral(BooleanLiteral n){
     super.visitBooleanLiteral(n);
     // {String} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("bool"), constraintAnalysis.dartCore, source)));
+    types.put(n, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
   }
   
   visitSymbolLiteral(SymbolLiteral n){
     super.visitSymbolLiteral(n);
     // {String} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("Symbol"), constraintAnalysis.dartCore, source)));
+    types.put(n, _getAbstractType(new Name("Symbol"), constraintAnalysis.dartCore, source));
   }  
   
   visitListLiteral(ListLiteral n){
     super.visitListLiteral(n);
     // {String} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("List"), constraintAnalysis.dartCore, source)));
+    types.put(n, _getAbstractType(new Name("List"), constraintAnalysis.dartCore, source));
   }
   
   visitMapLiteral(MapLiteral n){
     super.visitMapLiteral(n);
     // {String} \in [n]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("Map"), constraintAnalysis.dartCore, source)));
+    types.put(n, _getAbstractType(new Name("Map"), constraintAnalysis.dartCore, source));
   }
   
   
@@ -598,7 +612,10 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   
   
   bool _returnsVoid(CallableElement node) {
-    return node.returns.fold(true, (bool res, ReturnElement r) => res && r.ast.expression == null);
+    if (node.isExternal)
+      return false;
+    else
+      return node.returns.fold(true, (bool res, ReturnElement r) => res && r.ast.expression == null);
   }
   
   visitFunctionExpression(FunctionExpression node){
@@ -676,7 +693,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       
     } else if (node.operator.toString() == '!'){
       //If the is a negate it is the same as writing (e ? false : true), the result will always be a bool.
-      types.put(node, new NominalType(elementAnalysis.resolveClassElement(new Name("bool"), constraintAnalysis.dartCore, source))); 
+      types.put(node, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source)); 
     } else {
       Name operator;
       if (node.operator.toString() == '-') operator = Name.UnaryMinusName();
@@ -712,17 +729,24 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     super.visitIsExpression(n);
 
     // {bool} \in [e is T]
-    types.put(n, new NominalType(elementAnalysis.resolveClassElement(new Name("bool"), constraintAnalysis.dartCore, source)));
+    types.put(n, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
   }
   
   visitAsExpression(AsExpression n){
     super.visitAsExpression(n);
     
-    // {T} \in [e as T]
-    // {T} \in [e]
-    NominalType castType = new NominalType(elementAnalysis.resolveClassElement(new Name.FromIdentifier(n.type.name), source.library, source));
-    types.put(n, castType);
-    types.put(n.expression, castType);
+    if (n.type.name.toString() == 'dynamic') {
+      //as dynamic doesn't give you any info, so just make them equal.
+      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
+      TypeIdentifier expIdent = new ExpressionTypeIdentifier(n.expression);
+      _subsetConstraint(expIdent, nodeIdent);
+    } else {
+      // {T} \in [e as T]
+      // {T} \in [e]
+      AbstractType castType = _getAbstractType(new Name.FromIdentifier(n.type.name), source.library, source);
+      types.put(n, castType);
+      types.put(n.expression, castType);
+    }
   } 
   
   visitCascadeExpression(CascadeExpression node){

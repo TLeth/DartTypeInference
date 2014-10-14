@@ -66,7 +66,6 @@ class ElementAnalysis {
     } else {
       engine.errors.addError(new EngineError("Resolving classElement could not find: `${name}` in `${library.source}`.", source.source, source.ast.offset, source.ast.length));
     }
-      
     return null; 
   }
 }
@@ -417,6 +416,7 @@ abstract class CallableElement extends Element {
   FormalParameterList get parameters;
   List<ReturnElement> get returns;
   bool get isSynthetic;
+  bool get isExternal;
   void addReturn(ReturnElement);
 }
 
@@ -472,7 +472,7 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
   bool get isStatic => ast.isStatic;
   bool get isSynthetic => ast.isSynthetic;
   bool get isPrivate => name.isPrivate;
-  
+  bool get isExternal => ast.externalKeyword != null;
   
   
   TypeName get returnType => ast.returnType;
@@ -559,7 +559,7 @@ class FunctionElement extends Block with Element implements CallableElement {
   List<ReturnElement> get returns => _returns;
   void addReturn(ReturnElement r) => _returns.add(r);
   bool get isSynthetic => ast.isSynthetic;
-  
+  bool get isExternal => false;
 
   dynamic accept(ElementVisitor visitor) => visitor.visitFunctionElement(this);
   
@@ -574,6 +574,7 @@ class FunctionParameterElement extends ParameterElement implements CallableEleme
   List<ReturnElement> get returns => [];
   void addReturn(ReturnElement r) => null;
   TypeName get returnType => formalParamAst.returnType;
+  bool get isExternal => false;
   
   
   FunctionParameterElement(FunctionTypedFormalParameter ast, Block enclosingBlock, TypeName annotatedType, SourceElement sourceElement) 
@@ -595,6 +596,7 @@ class NamedFunctionElement extends FunctionElement implements NamedElement {
   AstNode get ast => decl;
   FormalParameterList get parameters => decl.functionExpression.parameters;
   bool get isSynthetic => decl.functionExpression.isSynthetic;
+  bool get isExternal => decl.externalKeyword != null;
 
   TypeName get returnType => decl.returnType;
   

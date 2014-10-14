@@ -66,8 +66,6 @@ class Annotator {
   annotateSource(SourceElement sourceElement){
     if (sourceElement.source.uriKind == UriKind.FILE_URI) {
       var selection = null;
-      
-      
 
       var annotateVisitor = new AnnotateSourceVisitor(this, sourceElement, new FormatterOptions(), sourceElement.ast.lineInfo, sourceElement.sourceContent, selection);
       sourceElement.ast.accept(annotateVisitor);
