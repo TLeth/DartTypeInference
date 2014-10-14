@@ -5,5 +5,5 @@ String id(String a) => a;
 
 
 void main() {
-  apply(a, 'hej');
+  apply(id, 'hej');
 }
