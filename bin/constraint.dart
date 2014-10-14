@@ -8,6 +8,7 @@ import 'types.dart';
 import 'util.dart';
 import 'dart:collection';
 
+bool debugStop = false;
 
 class ConstraintAnalysis {
   TypeMap typeMap;
@@ -97,11 +98,8 @@ class TypeVariable {
   
   void add(AbstractType t) {
     //TODO (jln) If the type added is a free-type check if there already exists a free type and merge them.
-    if (_types.add(t)) {
-      _changed = true;
+    if (_types.add(t))
       trigger(t);
-      _changed = false;
-    }
   }
   
   List<AbstractType> get types => new List.from(_types); 
@@ -114,19 +112,22 @@ class TypeVariable {
     _filters[func] = filter;
     
     bool reset;
-    List<AbstractType> copyTypes;
+    
     do {
+      List current_types = types;
       reset = false;
-      //Uses types instead of _types, types is a copy of the _types so if there is changes it is OK.
-      for(AbstractType type in types){
-        if (_changed){
-          reset = true;
-          break;
-        }
+            
+      for(AbstractType type in current_types){
         
         if (filter == null || filter(type))
           func(type);
-      }       
+  
+        if (_types.length != current_types.length){
+          //Changes has been made, so make another notify loop.
+          reset = true;
+          break;
+        }
+      }
     } while(reset);
     return (() => this.remove(func));
   }
@@ -137,7 +138,8 @@ class TypeVariable {
   }
   
   void trigger(AbstractType type){
-    for(NotifyFunc func in _event_listeners){
+    List event_listeners = new List.from(_event_listeners);
+    for(NotifyFunc func in event_listeners){
       if (_filters[func] == null || _filters[func](type))
         func(type);
     }
@@ -192,7 +194,7 @@ abstract class ConstraintHelper {
     return this;
   }
   
-  void update(NotifyFunc func){
+  void update(NotifyFunc func, [bool stop = false]){
     if (_lastTypeIdentifier != null){
       TypeIdentifier identifier = _lastTypeIdentifier;
       FilterFunc filter = _lastWhere;
@@ -245,8 +247,23 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   }
   
   void _subsetConstraint(TypeIdentifier a, TypeIdentifier b) {
+
+   
+      if (a.toString() == '#_DoubleLinkedQueueEntrySentinel._next' &&
+          b.toString() == '#{entry._next}') {
+       print('foo'); 
+       debugStop = true;
+      }
+      
     if (a != b)
       foreach(a).update((AbstractType type) => types.put(b, type));
+    
+    
+    if (a.toString() == '#_DoubleLinkedQueueEntrySentinel._next' &&
+        b.toString() == '#{entry._next}') {
+      debugStop = false;
+    }
+
   }
   
   AbstractType _getAbstractType(Name className, LibraryElement library, SourceElement source){
@@ -459,10 +476,12 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   // \alpha \in [v] => [exp] \subseteq [\alpha.prop]
   _assignmentPrefixedIdentifier(PrefixedIdentifier leftHandSide, TypeIdentifier expIdent){
     TypeIdentifier prefixIdent = new ExpressionTypeIdentifier(leftHandSide.prefix);
+    
     foreach(prefixIdent).update((AbstractType alpha){
       TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.identifier));
       _subsetConstraint(expIdent, alphaPropertyIdent);
     });
+
   }
   
   // v[i] = exp;
@@ -757,11 +776,5 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     
     _subsetConstraint(targetIdent, nodeIdent);
   }
-  
-  
-  
-  
-
-  
 }
 
