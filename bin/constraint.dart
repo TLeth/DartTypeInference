@@ -102,9 +102,17 @@ class TypeVariable {
       trigger(t);
   }
   
+  void trigger(AbstractType type){
+    List event_listeners = new List.from(_event_listeners);
+    for(NotifyFunc func in event_listeners){
+      if (_filters[func] == null || _filters[func](type))
+        func(type);
+    }
+  }
+  
   List<AbstractType> get types => new List.from(_types); 
   
-  Function notify(NotifyFunc func, [FilterFunc filter = null]) {
+  Function onchange(NotifyFunc func, [FilterFunc filter = null]) {
     if (_event_listeners.contains(func))
       return (() => this.remove(func));
     
@@ -112,37 +120,28 @@ class TypeVariable {
     _filters[func] = filter;
     
     bool reset;
-    
+    List current_types = types;
     do {
-      List current_types = types;
-      reset = false;
-            
+      reset = false;    
       for(AbstractType type in current_types){
-        
-        if (filter == null || filter(type))
+        if (filter == null || filter(type)) {
           func(type);
   
-        if (_types.length != current_types.length){
-          //Changes has been made, so make another notify loop.
-          reset = true;
-          break;
+          if (_types.length != current_types.length){
+            //Changes has been made, so make another notify loop.
+            reset = true;
+            break;
+          }
         }
       }
     } while(reset);
+    
     return (() => this.remove(func));
   }
   
   bool remove(void func(AbstractType)){
     _filters.remove(func);
     return _event_listeners.remove(func);
-  }
-  
-  void trigger(AbstractType type){
-    List event_listeners = new List.from(_event_listeners);
-    for(NotifyFunc func in event_listeners){
-      if (_filters[func] == null || _filters[func](type))
-        func(type);
-    }
   }
   
   //TODO (jln): returning dynamic is maybe not the best solution.
@@ -201,7 +200,7 @@ abstract class ConstraintHelper {
       
       _lastTypeIdentifier = null;
       _lastWhere = null;
-      types.getter(identifier, source).notify(func, filter);
+      types.getter(identifier, source).onchange(func, filter);
     }
   }
 }
