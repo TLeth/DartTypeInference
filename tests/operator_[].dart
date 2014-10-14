@@ -9,4 +9,3 @@ void main() {
   A h = new A();
   String a = h[3];
 }
-

@@ -22,5 +22,3 @@ void main() {
   String d = c.b;
   a = c;
 }
-
-

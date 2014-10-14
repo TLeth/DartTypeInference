@@ -47,6 +47,11 @@ import 'var_assign_dyn.dart';
 import 'binop_mult_double.dart';
 import 'var_assign_str.dart';
 import 'binop_mult_int.dart';
+import 'function_anon_function_arg.dart';
+import 'function_arg_dynamic.dart';
+import 'function_arg_type.dart';
+import 'function_function_arg.dart';
+import 'function_string_id.dart';
+import 'function_string_id_res.dart';
 
 void main() {}
-
