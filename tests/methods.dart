@@ -24,4 +24,3 @@ void main() {
   A.a("test");
   b.b("test");
 }
-
