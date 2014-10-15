@@ -126,6 +126,27 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   }
   
   @override
+  visitMethodDeclaration(MethodDeclaration node) {
+    if (node.name != null) {
+      this.scope[node.name.toString()] = this.declaredElements[node];
+    }
+
+    if (this.declaredElements[node] == null) {
+      print('failed for  -- ${node} -- (${node.hashCode})');
+      this.declaredElements.keys.forEach((key){
+        print('${key} (${key.hashCode})');
+      });
+    }
+    
+    _openNewScope(scope, (_) {
+      super.visitMethodDeclaration(node);      
+    });
+
+    
+
+  }
+
+  @override
   visitFunctionDeclaration(FunctionDeclaration node) {
 
     if (node.name != null) {
