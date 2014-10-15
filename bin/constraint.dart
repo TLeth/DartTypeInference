@@ -7,6 +7,7 @@ import 'element.dart';
 import 'types.dart';
 import 'util.dart';
 import 'dart:collection';
+import 'dart:io';
 
 class ConstraintAnalysis {
   TypeMap typeMap;
@@ -110,8 +111,16 @@ class TypeVariable {
   List<AbstractType> get types => new List.from(_types); 
   
   Function onChange(NotifyFunc func) {
-    if (_event_listeners.contains(func))
-      return (() => this.remove(func));
+    
+    /*
+     *  TODO 
+     *  This condition is never met, because dart basicly uses pointer comparison for function equality,
+     *  so two calls with the syntacticly same lambda wont be considered equals.
+     *
+     * if (_event_listeners.contains(func)) {
+     *   return (() => this.remove(func));
+     * }
+     */
     
     _event_listeners.add(func);
     
@@ -135,7 +144,6 @@ class TypeVariable {
   }
   
   bool remove(void func(AbstractType)){
-    //_filters.remove(func);
     return _event_listeners.remove(func);
   }
   
@@ -244,6 +252,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   }
   
   void _subsetConstraint(TypeIdentifier a, TypeIdentifier b) {
+    
     if (a != b)
       foreach(a).update((AbstractType type) => types.put(b, type));
   }
