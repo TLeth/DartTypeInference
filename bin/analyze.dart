@@ -39,16 +39,16 @@ class CommandLineOptions {
   final bool enableEnum;
   
   /** Whether to enable debug printing of block structure. */
-  bool printBlock;
+  final bool printBlock;
   
   /** Whether to enable debug printing of resolved names. */
-  bool printNameResolving;
+  final bool printNameResolving;
   
   /** Whether to enable debug printing of constraint stucture. */
-  bool printConstraints;
+  final bool printConstraints;
   
   /** Whether to enable debug printing of Ast nodes. */
-  bool printAstNodes;
+  final bool printAstNodes;
   
 
   /**
@@ -63,17 +63,12 @@ class CommandLineOptions {
       dartSdkPath = args['dart-sdk'],
       log = args['log'],
       packageRootPath = args['package-root'],
-      sourceFiles = args.rest {
-    
-    if (args['debug'] != null) {
-      List<String> l = args['debug'].split(',').map((String s) => s.trim());
-      
-      printBlock = l.contains('block');
-      printNameResolving = l.contains('name');
-      printConstraints = l.contains('constraint');
-      printAstNodes = l.contains('ast');
-    }
-  }
+      printBlock = args['debug-block'],
+      printNameResolving = args['debug-name'],
+      printConstraints = args['debug-constraint'],
+      printAstNodes = args['debug-ast'],
+      sourceFiles = args.rest;
+  
 
   
   
@@ -105,7 +100,6 @@ class CommandLineOptions {
     args = args.expand((String arg) => arg.split('=')).toList();
     
     var parser = new ArgParser()
-      ..addOption('debug', help: 'Debug printing, comma seperated string (block, constraint, ast, name)')
       ..addOption('dart-sdk', help: 'The path to the Dart SDK')
       ..addOption('package-root', abbr: 'p',
           help: 'The path to the package root')
@@ -124,7 +118,12 @@ class CommandLineOptions {
           defaultsTo: false, negatable: false)
       ..addFlag('enable-enum',
           help: 'Enable support for the proposed enum feature',
-          defaultsTo: false, negatable: false, hide: true);
+          defaultsTo: false, negatable: false, hide: true)
+      ..addFlag('debug-block', defaultsTo: false, negatable: false, help: 'Debug print; prints the block structure.')
+      ..addFlag('debug-constraint', defaultsTo: false, negatable: false, help: 'Debug print; prints the contraints.')
+      ..addFlag('debug-name', defaultsTo: false, negatable: false, help: 'Debug print; prints a version of the program where the names are changed to show name resolving.')
+      ..addFlag('debug-ast', defaultsTo: false, negatable: false, help: 'Debug print; prints the names of the AST nodes visited.');
+
 
     try {
       var results = parser.parse(args);
