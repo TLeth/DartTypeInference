@@ -331,35 +331,29 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   visitInstanceCreationExpression(InstanceCreationExpression n){
     super.visitInstanceCreationExpression(n);
     // new ClassName(arg_1,..., arg_n);
-    TypeName classType = n.constructorName.type;
-    
-    var t = source.resolvedIdentifiers[n.constructorName.type.name];
-    
-    
-    Identifier className = classType.name;
+    NamedElement element = source.resolvedIdentifiers[n.constructorName.type.name];
     
     //TODO (jln): What about generics.
     
-    if (className != null){
-      // {ClassName} \in [n]
-      ClassElement classElement = elementAnalysis.resolveClassElement(new Name.FromIdentifier(className), source.library, source);
-      
-      if (classElement != null){
-        if (classElement.declaredConstructors.isEmpty){
-          //No constructors is declard so this must be a implicit constructor.
-          types.put(n, new NominalType(classElement));
+    if (element != null){
+      //{ClassName} \in [n]
+      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
+      if (element is ClassElement) { //The constructor called is unnammed.
+        AbstractType classType = new NominalType(element);
+        if (element.declaredConstructors.isEmpty) {
+          //Class does not contain a constructor, so use the implicit constructor. 
+          types.put(nodeIdent, classType);
         } else {
-          TypeIdentifier returnIdent = new ExpressionTypeIdentifier(n);
-          Name constructorName = null;
-          if (n.constructorName.name != null)
-            constructorName = new PrefixedName.FromIdentifier(classElement.identifier, new Name.FromIdentifier(n.constructorName.name));
-          else
-            constructorName = new Name.FromIdentifier(classElement.identifier);
-          
-          AbstractType classType = new NominalType(classElement);
-          TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, constructorName);
-          _methodCall(constructorIdent, n.argumentList.arguments, returnIdent);
+          //Call the constructor like a function.
+          AbstractType classType = new NominalType(element);
+          TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, element.name);
+          _methodCall(constructorIdent, n.argumentList.arguments, nodeIdent);
         }
+      } else if (element is ConstructorElement){
+        //Call the constructor like a function.
+        AbstractType classType = new NominalType(element.classDecl);
+        TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, element.name);
+        _methodCall(constructorIdent, n.argumentList.arguments, nodeIdent);
       }
     }
   }
@@ -575,7 +569,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     }
   }
   
-  _methodCall(TypeIdentifier method, List argumentList, TypeIdentifier returnIdent){
+  _methodCall(TypeIdentifier method, List argumentList, [TypeIdentifier returnIdent = null]){
     // method(arg_1,...,arg_n) : return
     List<TypeIdentifier> parameters = <TypeIdentifier>[];
     Map<Name, TypeIdentifier> namedParameters = <Name, TypeIdentifier>{};
@@ -724,13 +718,32 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       engine.errors.addError(new EngineError("A ClassDeclaration was visited, but didn't have a associated ClassElement.", source.source, node.offset, node.length ), true);
     _currentClassElement = elementAnalysis.elements[node];
     super.visitClassDeclaration(node);
-    ConstructorInitializer t;
     _currentClassElement = null;
   }
   
   visitConstructorFieldInitializer(ConstructorFieldInitializer node){
     super.visitConstructorFieldInitializer(node);
     _assignmentExpression(node.fieldName, node.expression);
+  }
+  
+  visitSuperConstructorInvocation(SuperConstructorInvocation node){
+    super.visitSuperConstructorInvocation(node);
+    if (_currentClassElement == null || _currentClassElement.extendsElement == null)
+      engine.errors.addError(new EngineError("A SuperConstructorInvocation was visited, but currentClassElement exntedsElement was null.", source.source, node.offset, node.length ), true);
+    
+    ClassElement element = _currentClassElement.extendsElement;
+    TypeIdentifier constructorIdent;
+    if (!element.declaredConstructors.isEmpty){
+      if (node.constructorName == null)
+        constructorIdent = new PropertyTypeIdentifier(new NominalType(element), element.name);
+      else
+        constructorIdent = new PropertyTypeIdentifier(new NominalType(element), new Name.FromIdentifier(node.constructorName));
+      _methodCall(constructorIdent, node.argumentList.arguments);
+    }
+  }
+  
+  visitRedirectingConstructorInvocation(RedirectingConstructorInvocation node){
+    super.visitRedirectingConstructorInvocation(node);
   }
   
   bool _isIncrementOperator(String operator) => operator == '--' || operator == '++';

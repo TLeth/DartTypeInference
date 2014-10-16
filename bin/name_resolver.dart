@@ -117,19 +117,12 @@ class ScopeVisitor extends GeneralizingAstVisitor {
 
   visitConstructorDeclaration(ConstructorDeclaration node) {
 
+    Our.ClassElement lookup = scope[node.returnType.toString()];
+    references[node.returnType] = lookup;
 
-    references[node.returnType] = scope[node.returnType.toString()];
-
-    if (node.name != null && node.name.toString() == 'Test') {
-      
-      references[node.name] = scope[node.returnType.toString()].declaredConstructors[new Our.PrefixedName.FromIdentifier(node.returnType, new Our.Name.FromIdentifier(node.name))];
-
-      //      prefixResult.declaredConstructors[new Our.Name.FromIdentifier(node)]
-
-    }
+    if (node.name != null)      
+      references[node.name] = lookup.declaredConstructors[new Our.PrefixedName.FromIdentifier(node.returnType, new Our.Name.FromIdentifier(node.name))];
     
-    
-
     node.safelyVisitChild(node.parameters, this);
     node.initializers.accept(this);
     node.safelyVisitChild(node.redirectedConstructor, this);
