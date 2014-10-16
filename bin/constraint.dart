@@ -737,13 +737,25 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       if (node.constructorName == null)
         constructorIdent = new PropertyTypeIdentifier(new NominalType(element), element.name);
       else
-        constructorIdent = new PropertyTypeIdentifier(new NominalType(element), new Name.FromIdentifier(node.constructorName));
+        constructorIdent = new PropertyTypeIdentifier(new NominalType(element), new PrefixedName(element.name, new Name.FromIdentifier(node.constructorName)));
       _methodCall(constructorIdent, node.argumentList.arguments);
     }
   }
   
   visitRedirectingConstructorInvocation(RedirectingConstructorInvocation node){
     super.visitRedirectingConstructorInvocation(node);
+    if (_currentClassElement == null)
+      engine.errors.addError(new EngineError("A RedirectingConstructorInvocation was visited, but currentClassElement was null.", source.source, node.offset, node.length ), true);
+    
+    ClassElement element = _currentClassElement;
+    TypeIdentifier constructorIdent;
+    if (!element.declaredConstructors.isEmpty){
+      if (node.constructorName == null)
+        constructorIdent = new PropertyTypeIdentifier(new NominalType(element), element.name);
+      else
+        constructorIdent = new PropertyTypeIdentifier(new NominalType(element), new PrefixedName(element.name, new Name.FromIdentifier(node.constructorName)));
+      _methodCall(constructorIdent, node.argumentList.arguments);
+    }
   }
   
   bool _isIncrementOperator(String operator) => operator == '--' || operator == '++';
