@@ -609,6 +609,27 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       }); 
   }
   
+  visitIfStatement(IfStatement node) {
+    super.visitIfStatement(node);
+    types.put(node.condition, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+  }
+
+  visitForStatement(ForStatement node) {
+    super.visitForStatement(node);
+    types.put(node.condition, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+  }
+
+  visitDoStatement(DoStatement node) {
+    super.visitDoStatement(node);
+    types.put(node.condition, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+  }
+  
+  visitWhileStatement(WhileStatement node) {
+    super.visitWhileStatement(node);
+    types.put(node.condition, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+  }
+
+
   visitReturnStatement(ReturnStatement node){
     super.visitReturnStatement(node);
     if (node.expression != null){
@@ -711,6 +732,8 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     // [exp2] \union [exp3] \subseteq [exp1 ? exp2 : exp3]
     _subsetConstraint(new ExpressionTypeIdentifier(node.thenExpression), nodeIdent);
     _subsetConstraint(new ExpressionTypeIdentifier(node.elseExpression), nodeIdent);
+
+    types.put(node.condition, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
   }
   
   visitClassDeclaration(ClassDeclaration node){
