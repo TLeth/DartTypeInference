@@ -95,6 +95,8 @@ class ScopeVisitor extends GeneralizingAstVisitor {
       });
 
       this.scope["this"] = c;
+      this.scope[node.name.toString()] = c;
+     
       super.visitClassDeclaration(node);
     });
   }
@@ -114,6 +116,20 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   }
 
   visitConstructorDeclaration(ConstructorDeclaration node) {
+
+
+    references[node.returnType] = scope[node.returnType.toString()];
+
+    if (node.name != null && node.name.toString() == 'Test') {
+      
+      references[node.name] = scope[node.returnType.toString()].declaredConstructors[new Our.PrefixedName.FromIdentifier(node.returnType, new Our.Name.FromIdentifier(node.name))];
+
+      //      prefixResult.declaredConstructors[new Our.Name.FromIdentifier(node)]
+
+    }
+    
+    
+
     node.safelyVisitChild(node.parameters, this);
     node.initializers.accept(this);
     node.safelyVisitChild(node.redirectedConstructor, this);
@@ -182,24 +198,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
       this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}', source, node.offset, node.length));
     }
   }
- 
-  /*
-  @override
-  visitConstructorName(ConstructorName node){
-    if (node.name == null){
-      //Only prefixed identifiers needs resolving
-      if (node.type.name is PrefixedIdentifier){
-        PrefixedIdentifier ident = node.type.name;
-        Our.NamedElement element = this.declaredElements[new Our.Name.FromIdentifier(ident.prefix)];
-        if (element is Our.ClassElement){
-          node.name = ident.identifier;
-          node.type.name = ident.prefix;
-          return;
-        }
-      }
-    }
-  }
-  */
 
   @override
   visitMethodInvocation(MethodInvocation node) {

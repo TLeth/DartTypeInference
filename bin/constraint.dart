@@ -333,6 +333,9 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     // new ClassName(arg_1,..., arg_n);
     TypeName classType = n.constructorName.type;
     
+    var t = source.resolvedIdentifiers[n.constructorName.type.name];
+    
+    
     Identifier className = classType.name;
     
     //TODO (jln): What about generics.
