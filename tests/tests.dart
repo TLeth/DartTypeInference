@@ -63,7 +63,8 @@ import 'constructor_field.dart';
 import 'constructor_superfield.dart';
 import 'factory.dart';
 import 'classes.dart';
-
+import 'getter.dart';
+import 'setter.dart';
 
 
 void main() {}
