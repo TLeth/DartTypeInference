@@ -694,6 +694,17 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
      });
   }
   
+  visitFieldFormalParameter(FieldFormalParameter node){
+    super.visitFieldFormalParameter(node);
+    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! FieldParameterElement)
+      engine.errors.addError(new EngineError("A FieldFormalParameter was visited, but didn't have a associated FieldParameterElement.", source.source, node.offset, node.length ), true);
+    FieldParameterElement fieldParameter = elementAnalysis.elements[node];
+    
+    TypeIdentifier paramIdent = new ExpressionTypeIdentifier(node.identifier);
+    TypeIdentifier fieldIdent = new PropertyTypeIdentifier(new NominalType(fieldParameter.classElement), new Name.FromIdentifier(node.identifier));
+    _equalConstraint(paramIdent, fieldIdent);
+  }
+  
   visitConditionalExpression(ConditionalExpression node){
     super.visitConditionalExpression(node);
     

@@ -406,6 +406,12 @@ class ParameterElement extends VariableElement {
   
 }
 
+class FieldParameterElement extends ParameterElement {
+  ClassElement classElement;
+  
+  FieldParameterElement(FormalParameter parameterAst, Block enclosingBlock, TypeName annotatedType, ClassElement this.classElement, SourceElement sourceElement) : super(parameterAst, enclosingBlock, annotatedType, sourceElement);
+}
+
 /**
  * Instances of a class `ClassMember` is a our abstract representation of class members
  **/
@@ -1144,6 +1150,11 @@ class ElementGenerator extends GeneralizingAstVisitor {
     VariableElement variable;
     if (node is FunctionTypedFormalParameter){
       variable = new FunctionParameterElement(node, _currentBlock, _currentVariableType, element);
+    } else if (node is FieldFormalParameter) {
+      if (_currentClassElement == null) {
+        engine.errors.addError(new EngineError("The current classis not set, so the fieldFormalParamter cannot be associated.", source, node.offset, node.length), true);
+      }
+      variable = new FieldParameterElement(node, _currentBlock, _currentVariableType, _currentClassElement, element);
     } else {
       variable = new ParameterElement(node, _currentBlock, _currentVariableType, element);
     }
