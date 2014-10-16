@@ -4,6 +4,6 @@ class A {
   A.Test(String c);
 }
 
-void main(){
+void main() {
   A a = new A.Test("test");
 }

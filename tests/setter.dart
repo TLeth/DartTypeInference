@@ -3,6 +3,6 @@ library test.setter;
 
 set x(int i) {}
 
-void main(){
+void main() {
   x = 3;
 }

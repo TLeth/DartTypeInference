@@ -5,6 +5,6 @@ class A {
   factory A.Test(String c) => new A();
 }
 
-void main(){
+void main() {
   A a = new A.Test("test");
 }

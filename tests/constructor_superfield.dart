@@ -2,7 +2,7 @@ library tests.constructor_superfield;
 
 class A {
   String c;
-  
+
   A(String this.c);
 }
 

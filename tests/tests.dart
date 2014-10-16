@@ -61,6 +61,7 @@ import 'constructor_super.dart';
 import 'named_constructor.dart';
 import 'constructor_field.dart';
 import 'constructor_superfield.dart';
+import 'constructor_fieldinit.dart';
 import 'factory.dart';
 import 'classes.dart';
 import 'getter.dart';

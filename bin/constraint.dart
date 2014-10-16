@@ -235,6 +235,8 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   ElementAnalysis get elementAnalysis => constraintAnalysis.elementAnalysis;
   Engine get engine => constraintAnalysis.engine;
   
+  ClassElement _currentClassElement = null;
+  
   ConstraintGeneratorVisitor(SourceElement this.source, ConstraintAnalysis this.constraintAnalysis) {
     source.ast.accept(this);
   }
@@ -323,8 +325,8 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     super.visitMapLiteral(n);
     // {String} \in [n]
     types.put(n, _getAbstractType(new Name("Map"), constraintAnalysis.dartCore, source));
+    ConstructorInitializer t;
   }
-  
   
   visitInstanceCreationExpression(InstanceCreationExpression n){
     super.visitInstanceCreationExpression(n);
@@ -536,21 +538,19 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   visitThisExpression(ThisExpression n) {
     // this
     super.visitThisExpression(n);
-    ClassElement classElement = source.thisReferences[n];
-    if (classElement == null)
-      engine.errors.addError(new EngineError("thisExpression was visited but the classElement could not be found.", source.source, n.offset, n.length), true);
+    if (_currentClassElement == null)
+          engine.errors.addError(new EngineError("thisExpression was visited but the CurrentClassElement was null.", source.source, n.offset, n.length), true);
     else
-      types.put(n, new NominalType(classElement));
+      types.put(n, new NominalType(_currentClassElement));
   }
   
   visitSuperExpression(SuperExpression n){
     // super
     super.visitSuperExpression(n);
-    ClassElement classElement = source.superReferences[n];
-    if (classElement == null || classElement.extendsElement == null)
-      engine.errors.addError(new EngineError("superExpression was visited but the parent classElement could not be found.", source.source, n.offset, n.length), true);
+    if (_currentClassElement == null || _currentClassElement.extendsElement == null)
+      engine.errors.addError(new EngineError("superExpression was visited but the parent _currentClassElement parnet was null.", source.source, n.offset, n.length), true);
     else
-      types.put(n, new NominalType(classElement.extendsElement));
+      types.put(n, new NominalType(_currentClassElement.extendsElement));
   }  
 
   visitMethodInvocation(MethodInvocation node){
@@ -714,8 +714,20 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     // [exp2] \union [exp3] \subseteq [exp1 ? exp2 : exp3]
     _subsetConstraint(new ExpressionTypeIdentifier(node.thenExpression), nodeIdent);
     _subsetConstraint(new ExpressionTypeIdentifier(node.elseExpression), nodeIdent);
-    //super.visitInterpolationExpression(node)
-    //super.visitNamedExpression();
+  }
+  
+  visitClassDeclaration(ClassDeclaration node){
+    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! ClassElement)
+      engine.errors.addError(new EngineError("A ClassDeclaration was visited, but didn't have a associated ClassElement.", source.source, node.offset, node.length ), true);
+    _currentClassElement = elementAnalysis.elements[node];
+    super.visitClassDeclaration(node);
+    ConstructorInitializer t;
+    _currentClassElement = null;
+  }
+  
+  visitConstructorFieldInitializer(ConstructorFieldInitializer node){
+    super.visitConstructorFieldInitializer(node);
+    _assignmentExpression(node.fieldName, node.expression);
   }
   
   bool _isIncrementOperator(String operator) => operator == '--' || operator == '++';

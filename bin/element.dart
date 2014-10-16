@@ -207,12 +207,6 @@ class SourceElement extends Block {
   Map<ExportDirective, Source> exports = <ExportDirective, Source>{};
   Map<Name, ClassElement> declaredClasses = <Name, ClassElement>{};
   Map<Name, FunctionAliasElement> declaredFunctionAlias = <Name, FunctionAliasElement>{};
-  
-  //Maps a thisExpression to the current class.
-  Map<ThisExpression, ClassElement> thisReferences = <ThisExpression, ClassElement>{};
-  
-  //Maps a superExpression to the current class.
-  Map<SuperExpression, ClassElement> superReferences = <SuperExpression, ClassElement>{};
   Map<Identifier, NamedElement> resolvedIdentifiers = <Identifier, NamedElement>{};
   
   bool implicitImportedDartCore = false;
@@ -1101,20 +1095,6 @@ class ElementGenerator extends GeneralizingAstVisitor {
     _enterBlock(blockElement);
     super.visitForStatement(node);
     _leaveBlock();
-  }
-  
-  visitThisExpression(ThisExpression node){
-    if (_currentClassElement == null){
-      engine.errors.addError(new EngineError("The current class element was not set but this was used.", source, node.offset, node.length), true);
-    }
-    element.thisReferences[node] = _currentClassElement;
-  }
-  
-  visitSuperExpression(SuperExpression node){
-    if (_currentClassElement == null){
-      engine.errors.addError(new EngineError("The current class element was not set but super was used.", source, node.offset, node.length), true);
-    }
-    element.superReferences[node] = _currentClassElement;
   }
   
   visitConstructorName(ConstructorName node){
