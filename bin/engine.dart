@@ -218,32 +218,37 @@ class Engine {
     
     _elementAnalysis = new ElementAnalysis(this);
     new ElementGenerator(this, _entrySource, _elementAnalysis);
-    //_elementAnalysis.accept(new PrintElementVisitor());
     SourceElement entrySourceElement = _elementAnalysis.getSource(_entrySource); 
 
     new ScopeResolver(this, entrySourceElement, _elementAnalysis);
     new ExportResolver(this, _elementAnalysis);
     new ImportResolver(this, _elementAnalysis);
-
-    //    _elementAnalysis.accept(new PrintLibraryVisitor(scope: false, import: false, export: true, defined: false, depended_exports: true));    
-
-
-
     new IdentifierResolver(this,  _elementAnalysis);
     new ClassHierarchyResolver(this, _elementAnalysis);
 
-    //new PrintReferenceVisitor.Print(_elementAnalysis);
-    //unit.accept(new PrintAstVisitor());
-    //_elementAnalysis.accept(new PrintElementVisitor());
-    //_elementAnalysis.accept(new PrintScopeVisitor());
+    if (this.options.printAstNodes) {
+      unit.accept(new PrintAstVisitor());
+    }    
     
+    if (this.options.printBlock) {
+      _elementAnalysis.accept(new PrintScopeVisitor());
+    }
+
+    if (this.options.printNameResolving) {
+      new PrintResolvedIdentifiers(this, _elementAnalysis);
+    }
+
+    //_elementAnalysis.accept(new PrintLibraryVisitor(scope: false, import: false, export: true, defined: false, depended_exports: true));        
+    //_elementAnalysis.accept(new PrintElementVisitor());
   }
   
   _makeConstraintAnalysis(){
     _constraintAnalysis = new ConstraintAnalysis(this, _elementAnalysis);
     new ConstraintGenerator(_constraintAnalysis);
 
-    //new PrintConstraintVisitor(_constraintAnalysis);
+    if (this.options.printConstraints) {
+      new PrintConstraintVisitor(_constraintAnalysis);
+    }
   }
   
   _makeAnnotatedSource() {
