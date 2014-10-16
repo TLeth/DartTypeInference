@@ -3,7 +3,6 @@ library typeanalysis.printer;
 import 'package:analyzer/src/services/formatter_impl.dart';
 import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/source.dart';
-import 'package:analyzer/src/generated/java_core.dart';
 import 'constraint.dart';
 
 import 'types.dart';

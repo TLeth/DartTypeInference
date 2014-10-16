@@ -554,7 +554,7 @@ class ConstructorElement extends Block with ClassMember implements NamedElement,
   String toString() {
     return "Constructor [${isFactory ? ' factory ' : ''}"+
             "${isExternal ? ' external ' : ''}"+
-            "${isSynthetic ? ' synthetic ' : ''}] ${ast.returnType} ${name}(${ast.parameters})";
+            "${isSynthetic ? ' synthetic ' : ''}] ${ast.returnType} ${name}";
   }
 }
 

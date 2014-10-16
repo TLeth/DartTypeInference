@@ -49,6 +49,9 @@ class CommandLineOptions {
   
   /** Whether to enable debug printing of Ast nodes. */
   final bool printAstNodes;
+
+  /** Whether to enable debug printing of element nodes. */
+  final bool printElementNodes;
   
 
   /**
@@ -67,6 +70,7 @@ class CommandLineOptions {
       printNameResolving = args['debug-name'],
       printConstraints = args['debug-constraint'],
       printAstNodes = args['debug-ast'],
+      printElementNodes = args['debug-element'],
       sourceFiles = args.rest;
   
 
@@ -122,7 +126,8 @@ class CommandLineOptions {
       ..addFlag('debug-block', defaultsTo: false, negatable: false, help: 'Debug print; prints the block structure.')
       ..addFlag('debug-constraint', defaultsTo: false, negatable: false, help: 'Debug print; prints the contraints.')
       ..addFlag('debug-name', defaultsTo: false, negatable: false, help: 'Debug print; prints a version of the program where the names are changed to show name resolving.')
-      ..addFlag('debug-ast', defaultsTo: false, negatable: false, help: 'Debug print; prints the names of the AST nodes visited.');
+      ..addFlag('debug-ast', defaultsTo: false, negatable: false, help: 'Debug print; prints the names of the AST nodes visited.')
+      ..addFlag('debug-element', defaultsTo: false, negatable: false, help: 'Debug print; prints the element hirarchy.');
 
 
     try {
