@@ -7,7 +7,6 @@ import 'element.dart';
 import 'types.dart';
 import 'util.dart';
 import 'dart:collection';
-import 'dart:io';
 
 class ConstraintAnalysis {
   TypeMap typeMap;

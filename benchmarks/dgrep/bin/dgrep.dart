@@ -22,11 +22,11 @@ void printMatch(File file, List lines, int i) {
   print(sb.toString());
 }
 
-searchFile(File file, searchTerms) {
+searchFile(File file, List<String> searchTerms) {
   file.readAsLines().then((lines) {
-    for (var i = 0; i < lines.length; i++) {
+    for (int i = 0; i < lines.length; i++) {
       bool found = false;
-      for (var j = 0; j < searchTerms.length && !found; j++) {
+      for (int j = 0; j < searchTerms.length && !found; j++) {
         if (lines[i].contains(searchTerms[j])) {
           printMatch(file, lines, i);
           found = true;
@@ -53,11 +53,11 @@ void main(List<String> arguments) {
   final String searchPath = argResults.rest.last;
   final List<String> searchTerms = argResults.rest.sublist(0, argResults.rest.length - 1);
 
-  FileSystemEntity.isDirectory(searchPath).then((isDir) {
+  FileSystemEntity.isDirectory(searchPath).then((bool isDir) {
     if (isDir) {
-      final startingDir = new Directory(searchPath);
+      final Directory startingDir = new Directory(searchPath);
       startingDir.list(recursive:   argResults[RECURSIVE],
-                       followLinks: argResults[FOLLOW_LINKS]).listen((entity) {
+                       followLinks: argResults[FOLLOW_LINKS]).listen((FileSystemEntity entity) {
         if (entity is File) {
           searchFile(entity, searchTerms);
         }

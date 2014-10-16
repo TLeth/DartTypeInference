@@ -249,7 +249,7 @@ class Engine {
     new ConstraintGenerator(_constraintAnalysis);
 
     if (this.options.printConstraints) {
-      new PrintConstraintVisitor(_constraintAnalysis);
+      new PrintConstraintVisitor(_constraintAnalysis, _entrySource);
     }
   }
   
