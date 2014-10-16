@@ -59,13 +59,16 @@ Result classify(TypeName expected, TypeName actual) {
   return res;
 }
 
-main(List<String> args) {
+bool findMissingAnnotations;
+CompilationUnit expected, actual;
 
-    JavaFile a = new JavaFile(args[0]);  
-    CompilationUnit expected, actual;
+main(List<String> args) {
     
     expected = getCompilationUnit(new FileBasedSource.con1(new JavaFile(args[0])));
     actual = getCompilationUnit(new FileBasedSource.con1(new JavaFile(args[1])));
+    
+    findMissingAnnotations = (args.length > 2 && args[2] == '-find');
+
     
     print(expected.accept(new TwinVisitor())(actual));
   
@@ -106,23 +109,22 @@ CompilationUnit getCompilationUnit(Source source) {
 class TwinVisitor extends GeneralizingAstVisitor {
 
   visitTypeName(TypeName expectedNode){
-    return (TypeName actualNode){
-      return classify(expectedNode, actualNode);
-      /*
 
-      var res = new Result.Empty();
-      //visitNode(node);
-      {
-        if (expectedNode.name != null) {
-          res.add(expectedNode.name.accept(this)(actualNode.name));
+    if (findMissingAnnotations) {
+      return (TypeName actualNode) {
+
+        if (actualNode == null) {
+          var loc =  expected.lineInfo.getLocation(expectedNode.offset);
+          print('Potential missing type at ${loc.lineNumber}:${loc.columnNumber}');
         }
-        if (expectedNode.typeArguments != null) {
-          res.add(expectedNode.typeArguments.accept(this)(actualNode.typeArguments));
-        }
-      }
-      return res;
-      */
-    };
+        
+        return new Result.Empty();
+      };
+    } else {
+      return (TypeName actualNode){
+        return classify(expectedNode, actualNode);
+      };
+    }
   }
   
   visitAdjacentStrings(AdjacentStrings expectedNode){

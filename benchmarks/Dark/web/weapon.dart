@@ -4,9 +4,9 @@ class GunAnimation {
   List<GunAnimationFrame> frames;
   double duration;
   
-  GunAnimation(this.frames) {
+  GunAnimation(List<GunAnimationFrame> this.frames) {
     duration = 0.0;
-    frames.forEach((f)=>duration+=f.frames);
+    frames.forEach((GunAnimationFrame f)=>duration+=f.frames);
   }
   
   void render(int x, int y, double animationTime) {
@@ -25,10 +25,10 @@ class GunAnimationFrame {
   int frames;
   List<String> images;
   
-  GunAnimationFrame(this.frames, this.images);
+  GunAnimationFrame(int this.frames, List<String> this.images);
   
   void render(int x, int y) {
-    images.forEach((image)=>renderers.addGuiSprite(x, y, image));
+    images.forEach((String image)=>renderers.addGuiSprite(x, y, image));
   }  
 }
 
@@ -42,7 +42,7 @@ class Weapon {
   
   double switchOutTime = 0.0;
   
-  Weapon(this.defaultSprite) {
+  Weapon(String this.defaultSprite) {
   }
   
   void playAnimation(GunAnimation animation) {

@@ -37,6 +37,19 @@ class CommandLineOptions {
 
   /** Whether to enable support for the proposed enum feature. */
   final bool enableEnum;
+  
+  /** Whether to enable debug printing of block structure. */
+  bool printBlock;
+  
+  /** Whether to enable debug printing of resolved names. */
+  bool printNameResolving;
+  
+  /** Whether to enable debug printing of constraint stucture. */
+  bool printConstraints;
+  
+  /** Whether to enable debug printing of Ast nodes. */
+  bool printAstNodes;
+  
 
   /**
    * Initialize options from the given parsed [args].
@@ -50,8 +63,20 @@ class CommandLineOptions {
       dartSdkPath = args['dart-sdk'],
       log = args['log'],
       packageRootPath = args['package-root'],
-      sourceFiles = args.rest;
+      sourceFiles = args.rest {
+    
+    if (args['debug'] != null) {
+      List<String> l = args['debug'].split(',').map((String s) => s.trim());
+      
+      printBlock = l.contains('block');
+      printNameResolving = l.contains('name');
+      printConstraints = l.contains('constraint');
+      printAstNodes = l.contains('ast');
+    }
+  }
 
+  
+  
   /**
    * Parse [args] into [CommandLineOptions] describing the specified
    * analyzer options. In case of a format error, prints error and exists.
@@ -80,6 +105,7 @@ class CommandLineOptions {
     args = args.expand((String arg) => arg.split('=')).toList();
     
     var parser = new ArgParser()
+      ..addOption('debug', help: 'Debug printing, comma seperated string (block, constraint, ast, name)')
       ..addOption('dart-sdk', help: 'The path to the Dart SDK')
       ..addOption('package-root', abbr: 'p',
           help: 'The path to the package root')

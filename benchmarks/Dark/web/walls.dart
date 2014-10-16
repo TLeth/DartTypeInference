@@ -344,7 +344,7 @@ class Walls {
   Float32List vertexData = new Float32List(MAX_VERICES * FLOATS_PER_VERTEX);
   int wallCount = 0;
 
-  Walls(this.shader, this.texture) {
+  Walls(Shader this.shader, GL.Texture this.texture) {
     vertexBuffer = gl.createBuffer();
     gl.bindBuffer(GL.ARRAY_BUFFER, vertexBuffer);
     gl.bufferDataTyped(GL.ARRAY_BUFFER, vertexData, GL.DYNAMIC_DRAW);
@@ -559,7 +559,7 @@ class WallRenderer {
   }
 
   static void addWallsForSubSector(SubSector subSector) {
-    subSector.segs.forEach((seg) => WallRenderer.addWallsForSeg(seg));
+    subSector.segs.forEach((Segment seg) => WallRenderer.addWallsForSeg(seg));
   }
 
   static void addWallsForSeg(Segment seg) {
