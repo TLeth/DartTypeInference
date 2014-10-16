@@ -67,6 +67,11 @@ import 'classes.dart';
 import 'getter.dart';
 import 'setter.dart';
 import 'superexp.dart';
+import 'for_cond.dart';
+import 'while_cond.dart';
+import 'dowhile_cond.dart';
+import 'if_cond.dart';
+import 'cond_exp.dart';
 
 
 void main() {}
