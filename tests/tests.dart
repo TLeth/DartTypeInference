@@ -23,7 +23,6 @@ import 'conditional_num.dart';
 import 'binop_and_int.dart';
 import 'const.dart';
 import 'binop_divhole_double.dart';
-import 'fields.dart';
 import 'binop_divhole_int.dart';
 import 'final.dart';
 import 'binop_divide_double.dart';
@@ -31,7 +30,6 @@ import 'func_exp.dart';
 import 'binop_divide_int.dart';
 import 'func_exp_arg.dart';
 import 'binop_eq.dart';
-import 'functions.dart';
 import 'binop_ge.dart';
 import 'methods.dart';
 import 'binop_gt.dart';
@@ -55,6 +53,10 @@ import 'function_string_id.dart';
 import 'function_string_id_res.dart';
 import 'is_exp.dart';
 import 'as_exp.dart';
+import 'parantheses.dart';
+import 'field.dart';
+import 'field_parent.dart';
+import 'static_field.dart';
 
 
 void main() {}

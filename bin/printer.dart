@@ -1253,13 +1253,6 @@ class PrintConstraintVisitor extends GeneralizingAstVisitor {
       this.sourceElement.ast.visitChildren(this);
     }
   }
-
-  Expression _normalizeIdentifiers(Expression exp){
-    if (exp is Identifier && sourceElement.resolvedIdentifiers.containsKey(exp))
-      return sourceElement.resolvedIdentifiers[exp].identifier;
-    else
-      return exp;
-  }
   
   visitIntegerLiteral(IntegerLiteral n) {    
     // {int} \subseteq [n]
@@ -1275,19 +1268,51 @@ class PrintConstraintVisitor extends GeneralizingAstVisitor {
   
   visitVariableDeclaration(VariableDeclaration vd){
     // var v = exp;
-    Expression name = _normalizeIdentifiers(vd.name);
-    Expression initializer = _normalizeIdentifiers(vd.initializer);
-    TypeIdentifier vType = new ExpressionTypeIdentifier(name);
-    TypeIdentifier expTyp = new ExpressionTypeIdentifier(initializer);
+    TypeIdentifier vType = new ExpressionTypeIdentifier(vd.name);
+    TypeIdentifier expTyp = new ExpressionTypeIdentifier(vd.initializer);
     print("${vd} // ${types.getter(vType, sourceElement)}");
     super.visitVariableDeclaration(vd);
   }
   
+  visitNormalFormalParameter(NormalFormalParameter node) {
+    TypeIdentifier paramType = new ExpressionTypeIdentifier(node.identifier);
+    print("${node.identifier} // ${types.getter(paramType, sourceElement)}");
+  }
+  
+  visitFieldFormalParameter(FieldFormalParameter node){
+    TypeIdentifier paramType = new ExpressionTypeIdentifier(node.identifier);
+    print("${node.identifier} // ${types.getter(paramType, sourceElement)}");
+  }
+  
+  visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node){
+    TypeIdentifier paramType = new ExpressionTypeIdentifier(node.identifier);
+    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! analysis.CallableElement)
+      return; //Nogood;
+    
+    analysis.CallableElement callableElement = elementAnalysis.elements[node];
+    TypeIdentifier returnType = new ReturnTypeIdentifier(callableElement);
+    TypeIdentifier funcType = new ExpressionTypeIdentifier(node.identifier);
+    print("${returnType} // ${types.getter(returnType, sourceElement)}");
+    print("${funcType} // ${types.getter(funcType, sourceElement)}");
+    
+    super.visitFormalParameterList(node.parameters);
+  }
+  
+  visitFunctionExpression(FunctionExpression node){
+    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! analysis.CallableElement)
+      return; //Nogood;
+    
+    analysis.CallableElement callableElement = elementAnalysis.elements[node];
+    TypeIdentifier returnType = new ReturnTypeIdentifier(callableElement);
+    TypeIdentifier funcType = new ExpressionTypeIdentifier(node);
+    print("${returnType} // ${types.getter(returnType, sourceElement)}");
+    print("${funcType} // ${types.getter(funcType, sourceElement)}");
+    super.visitFunctionExpression(node);
+  }
+  
   visitAssignmentExpression(AssignmentExpression node){
     // v = exp;
-    Expression leftHandSide = _normalizeIdentifiers(node.leftHandSide);
-    Expression rightHandSide = _normalizeIdentifiers(node.rightHandSide);
-    TypeIdentifier vType = new ExpressionTypeIdentifier(leftHandSide);
+    TypeIdentifier vType = new ExpressionTypeIdentifier(node.leftHandSide);
     print("${node} // ${types.getter(vType, sourceElement)}");
     super.visitAssignmentExpression(node);
   }

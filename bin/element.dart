@@ -206,7 +206,13 @@ class SourceElement extends Block {
   Map<ImportDirective, Source> imports = <ImportDirective, Source>{};
   Map<ExportDirective, Source> exports = <ExportDirective, Source>{};
   Map<Name, ClassElement> declaredClasses = <Name, ClassElement>{};
+  Map<Name, FunctionAliasElement> declaredFunctionAlias = <Name, FunctionAliasElement>{};
+  
+  //Maps a thisExpression to the current class.
   Map<ThisExpression, ClassElement> thisReferences = <ThisExpression, ClassElement>{};
+  
+  //Maps a superExpression to the current class.
+  Map<SuperExpression, ClassElement> superReferences = <SuperExpression, ClassElement>{};
   Map<Identifier, NamedElement> resolvedIdentifiers = <Identifier, NamedElement>{};
   
   bool implicitImportedDartCore = false;
@@ -219,6 +225,7 @@ class SourceElement extends Block {
   Source addExport(Source source, ExportDirective directive) => exports[directive] = source;
   void addPart(Source source, SourceElement element){ parts[source] = element; }
   ClassElement addClass(ClassElement classDecl) => declaredClasses[classDecl.name] = classDecl;
+  FunctionAliasElement addFunctionAlias(FunctionAliasElement funcAlias) => declaredFunctionAlias[funcAlias.name] = funcAlias;
   dynamic accept(ElementVisitor visitor) => visitor.visitSourceElement(this);
   
   String toString() {
@@ -583,6 +590,29 @@ class FunctionParameterElement extends ParameterElement implements CallableEleme
   }
 }
 
+class FunctionAliasElement extends Block implements CallableElement, NamedElement {
+  FunctionTypeAlias ast;
+  SourceElement sourceElement;
+  Name _name;
+  dynamic accept(ElementVisitor visitor) => visitor.visitFunctionAliasElement(this);
+  
+  FormalParameterList get parameters => ast.parameters;
+  List<ReturnElement> get returns => [];
+  void addReturn(ReturnElement r) => null;
+  TypeName get returnType => ast.returnType;
+  bool get isExternal => false;
+  bool get isSynthetic => ast.isSynthetic;
+  Name get name => _name;
+  Name get getterName => name;
+  Name get setterName => Name.SetterName(name);
+  bool get isPrivate => name.isPrivate;
+  Identifier get identifier => ast.name;
+  
+  FunctionAliasElement(FunctionTypeAlias this.ast, SourceElement this.sourceElement){
+    _name = new Name.FromIdentifier(ast.name);
+  }
+}
+
 class NamedFunctionElement extends FunctionElement implements NamedElement {
   FunctionDeclaration decl;
   Name _name;
@@ -631,6 +661,7 @@ abstract class ElementVisitor<R> {
   R visitClassAliasElement(ClassAliasElement node);
   R visitReturnElement(ReturnElement node);
   R visitFunctionElement(FunctionElement node);
+  R visitFunctionAliasElement(FunctionAliasElement node);
   R visitNamedFunctionElement(NamedFunctionElement node);
   R visitVariableElement(VariableElement node);
   R visitParameterElement(ParameterElement node);
@@ -708,6 +739,11 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   A visitClassAliasElement(ClassAliasElement node){
     visitNamedElement(node);
     visitBlock(node);
+    return null;
+  }
+  
+  A visitFunctionAliasElement(FunctionAliasElement node) {
+    visitCallableElement(node);
     return null;
   }
   
@@ -894,6 +930,21 @@ class ElementGenerator extends GeneralizingAstVisitor {
     element.libraryName = node.name.toString();
   }
   
+  visitFunctionTypeAlias(FunctionTypeAlias node){
+    FunctionAliasElement functionAliasElement = new FunctionAliasElement(node, element);
+    analysis.addElement(node, functionAliasElement);
+    element.addFunctionAlias(functionAliasElement);
+    
+    CallableElement enclosingCallableElement = _currentCallableElement;
+    _currentCallableElement = functionAliasElement;
+        
+    _enterBlock(functionAliasElement);
+    super.visitFunctionTypeAlias(node);
+    _leaveBlock();
+    
+    _currentCallableElement = enclosingCallableElement;
+  }
+  
   visitClassDeclaration(ClassDeclaration node){
     _currentClassElement = new ClassElement(node, element);
     analysis.addElement(node, _currentClassElement);
@@ -1046,15 +1097,18 @@ class ElementGenerator extends GeneralizingAstVisitor {
     _leaveBlock();
   }
   
-  visitFunctionTypeAlias(FunctionTypeAlias node){
-    //TODO (jln): Do something with the function alias'es.
-  }
-  
   visitThisExpression(ThisExpression node){
     if (_currentClassElement == null){
       engine.errors.addError(new EngineError("The current class element was not set but this was used.", source, node.offset, node.length), true);
     }
     element.thisReferences[node] = _currentClassElement;
+  }
+  
+  visitSuperExpression(SuperExpression node){
+    if (_currentClassElement == null){
+      engine.errors.addError(new EngineError("The current class element was not set but super was used.", source, node.offset, node.length), true);
+    }
+    element.superReferences[node] = _currentClassElement;
   }
   
   visitConstructorName(ConstructorName node){

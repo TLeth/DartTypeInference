@@ -225,17 +225,15 @@ class Engine {
     new ExportResolver(this, _elementAnalysis);
     new ImportResolver(this, _elementAnalysis);
 
-    //    _elementAnalysis.accept(new PrintLibraryVisitor(scope: false, import: false, export: true, defined: false, depended_exports: true));    
-
-
+    //    _elementAnalysis.accept(new PrintLibraryVisitor(scope: false, import: false, export: true, defined: false, depended_exports: true));
 
     new IdentifierResolver(this,  _elementAnalysis);
     new ClassHierarchyResolver(this, _elementAnalysis);
 
-    //new PrintReferenceVisitor.Print(_elementAnalysis);
     //unit.accept(new PrintAstVisitor());
     //_elementAnalysis.accept(new PrintElementVisitor());
     //_elementAnalysis.accept(new PrintScopeVisitor());
+    //new PrintResolvedIdentifiers(this, _elementAnalysis);
     
   }
   
@@ -243,7 +241,7 @@ class Engine {
     _constraintAnalysis = new ConstraintAnalysis(this, _elementAnalysis);
     new ConstraintGenerator(_constraintAnalysis);
 
-    //new PrintConstraintVisitor(_constraintAnalysis);
+    //new PrintConstraintVisitor(_constraintAnalysis, _entrySource);
   }
   
   _makeAnnotatedSource() {

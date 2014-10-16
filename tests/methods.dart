@@ -3,7 +3,7 @@ library tests.methods;
 class A {
   static String a(String b) => b;
   dynamic b(String c) {
-    if (1 > 2) return b; else return 2;
+    if (1 > 2) return c; else return 2;
   }
 }
 class B extends A {
@@ -15,12 +15,12 @@ class B extends A {
 }
 void main() {
   B b = new B();
-  B.c("test");
-  b.d(2);
-  b.d("test");
-  b.e(3.0);
-  b.e(2);
+  dynamic c = B.c("test");
+  dynamic d = b.d(2);
+  dynamic e = b.d("test");
+  String f = b.e(3.0);
+  String g = b.e(2);
 
-  A.a("test");
-  b.b("test");
+  String h = A.a("test");
+  dynamic i = b.b("test");
 }

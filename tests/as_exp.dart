@@ -1,5 +1,6 @@
 library tests.as_exp;
-
-int i = 3;
-Object v = i as Object;
-
+void main() {
+  num i = 3.0;
+  i = 3;
+  int v = i as int;
+}

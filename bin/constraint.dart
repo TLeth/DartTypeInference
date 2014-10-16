@@ -252,7 +252,6 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   }
   
   void _subsetConstraint(TypeIdentifier a, TypeIdentifier b) {
-    
     if (a != b)
       foreach(a).update((AbstractType type) => types.put(b, type));
   }
@@ -538,9 +537,21 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     // this
     super.visitThisExpression(n);
     ClassElement classElement = source.thisReferences[n];
-    types.put(n, new NominalType(classElement));
+    if (classElement == null)
+      engine.errors.addError(new EngineError("thisExpression was visited but the classElement could not be found.", source.source, n.offset, n.length), true);
+    else
+      types.put(n, new NominalType(classElement));
   }
   
+  visitSuperExpression(SuperExpression n){
+    // super
+    super.visitSuperExpression(n);
+    ClassElement classElement = source.superReferences[n];
+    if (classElement == null || classElement.extendsElement == null)
+      engine.errors.addError(new EngineError("superExpression was visited but the parent classElement could not be found.", source.source, n.offset, n.length), true);
+    else
+      types.put(n, new NominalType(classElement.extendsElement));
+  }  
 
   visitMethodInvocation(MethodInvocation node){
     super.visitMethodInvocation(node);
@@ -555,7 +566,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       //TODO (jln): This does not take library prefix into account.
       TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.realTarget);
       foreach(targetIdent).update((AbstractType type) { 
-        TypeIdentifier methodIdent = new PropertyTypeIdentifier(type, new Name.FromIdentifier(node.methodName)); 
+        TypeIdentifier methodIdent = new PropertyTypeIdentifier(type, new Name.FromIdentifier(node.methodName));
         _methodCall(methodIdent, node.argumentList.arguments, returnIdent);
       });
     }
@@ -586,7 +597,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
           MapUtil.submap(namedParameters, func.namedParameterTypes) &&
           func.optionalParameterTypes.length + func.normalParameterTypes.length >= parameters.length; })
       .update((AbstractType func) {
-        if (func is FunctionType) {          
+        if (func is FunctionType) {
           for (var i = 0; i < parameters.length;i++){
             if (i < func.normalParameterTypes.length)
               _subsetConstraint(parameters[i], func.normalParameterTypes[i]);              
@@ -630,18 +641,16 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   
   visitFunctionExpression(FunctionExpression node){
     super.visitFunctionExpression(node);
-    if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is CallableElement)
-      engine.errors.addError(new EngineError("A FunctionDeclaration was visited, but didn't have a associated CallableElement.", source.source, node.offset, node.length ), true);
+    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! CallableElement)
+      engine.errors.addError(new EngineError("A FunctionExpression was visited, but didn't have a associated CallableElement.", source.source, node.offset, node.length ), true);
       
     CallableElement callableElement = elementAnalysis.elements[node];
-    if (_returnsVoid(callableElement)){
-      types.put(new ReturnTypeIdentifier(callableElement), new VoidType());
-    }
+    types.put(new ExpressionTypeIdentifier(node), new FunctionType.FromCallableElement(callableElement, source.library, elementTyper));
   }
   
   visitMethodDeclaration(MethodDeclaration node){
     super.visitMethodDeclaration(node);
-    if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is MethodElement)
+    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! MethodElement)
       engine.errors.addError(new EngineError("A MethodDeclaration was visited, but didn't have a associated MethodElement.", source.source, node.offset, node.length ), true);
         
     MethodElement methodElement = elementAnalysis.elements[node];
@@ -649,6 +658,36 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     if (!methodElement.isAbstract && _returnsVoid(methodElement)) {
       types.put(new ReturnTypeIdentifier(methodElement), new VoidType());
     }
+  }
+  
+  visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node){
+    super.visitFunctionTypedFormalParameter(node);
+    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! CallableElement)
+      engine.errors.addError(new EngineError("A FunctionTypedFormalParameter was visited, but didn't have a associated Callablelement.", source.source, node.offset, node.length ), true);
+    CallableElement callableElement = elementAnalysis.elements[node];
+    
+    TypeIdentifier funcIdent = new ExpressionTypeIdentifier(node.identifier);
+    TypeIdentifier returnIdent = elementTyper.typeReturn(callableElement, source.library, source);
+    ParameterTypes paramIdents = elementTyper.typeParameters(callableElement, source.library, source);
+    foreach(funcIdent)
+      .where((AbstractType func) {
+          return func is FunctionType && 
+          MapUtil.submap(func.namedParameterTypes, paramIdents.namedParameterTypes) &&
+          paramIdents.optionalParameterTypes.length >= func.optionalParameterTypes.length &&
+          paramIdents.normalParameterTypes.length == func.normalParameterTypes.length; })
+      .update((AbstractType func) {
+        if (func is FunctionType) {
+          for (var i = 0; i < paramIdents.normalParameterTypes.length;i++)
+            _subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
+          for (var i = 0; i < func.optionalParameterTypes.length;i++)
+            _subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
+          
+          for(Name name in func.namedParameterTypes.keys){
+            _subsetConstraint(func.namedParameterTypes[name], paramIdents.namedParameterTypes[name]);
+          }
+          _subsetConstraint(func.returnType, returnIdent);
+        }
+     });
   }
   
   visitConditionalExpression(ConditionalExpression node){
@@ -755,9 +794,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       _subsetConstraint(expIdent, nodeIdent);
     } else {
       // {T} \in [e as T]
-      // {T} \in [e]
       types.put(n, castType);
-      types.put(n.expression, castType);
     }
   } 
   

@@ -134,6 +134,19 @@ class AnnotateSourceVisitor extends SourceVisitor {
      visit(node.identifier);
      visit(node.parameters);
    }
+  
+  visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node) {
+    Element functionParameterElement = elementAnalysis.elements[node];
+    if (functionParameterElement is CallableElement) {
+      ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(functionParameterElement);
+      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent), followedBy: space);
+    } else {
+      engine.errors.addError(new EngineError("A SimpleFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
+    }
+    
+    visit(node.identifier);
+    visit(node.parameters);
+  }
 
   visitFunctionDeclaration(FunctionDeclaration node) {
     preserveLeadingNewlines();
@@ -225,18 +238,5 @@ class AnnotateSourceVisitor extends SourceVisitor {
       }
       visitPrefixedBody(nonBreakingSpace, node.body);
     }
-  
-  visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node) {
-    Element functionParameterElement = elementAnalysis.elements[node];
-    if (functionParameterElement is CallableElement) {
-      ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(functionParameterElement);
-      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent), followedBy: space);
-    } else {
-      engine.errors.addError(new EngineError("A SimpleFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
-    }
-    
-    visit(node.identifier);
-    visit(node.parameters);
-  }  
 
 }

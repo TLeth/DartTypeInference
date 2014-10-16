@@ -111,6 +111,21 @@ class FunctionType extends AbstractType {
     if (t is DynamicType || t is VoidType)
           return t;
     
+    if (t is FunctionType){
+      if (t.normalParameterTypes.length == optionalParameterTypes.length && 
+          t.optionalParameterTypes.length == optionalParameterTypes.length &&
+          t.namedParameterTypes.length == namedParameterTypes.length && 
+          ListUtil.union(namedParameterTypes.keys, t.namedParameterTypes.keys).length == namedParameterTypes.length) {
+        
+        //TODO (jln): Since elements in the function is typeIdentifiers we need to have a link to the types.
+        
+      } else {
+        //TODO (jln): Both was functions so just return functions instead.
+        return new DynamicType();
+      }
+      
+    }
+    
     //TODO (jln): Implement this, a simple implementation could be if t is a FunctionType then return the nominalType Function.
     return new DynamicType();
   }
@@ -284,6 +299,7 @@ class ParameterTypes {
 class ElementTyper {
   Map<AstNode, TypeIdentifier> types = <AstNode, TypeIdentifier>{};
   Map<CallableElement, ReturnTypeIdentifier> returns = <CallableElement, ReturnTypeIdentifier>{};
+  Map<CallableElement, ParameterTypes> parameters = <CallableElement, ParameterTypes>{};
   
   
   ConstraintAnalysis constraintAnalysis;
@@ -408,11 +424,14 @@ class ElementTyper {
   }
   
   ParameterTypes typeParameters(CallableElement element, LibraryElement library, SourceElement source){
+    if (parameters.containsKey(element))
+      return parameters[element];
+    
     FormalParameterList paramList = element.parameters;
     ParameterTypes types = new ParameterTypes();
     
     if (paramList.parameters == null || paramList.length == 0) 
-      return types;
+      return parameters[element] = types;
     
     NodeList<FormalParameter> params = paramList.parameters;
     
@@ -461,7 +480,7 @@ class ElementTyper {
         types.namedParameterTypes[new Name.FromIdentifier(normalParam.identifier)] = paramTypeIdent;
     }
     
-    return types;
+    return parameters[element] = types;
   }
   
   AbstractType resolveType(TypeName type, LibraryElement library, SourceElement source){
