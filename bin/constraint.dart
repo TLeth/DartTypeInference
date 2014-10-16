@@ -620,7 +620,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     
       ReturnElement returnElement = elementAnalysis.elements[node];
       _subsetConstraint(new ExpressionTypeIdentifier(node.expression), new ReturnTypeIdentifier(returnElement.function));
-    } 
+    }
   }
   
   visitExpressionFunctionBody(ExpressionFunctionBody node){
@@ -646,6 +646,10 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       
     CallableElement callableElement = elementAnalysis.elements[node];
     types.put(new ExpressionTypeIdentifier(node), new FunctionType.FromCallableElement(callableElement, source.library, elementTyper));
+    
+    if (_returnsVoid(callableElement)) {
+      types.put(new ReturnTypeIdentifier(callableElement), new VoidType());
+    }
   }
   
   visitMethodDeclaration(MethodDeclaration node){
