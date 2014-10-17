@@ -1,7 +1,7 @@
 library test.setter_method;
 
 class A {
-  void set x(int _x) {}  
+  void set x(int _x) {}
 }
 
 void main() {
