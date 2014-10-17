@@ -31,7 +31,7 @@ class TypeMap {
   
   TypeMap(ConstraintAnalysis this.constraintAnalysis);
   
-  TypeVariable _lookup(TypeIdentifier ident, SourceElement source){
+  TypeVariable _lookup(TypeIdentifier ident, ConstraintHelper helper){
     if (containsKey(ident))
       return _typeMap[ident];
     if (ident.isPropertyLookup && ident.propertyIdentifierType is NominalType){
@@ -39,11 +39,14 @@ class TypeMap {
       ClassMember member = type.element.lookup(ident.propertyIdentifierName);
     
       if (member != null)
-        return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeClassMember(member, type.element.sourceElement.library)];
-    } else if (ident is ExpressionTypeIdentifier && source.resolvedIdentifiers.containsKey(ident.exp)){
+        return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeClassMember(member, type.element.sourceElement.library, helper)];
+      else
+        if (helper.source.source.shortName == 'test.dart')
+          print("Didnt find the lookup: ${ident}");
+    } else if (ident is ExpressionTypeIdentifier && helper.source.resolvedIdentifiers.containsKey(ident.exp)){
 
-      NamedElement namedElement = source.resolvedIdentifiers[ident.exp];
-      return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeNamedElement(namedElement, namedElement.sourceElement.library)];
+      NamedElement namedElement = helper.source.resolvedIdentifiers[ident.exp];
+      return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeNamedElement(namedElement, namedElement.sourceElement.library, helper)];
     }
     
     if (!containsKey(ident))
@@ -52,9 +55,9 @@ class TypeMap {
     return _typeMap[ident];
   }
   
-  TypeVariable getter(dynamic i, SourceElement source) {
+  TypeVariable getter(dynamic i, ConstraintHelper helper) {
     TypeIdentifier ident = TypeIdentifier.ConvertToTypeIdentifier(i);
-    return _lookup(ident, source);
+    return _lookup(ident, helper);
   }
   
   TypeVariable replace(TypeIdentifier i, TypeVariable v) => _typeMap[i] = v;
@@ -202,7 +205,7 @@ abstract class ConstraintHelper {
       
       _lastTypeIdentifier = null;
       _lastWhere = null;
-      types.getter(identifier, source).onChange((AbstractType t) {
+      types.getter(identifier, this).onChange((AbstractType t) {
         if (filter == null || filter(t))
            func(t);
       });
@@ -675,8 +678,11 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       engine.errors.addError(new EngineError("A MethodDeclaration was visited, but didn't have a associated MethodElement.", source.source, node.offset, node.length ), true);
         
     MethodElement methodElement = elementAnalysis.elements[node];
-    //Ensure that the methods where typed.
-    elementTyper.typeMethodElement(methodElement, source.library);
+    
+    if (methodElement.isSetter){
+      TypeIdentifier methodIdent = elementTyper.typeMethodElement(methodElement, source.library, this);
+      equalConstraint(new PropertyTypeIdentifier(new NominalType(_currentClassElement), methodElement.getterName), methodIdent);
+    }
     
     if (!methodElement.isAbstract && _returnsVoid(methodElement)) {
       types.put(new ReturnTypeIdentifier(methodElement), new VoidType());

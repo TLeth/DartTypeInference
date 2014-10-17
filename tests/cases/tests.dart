@@ -79,5 +79,8 @@ import 'setter_method.dart';
 import 'anon_function.dart';
 import 'setter_staticmethod.dart';
 import 'getter_staticmethod.dart';
+import 'gettersetter.dart';
+import 'method_gettersetter.dart';
+import 'static_gettersetter.dart';
 
 void main() {}
