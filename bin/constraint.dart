@@ -655,6 +655,10 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   bool _returnsVoid(CallableElement node) {
     if (node.isExternal)
       return false;
+    else if (node is MethodElement && (node.isAbstract || node.isGetter))
+      return false;
+    else if (node is NamedFunctionElement && node.isGetter)
+      return false;
     else
       return node.returns.fold(true, (bool res, ReturnElement r) => res && r.ast.expression == null);
   }
@@ -679,14 +683,33 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
         
     MethodElement methodElement = elementAnalysis.elements[node];
     
-    /*
     if (methodElement.isSetter){
       TypeIdentifier methodIdent = elementTyper.typeMethodElement(methodElement, source.library, this);
       equalConstraint(new PropertyTypeIdentifier(new NominalType(_currentClassElement), methodElement.getterName), methodIdent);
-    }*/
+    }
     
-    if (!methodElement.isAbstract && _returnsVoid(methodElement)) {
+    if (_returnsVoid(methodElement)) {
       types.put(new ReturnTypeIdentifier(methodElement), new VoidType());
+    }
+  }
+
+  
+  visitFunctionDeclaration(FunctionDeclaration node){
+    super.visitFunctionDeclaration(node);
+    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! NamedFunctionElement)
+      engine.errors.addError(new EngineError("A FunctionDeclaration was visited, but didn't have a associated NamedFunctionElement.", source.source, node.offset, node.length ), true);
+        
+    NamedFunctionElement functionElement = elementAnalysis.elements[node];
+    if (functionElement.isSetter){
+      TypeIdentifier methodIdent = elementTyper.typeNamedFunctionElement(functionElement, source.library, this);
+      NamedElement element = source.resolvedIdentifiers[functionElement.identifier];
+      //Link the setter and getter together.
+      if (element != functionElement)
+        equalConstraint(new ExpressionTypeIdentifier(element.identifier), new ExpressionTypeIdentifier(functionElement.identifier));
+    }
+    
+    if (_returnsVoid(functionElement)) {
+      types.put(new ReturnTypeIdentifier(functionElement), new VoidType());
     }
   }
   
