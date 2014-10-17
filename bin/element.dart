@@ -94,7 +94,7 @@ class Name {
   
   String toString() => name;
   
-  static Name SetterName(Name name) => new Name(name.name + "=");
+  static Name SetterName(Name name) => IsSetterName(name) ? name : new Name(name.name + "=");
   static Name UnaryMinusName() => new Name('unary-');
   static bool IsSetterName(Name name) => name._name[name._name.length - 1] == "=";
   static Name GetterName(Name name) => IsSetterName(name) ? new Name(name._name.substring(0, name._name.length - 1) ) : name;
@@ -467,10 +467,10 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
   ClassElement classDecl;
   
   Name _name;
-  Name get setterName => isSetter ? _name : Name.SetterName(_name);
-  Name get getterName => isSetter ? Name.GetterName(_name) : _name;
+  Name get setterName => Name.SetterName(_name);
+  Name get getterName => Name.GetterName(_name);
 
-  Name get name => isSetter ? setterName : getterName;
+  Name get name => _name;
   Identifier get identifier => this.ast.name;
   bool get isAbstract => ast.isAbstract;
   bool get isGetter => ast.isGetter;
@@ -616,10 +616,10 @@ class FunctionAliasElement extends Block implements CallableElement, NamedElemen
 class NamedFunctionElement extends FunctionElement implements NamedElement {
   FunctionDeclaration decl;
   Name _name;
-  Name get setterName => isSetter ? _name : Name.SetterName(_name);
-  Name get getterName => isSetter ? Name.GetterName(_name) : _name;
+  Name get setterName => Name.SetterName(_name);
+  Name get getterName => Name.GetterName(_name);
   bool get isPrivate => _name.isPrivate; 
-  Name get name => isSetter ? setterName : getterName;
+  Name get name => _name;
   Identifier get identifier => decl.name;
   bool get isGetter => decl.isGetter;
   bool get isSetter => decl.isSetter;
@@ -634,7 +634,10 @@ class NamedFunctionElement extends FunctionElement implements NamedElement {
   
   NamedFunctionElement(FunctionDeclaration decl, SourceElement sourceElement) : super(decl.functionExpression, sourceElement) {
     this.decl = decl;
-    _name = new Name.FromIdentifier(decl.name);
+    if (decl.isSetter)
+      _name = Name.SetterName(new Name.FromIdentifier(decl.name));
+    else
+      _name = new Name.FromIdentifier(decl.name);   
   }
   
   String toString() => "Func [${isSynthetic ? ' synthetic ' : ''}] ${name}";
