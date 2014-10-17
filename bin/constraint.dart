@@ -489,7 +489,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     if (ident != n){
       //TODO (jln): A possible speedup would be changing the simpleidentifiers to the identifier used in the variable decl.
       // This can be done in a previous AST-gothrough
-      _equalConstraint(new ExpressionTypeIdentifier(ident), new ExpressionTypeIdentifier(n));
+      equalConstraint(new ExpressionTypeIdentifier(ident), new ExpressionTypeIdentifier(n));
     }
   }
   
@@ -503,7 +503,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     //TODO (jln): This does not take library prefix into account.
     foreach(prefixIdent).update((AbstractType alpha) {
       TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.identifier));
-      _subsetConstraint(alphaPropertyIdent, nodeIdent);
+      subsetConstraint(alphaPropertyIdent, nodeIdent);
     });
   }
   
@@ -515,7 +515,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     //TODO (jln): This does not take library prefix into account.
     foreach(targetIdent).update((AbstractType alpha) {
       TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.propertyName));
-      _subsetConstraint(alphaPropertyIdent, nodeIdent);
+      subsetConstraint(alphaPropertyIdent, nodeIdent);
     });
   }
   
