@@ -19,3 +19,5 @@ log
 # Include when developing application packages.
 pubspec.lock
 
+tests/.stripped
+tests/output
