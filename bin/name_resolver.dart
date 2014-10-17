@@ -115,11 +115,20 @@ class ScopeVisitor extends GeneralizingAstVisitor {
 
   visitConstructorDeclaration(ConstructorDeclaration node) {
 
-    Our.ClassElement lookup = scope[node.returnType.toString()];
-    references[node.returnType] = lookup;
+    Our.ClassElement classElement = scope[node.returnType.toString()];
+    if (classElement != null)
+      references[node.returnType] = classElement;
+    else
+      engine.errors.addError(new EngineError("ConstructorDeclaration was visited but the scope didn't contain the returnType", source, node.offset, node.length));
 
-    if (node.name != null)      
-      references[node.name] = lookup.declaredConstructors[new Our.PrefixedName.FromIdentifier(node.returnType, new Our.Name.FromIdentifier(node.name))];
+    if (node.name != null) {
+      Our.ConstructorElement constructor = classElement.declaredConstructors[new Our.PrefixedName.FromIdentifier(node.returnType, new Our.Name.FromIdentifier(node.name))];
+      if (constructor != null)
+        references[node.name] = constructor;
+      else
+        engine.errors.addError(new EngineError("ConstructorDeclaration was visited but the scope the declared constructor couldn't be found.", source, node.offset, node.length));
+    }
+      
     
     node.safelyVisitChild(node.parameters, this);
     node.initializers.accept(this);
@@ -134,15 +143,12 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   
   @override
   visitMethodDeclaration(MethodDeclaration node) {
+
+    if (this.declaredElements[node] == null)
+      engine.errors.addError(new EngineError("Failed to find MethodDeclaration ${node.name} in declaredElements", source, node.offset, node.length), true);
+    
     if (node.name != null) {
       this.scope[node.name.toString()] = this.declaredElements[node];
-    }
-
-    if (this.declaredElements[node] == null) {
-      print('failed for  -- ${node} -- (${node.hashCode}) in ${this.source.fullName}');
-      this.declaredElements.keys.forEach((key){
-        print('${key} (${key.hashCode})');
-      });
     }
     
     _openNewScope(scope, (_) {
@@ -153,16 +159,12 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   @override
   visitFunctionDeclaration(FunctionDeclaration node) {
 
+    if (this.declaredElements[node] == null)
+      engine.errors.addError(new EngineError("Failed to find FunctionDeclaration ${node.name} in declaredElements", source, node.offset, node.length), true);
+    
     if (node.name != null) {
       String name = node.name.toString() + (node.isSetter ? '=' : '');
       this.scope[name] = this.declaredElements[node];
-    }
-
-    if (this.declaredElements[node] == null) {
-      print('failed for  -- ${node} -- (${node.hashCode}) in ${this.source.fullName}');
-      this.declaredElements.keys.forEach((key){
-        print('${key} (${key.hashCode})');
-      });
     }
     
     _openNewScope(scope, (_) {
@@ -194,7 +196,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
       } 
     else if (local_setter_element != null) 
       {
-        references[node] = lib_setter_element;
+        references[node] = local_setter_element;
       } 
     else if (lib_setter_element != null) 
       {
