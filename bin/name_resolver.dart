@@ -105,14 +105,13 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   visitVariableDeclaration(VariableDeclaration node) {
     node.safelyVisitChild(node.initializer, this);
     var namedElem = this.declaredElements[node];
-    if (namedElem != null)
+
+    if (namedElem != null) {
+      this.scope[node.name.toString()+'='] = namedElem;
       this.scope[node.name.toString()] = namedElem;
+    }
 
     node.safelyVisitChild(node.name, this);
-  }
-
-  @override
-  visitCascadeExpression(CascadeExpression node) {
   }
 
   visitConstructorDeclaration(ConstructorDeclaration node) {
@@ -150,16 +149,16 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     _openNewScope(scope, (_) {
       super.visitMethodDeclaration(node);      
     });
-
-    
-
   }
 
   @override
   visitFunctionDeclaration(FunctionDeclaration node) {
+    bool isSetter = node.propertyKeyword != null && node.propertyKeyword.lexeme == 'set';
+
 
     if (node.name != null) {
-      this.scope[node.name.toString()] = this.declaredElements[node];
+      String name = node.name.toString() + (isSetter ? '=' : '');
+      this.scope[name] = this.declaredElements[node];
     }
 
     if (this.declaredElements[node] == null) {
@@ -170,26 +169,48 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     }
     
     _openNewScope(scope, (_) {
-      super.visitFunctionDeclaration(node);      
+        super.visitFunctionDeclaration(node);      
     });
 
   }
   
   @override
   visitSimpleIdentifier(SimpleIdentifier node) {    
-    Our.Name n = new Our.Name(node.name.toString());
-    var local_element = scope[node.name.toString()];
-    var lib_element = library.lookup(n, false);
 
-    if (local_element != null) {
-      references[node] = local_element;
-    } else if (lib_element != null) {
-      references[node] = lib_element;
-    } else if (node.name.toString() == 'void') {
-      
-    } else {
-      this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}', source, node.offset, node.length));
-    }
+    String name = node.name.toString();
+
+    Our.Name getter = new Our.Name(name);
+    Our.Name setter = new Our.Name(name + '=');
+
+    var local_getter_element = scope[name];
+    var local_setter_element = scope[name + '='];
+    var lib_getter_element = library.lookup(getter, false);
+    var lib_setter_element = library.lookup(setter, false);
+
+    if (local_getter_element != null) 
+      {
+        references[node] = local_getter_element;
+      } 
+    else if (lib_getter_element != null) 
+      {
+      references[node] = lib_getter_element;
+      } 
+    else if (local_setter_element != null) 
+      {
+        references[node] = lib_setter_element;
+      } 
+    else if (lib_setter_element != null) 
+      {
+        references[node] = lib_setter_element;
+      }
+    else if (node.name.toString() == 'void') 
+      {
+        
+      } 
+    else 
+      {
+        this.engine.errors.addError(new EngineError('Couldnt resolve ${node.name}', source, node.offset, node.length));
+      }
   }
 
   @override
@@ -201,6 +222,12 @@ class ScopeVisitor extends GeneralizingAstVisitor {
 
     node.safelyVisitChild(node.argumentList, this);
   }
+
+
+  @override
+  visitCascadeExpression(CascadeExpression node) {
+  }
+
 
   //Only resolve the prefix.
   //TODO handle library 'as ...' imports.
@@ -223,8 +250,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
         references[node] = ctorElem;
       }
     }
-
-
   }
 
   //Only try to resolve the target.
