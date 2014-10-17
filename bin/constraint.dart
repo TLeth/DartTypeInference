@@ -679,10 +679,11 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
         
     MethodElement methodElement = elementAnalysis.elements[node];
     
+    /*
     if (methodElement.isSetter){
       TypeIdentifier methodIdent = elementTyper.typeMethodElement(methodElement, source.library, this);
       equalConstraint(new PropertyTypeIdentifier(new NominalType(_currentClassElement), methodElement.getterName), methodIdent);
-    }
+    }*/
     
     if (!methodElement.isAbstract && _returnsVoid(methodElement)) {
       types.put(new ReturnTypeIdentifier(methodElement), new VoidType());
