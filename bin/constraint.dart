@@ -208,6 +208,16 @@ abstract class ConstraintHelper {
       });
     }
   }
+  
+  void equalConstraint(TypeIdentifier a, TypeIdentifier b){
+    subsetConstraint(a, b);
+    subsetConstraint(b, a);
+  }
+  
+  void subsetConstraint(TypeIdentifier a, TypeIdentifier b) {
+    if (a != b)
+      foreach(a).update((AbstractType type) => types.put(b, type));
+  }
 }
 
 
@@ -245,16 +255,6 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       return source.resolvedIdentifiers[exp].identifier;
     } else
       return exp;
-  }
-  
-  void _equalConstraint(TypeIdentifier a, TypeIdentifier b){
-    _subsetConstraint(a, b);
-    _subsetConstraint(b, a);
-  }
-  
-  void _subsetConstraint(TypeIdentifier a, TypeIdentifier b) {
-    if (a != b)
-      foreach(a).update((AbstractType type) => types.put(b, type));
   }
   
   AbstractType _getAbstractType(Name className, LibraryElement library, SourceElement source){
@@ -368,7 +368,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
      if (element is FieldElement){
        ClassElement classElement = element.classDecl;
        TypeIdentifier v = new PropertyTypeIdentifier(new NominalType(classElement), element.name);
-       _equalConstraint(v, new ExpressionTypeIdentifier(vd.name));
+       equalConstraint(v, new ExpressionTypeIdentifier(vd.name));
      }
      
      
@@ -380,12 +380,12 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   
   visitParenthesizedExpression(ParenthesizedExpression node){
     super.visitParenthesizedExpression(node);
-//(exp)
-  // [exp] \subseteq [(exp)]
-  
-  TypeIdentifier expIdent = new ExpressionTypeIdentifier(node.expression);
-  TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
-  _subsetConstraint(expIdent, nodeIdent);
+    //(exp)
+    // [exp] \subseteq [(exp)]
+    
+    TypeIdentifier expIdent = new ExpressionTypeIdentifier(node.expression);
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+    subsetConstraint(expIdent, nodeIdent);
   }
   
   visitAssignmentExpression(AssignmentExpression node){
@@ -409,7 +409,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
         _methodCall(methodIdent, <Expression>[rightHandSide], returnIdent);
         
         //Result of (leftHandSide op RightHandSide) should be the result of the hole node.
-        _subsetConstraint(returnIdent, nodeIdent);
+        subsetConstraint(returnIdent, nodeIdent);
         
         //Make the assignment from the returnIdent to the leftHandSide.
         _assignmentExpression(leftHandSide, returnIdent);
@@ -422,7 +422,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
       
       // [exp] \subseteq [v = exp]
-      _subsetConstraint(exp, nodeIdent);
+      subsetConstraint(exp, nodeIdent);
     }
   }
   
@@ -447,7 +447,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
    // [exp] \subseteq [v]
   _assignmentSimpleIdentifier(SimpleIdentifier leftHandSide, TypeIdentifier expIdent){
     TypeIdentifier vIdent = new ExpressionTypeIdentifier(leftHandSide);
-    _subsetConstraint(expIdent, vIdent);
+    subsetConstraint(expIdent, vIdent);
   }
   
   // v.prop = exp;
@@ -456,7 +456,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     TypeIdentifier targetIdent = new ExpressionTypeIdentifier(leftHandSide.realTarget);
     foreach(targetIdent).update((AbstractType alpha){
       TypeIdentifier alphapropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.propertyName));
-      _subsetConstraint(expIdent, alphapropertyIdent);
+      subsetConstraint(expIdent, alphapropertyIdent);
     });
   }
 
@@ -467,7 +467,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     
     foreach(prefixIdent).update((AbstractType alpha){
       TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.identifier));
-      _subsetConstraint(expIdent, alphaPropertyIdent);
+      subsetConstraint(expIdent, alphaPropertyIdent);
     });
 
   }
@@ -596,14 +596,14 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
         if (func is FunctionType) {
           for (var i = 0; i < parameters.length;i++){
             if (i < func.normalParameterTypes.length)
-              _subsetConstraint(parameters[i], func.normalParameterTypes[i]);              
+              subsetConstraint(parameters[i], func.normalParameterTypes[i]);              
             else
-              _subsetConstraint(parameters[i], func.optionalParameterTypes[i - func.normalParameterTypes.length]);
+              subsetConstraint(parameters[i], func.optionalParameterTypes[i - func.normalParameterTypes.length]);
           }
           for(Name name in namedParameters.keys){
-            _subsetConstraint(namedParameters[name], func.namedParameterTypes[name]);
+            subsetConstraint(namedParameters[name], func.namedParameterTypes[name]);
           }
-          if (returnIdent != null) _subsetConstraint(func.returnType, returnIdent);
+          if (returnIdent != null) subsetConstraint(func.returnType, returnIdent);
         }
       }); 
   }
@@ -636,7 +636,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
         engine.errors.addError(new EngineError("A ReturnStatement was visited, but didn't have a associated ReturnElement.", source.source, node.offset, node.length ), true);
     
       ReturnElement returnElement = elementAnalysis.elements[node];
-      _subsetConstraint(new ExpressionTypeIdentifier(node.expression), new ReturnTypeIdentifier(returnElement.function));
+      subsetConstraint(new ExpressionTypeIdentifier(node.expression), new ReturnTypeIdentifier(returnElement.function));
     }
   }
   
@@ -645,7 +645,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is ReturnElement)
       engine.errors.addError(new EngineError("A ExpressionFunctionBody was visited, but didn't have a associated ReturnElement.", source.source, node.offset, node.length ), true);
     ReturnElement returnElement = elementAnalysis.elements[node];
-    _subsetConstraint(new ExpressionTypeIdentifier(node.expression), new ReturnTypeIdentifier(returnElement.function));
+    subsetConstraint(new ExpressionTypeIdentifier(node.expression), new ReturnTypeIdentifier(returnElement.function));
   }
   
   
@@ -675,6 +675,8 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       engine.errors.addError(new EngineError("A MethodDeclaration was visited, but didn't have a associated MethodElement.", source.source, node.offset, node.length ), true);
         
     MethodElement methodElement = elementAnalysis.elements[node];
+    //Ensure that the methods where typed.
+    elementTyper.typeMethodElement(methodElement, source.library);
     
     if (!methodElement.isAbstract && _returnsVoid(methodElement)) {
       types.put(new ReturnTypeIdentifier(methodElement), new VoidType());
@@ -699,14 +701,14 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       .update((AbstractType func) {
         if (func is FunctionType) {
           for (var i = 0; i < paramIdents.normalParameterTypes.length;i++)
-            _subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
+            subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
           for (var i = 0; i < func.optionalParameterTypes.length;i++)
-            _subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
+            subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
           
           for(Name name in func.namedParameterTypes.keys){
-            _subsetConstraint(func.namedParameterTypes[name], paramIdents.namedParameterTypes[name]);
+            subsetConstraint(func.namedParameterTypes[name], paramIdents.namedParameterTypes[name]);
           }
-          _subsetConstraint(func.returnType, returnIdent);
+          subsetConstraint(func.returnType, returnIdent);
         }
      });
   }
@@ -719,7 +721,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     
     TypeIdentifier paramIdent = new ExpressionTypeIdentifier(node.identifier);
     TypeIdentifier fieldIdent = new PropertyTypeIdentifier(new NominalType(fieldParameter.classElement), new Name.FromIdentifier(node.identifier));
-    _equalConstraint(paramIdent, fieldIdent);
+    equalConstraint(paramIdent, fieldIdent);
   }
   
   visitConditionalExpression(ConditionalExpression node){
@@ -729,8 +731,8 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     
     // exp1 ? exp2 : exp3
     // [exp2] \union [exp3] \subseteq [exp1 ? exp2 : exp3]
-    _subsetConstraint(new ExpressionTypeIdentifier(node.thenExpression), nodeIdent);
-    _subsetConstraint(new ExpressionTypeIdentifier(node.elseExpression), nodeIdent);
+    subsetConstraint(new ExpressionTypeIdentifier(node.thenExpression), nodeIdent);
+    subsetConstraint(new ExpressionTypeIdentifier(node.elseExpression), nodeIdent);
 
     types.put(node.condition, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
   }
@@ -790,7 +792,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     // [exp] \subseteq [exp op]
     TypeIdentifier expIdent = new ExpressionTypeIdentifier(node.operand);
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
-    _subsetConstraint(expIdent, nodeIdent);
+    subsetConstraint(expIdent, nodeIdent);
   }
   
   // op v
@@ -811,7 +813,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
         TypeIdentifier returnIdent = new SyntheticTypeIdentifier(methodIdent);
         _methodCall(methodIdent, <Expression>[new IntegerLiteral(new StringToken(TokenType.INT, "1", 0), 1)], returnIdent);
         //Result of (leftHandSide op RightHandSide) should be the result of the hole node.
-        _subsetConstraint(returnIdent, nodeIdent);
+        subsetConstraint(returnIdent, nodeIdent);
         
         //Make the assignment from the returnIdent to the leftHandSide.
         _assignmentExpression(node.operand, returnIdent);
@@ -868,7 +870,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       //as dynamic doesn't give you any info, so just make them equal.
       TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
       TypeIdentifier expIdent = new ExpressionTypeIdentifier(n.expression);
-      _subsetConstraint(expIdent, nodeIdent);
+      subsetConstraint(expIdent, nodeIdent);
     } else {
       // {T} \in [e as T]
       types.put(n, castType);
@@ -881,7 +883,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.target);
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
     
-    _subsetConstraint(targetIdent, nodeIdent);
+    subsetConstraint(targetIdent, nodeIdent);
   }
 }
 
