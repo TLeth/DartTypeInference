@@ -18,7 +18,6 @@ _openNewScope(scope, k) {
 }
 
 //TODO (jln): factories should be handled here. in ConstructorName there should be resolved what is a prefix of another library, and what is a factory call.
-
 class IdentifierResolver extends Our.RecursiveElementVisitor {
 
   Map<AstNode, Our.NamedElement> declaredElements = {};
@@ -140,7 +139,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     }
 
     if (this.declaredElements[node] == null) {
-      print('failed for  -- ${node} -- (${node.hashCode})');
+      print('failed for  -- ${node} -- (${node.hashCode}) in ${this.source.fullName}');
       this.declaredElements.keys.forEach((key){
         print('${key} (${key.hashCode})');
       });
@@ -153,16 +152,14 @@ class ScopeVisitor extends GeneralizingAstVisitor {
 
   @override
   visitFunctionDeclaration(FunctionDeclaration node) {
-    bool isSetter = node.propertyKeyword != null && node.propertyKeyword.lexeme == 'set';
-
 
     if (node.name != null) {
-      String name = node.name.toString() + (isSetter ? '=' : '');
+      String name = node.name.toString() + (node.isSetter ? '=' : '');
       this.scope[name] = this.declaredElements[node];
     }
 
     if (this.declaredElements[node] == null) {
-      print('failed for  -- ${node} -- (${node.hashCode})');
+      print('failed for  -- ${node} -- (${node.hashCode}) in ${this.source.fullName}');
       this.declaredElements.keys.forEach((key){
         print('${key} (${key.hashCode})');
       });
@@ -193,7 +190,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
       } 
     else if (lib_getter_element != null) 
       {
-      references[node] = lib_getter_element;
+        references[node] = lib_getter_element;
       } 
     else if (local_setter_element != null) 
       {
