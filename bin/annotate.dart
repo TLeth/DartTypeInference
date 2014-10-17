@@ -17,17 +17,21 @@ class TypeAnnotator {
   
   TypeAnnotator(TypeMap this.typemap, ElementAnalysis this.analysis);
   
-  TypeName annotateIdentifier(Identifier identifier, [int offset = 0]){
+  TypeName annotateIdentifier(Identifier identifier, [bool cannotBeVoid = false, int offset = 0]){
     TypeIdentifier typeIdent = new ExpressionTypeIdentifier(identifier);
-    return annotateTypeIdentifier(typeIdent, offset);
+    return annotateTypeIdentifier(typeIdent, cannotBeVoid, offset);
   }
   
-  TypeName annotateTypeIdentifier(TypeIdentifier typeIdent, [int offset = 0]){
+  TypeName annotateTypeIdentifier(TypeIdentifier typeIdent, [bool cannotBeVoid = false, int offset = 0]){
     TypeVariable typeVariable = typemap[typeIdent];
     if (typeVariable == null)
       return new TypeName(new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset)), null);
-    else 
-      return AbstractTypeToTypeName(typeVariable.getLeastUpperBound(), offset);
+    
+    AbstractType type = typeVariable.getLeastUpperBound();
+    if (type is VoidType && cannotBeVoid)
+      return AbstractTypeToTypeName(new DynamicType(), offset);
+    else
+      return AbstractTypeToTypeName(type, offset);
   }
   
   TypeName AbstractTypeToTypeName(AbstractType t, [int offset = 0]){
@@ -72,14 +76,20 @@ class Annotator {
       String annotatedSource = annotateVisitor.writer.toString();
       
       FormattedSource formattedSource = new FormattedSource(annotatedSource, selection);
-      
-      CodeFormatter finisher = new CodeFormatter();
-      formattedSource = finisher.format(CodeKind.COMPILATION_UNIT, formattedSource.source);
+      FormattedSource finalSource;
+      try {
+        CodeFormatter finisher = new CodeFormatter();
+        finalSource = finisher.format(CodeKind.COMPILATION_UNIT, formattedSource.source);
+      }catch (exp){
+        print("Exception while trying to format source code.");
+        print(formattedSource.source);
+        rethrow;
+      }
       
       if (engine.options.noOverride)
-        print(formattedSource.source);        
+        print(finalSource.source);        
       else
-        new File.fromUri(sourceElement.source.uri).writeAsStringSync(formattedSource.source);
+        new File.fromUri(sourceElement.source.uri).writeAsStringSync(finalSource.source);
     }
   }
 }
@@ -111,7 +121,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
    
    Element parameterElement = elementAnalysis.elements[node];
    if (parameterElement is ParameterElement) {
-     visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier), followedBy: nonBreakingSpace);
+     visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier, true, node.offset), followedBy: nonBreakingSpace);
    } else {
      engine.errors.addError(new EngineError("A SimpleFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
    }
@@ -124,7 +134,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
      
       Element parameterElement = elementAnalysis.elements[node];
       if (parameterElement is ParameterElement) {
-        visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier), followedBy: space);
+        visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier, true, node.offset), followedBy: space);
       } else {
         engine.errors.addError(new EngineError("A FieldFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
       }
@@ -156,7 +166,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
     
     if (functionElement is FunctionElement) {
       ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(functionElement);
-      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, node.name.offset), followedBy: space);
+      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, false, node.name.offset), followedBy: space);
     } else {
       engine.errors.addError(new EngineError("A FunctionDeclaration was not mapped to a FunctionElement", sourceElement.source, node.offset, node.length), false);     
     }
@@ -184,7 +194,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
     if (node.variables.length > 0) {
       Element variableElement = elementAnalysis.elements[node.variables[0]];
       if (variableElement is NamedElement) {
-        visitNode(typeAnnotator.annotateIdentifier(variableElement.identifier, node.offset), followedBy: space);
+        visitNode(typeAnnotator.annotateIdentifier(variableElement.identifier, true, node.offset), followedBy: space);
       } else {
         engine.errors.addError(new EngineError("A VariableDeclaration was not mapped to a NamedElement", sourceElement.source, node.variables[0].offset, node.variables[0].length), false);
       }
@@ -225,7 +235,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
       Element methodElement = elementAnalysis.elements[node];
       if (methodElement is MethodElement) {
         ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(methodElement);
-        visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent), followedBy: space);
+        visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, false, node.offset), followedBy: space);
       } else {
         engine.errors.addError(new EngineError("A MethodDeclaration was not mapped to a MethodElement", sourceElement.source, node.offset, node.length), false);
       }
