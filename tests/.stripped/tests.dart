@@ -74,6 +74,10 @@ import 'while_cond.dart';
 import 'dowhile_cond.dart';
 import 'if_cond.dart';
 import 'cond_exp.dart';
-
+import 'getter_method.dart';
+import 'setter_method.dart';
+import 'anon_function.dart';
+import 'setter_staticmethod.dart';
+import 'getter_staticmethod.dart';
 
 main() {}

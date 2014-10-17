@@ -1,7 +1,7 @@
 library test.setter;
 
 
-void set x(dynamic i) {}
+void set x(int i) {}
 
 void main() {
   x = 3;
