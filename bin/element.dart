@@ -467,8 +467,8 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
   ClassElement classDecl;
   
   Name _name;
-  Name get setterName => Name.SetterName(_name);
-  Name get getterName => _name;
+  Name get setterName => isSetter ? _name : Name.SetterName(_name);
+  Name get getterName => isSetter ? Name.GetterName(_name) : _name;
 
   Name get name => isSetter ? setterName : getterName;
   Identifier get identifier => this.ast.name;
@@ -616,8 +616,8 @@ class FunctionAliasElement extends Block implements CallableElement, NamedElemen
 class NamedFunctionElement extends FunctionElement implements NamedElement {
   FunctionDeclaration decl;
   Name _name;
-  Name get setterName => Name.SetterName(_name);
-  Name get getterName => _name;
+  Name get setterName => isSetter ? _name : Name.SetterName(_name);
+  Name get getterName => isSetter ? Name.GetterName(_name) : _name;
   bool get isPrivate => _name.isPrivate; 
   Name get name => isSetter ? setterName : getterName;
   Identifier get identifier => decl.name;
