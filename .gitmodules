@@ -13,3 +13,6 @@
 [submodule "benchmarks/mongo_dart"]
 	path = benchmarks/mongo_dart
 	url = git@github.com:vadimtsushko/mongo_dart.git
+[submodule "benchmarks/play_phaser"]
+	path = benchmarks/play_phaser
+	url = git@github.com:playif/play_phaser.git
