@@ -9,6 +9,7 @@ import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/scanner.dart';
 import 'types.dart';
+import 'result.dart';
 
 class TypeAnnotator {
   
@@ -60,15 +61,18 @@ class Annotator {
   ElementAnalysis get elementAnalysis => engine.elementAnalysis;
   ConstraintAnalysis get constraintAnalysis => engine.constraintAnalysis;
   TypeAnnotator typeAnnotator;
+  Result res;
   
   Annotator(Engine this.engine){    
     typeAnnotator = new TypeAnnotator(engine.constraintAnalysis.typeMap, elementAnalysis);
     
     elementAnalysis.sources.values.forEach(annotateSource); 
+    res = new Result.Empty();
   }
   
   annotateSource(SourceElement sourceElement){
     if (sourceElement.source.uriKind == UriKind.FILE_URI) {
+      
       var selection = null;
 
       var annotateVisitor = new AnnotateSourceVisitor(this, sourceElement, new FormatterOptions(), sourceElement.ast.lineInfo, sourceElement.sourceContent, selection);
@@ -90,6 +94,12 @@ class Annotator {
         new File.fromUri(sourceElement.source.uri).writeAsStringSync(finalSource.source);        
       else
         print(finalSource.source);
+        
+      if (engine.options.compareTypes && !engine.options.noOverride){
+        String actualFilePath = sourceElement.source.fullName;
+        String expectedFilePath = actualFilePath.replaceFirst(engine.options.actualRootPath, engine.options.expectedRootPath);
+        this.res.add(compareTypes(expectedFilePath, actualFilePath));
+      }
     }
   }
 }
