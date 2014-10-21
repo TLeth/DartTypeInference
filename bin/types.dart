@@ -344,14 +344,14 @@ class ElementTyper {
     if (!typeMap.containsKey(elementTypeIdent))
       typeMap.replace(elementTypeIdent, new TypeVariable());
     
-    /*if (element.isGetter)
+    if (element.isGetter)
       helper.equalConstraint(elementTypeIdent, functionType.returnType);
     else if (element.isSetter){
       if (functionType.normalParameterTypes.length == 1)
         helper.equalConstraint(elementTypeIdent, functionType.normalParameterTypes[0]);
       else
         engine.errors.addError(new EngineError("The MethodElement was a setter but the method did not only have 1 normal parameter.", element.sourceElement.source), true);
-    } else*/
+    } else
       typeMap.put(elementTypeIdent,functionType);
     
     return types[element.ast] = elementTypeIdent;
@@ -366,14 +366,14 @@ class ElementTyper {
     if (!typeMap.containsKey(elementTypeIdent))
       typeMap.replace(elementTypeIdent, new TypeVariable());
     
-    /*if (element.isGetter)
+    if (element.isGetter)
       helper.equalConstraint(elementTypeIdent, functionType.returnType);
     else if (element.isSetter){
       if (functionType.normalParameterTypes.length == 1)
         helper.equalConstraint(elementTypeIdent, functionType.normalParameterTypes[0]);
       else
         engine.errors.addError(new EngineError("The NamedFunctionElement was a setter but the method did not only have 1 normal parameter.", element.sourceElement.source), true);
-    } else*/
+    } else
       typeMap.put(elementTypeIdent,functionType);
     
     return types[element.ast] = elementTypeIdent;
