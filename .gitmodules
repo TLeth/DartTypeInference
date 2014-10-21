@@ -25,3 +25,12 @@
 [submodule "benchmarks/start"]
 	path = benchmarks/start
 	url = git@github.com:lvivski/start.git
+[submodule "benchmarks/rikulo_UI"]
+	path = benchmarks/rikulo_UI
+	url = git@github.com:rikulo/ui.git
+[submodule "benchmarks/dart-webgl"]
+	path = benchmarks/dart-webgl
+	url = git@github.com:jtmcdole/dart-webgl.git
+[submodule "benchmarks/qr"]
+	path = benchmarks/qr
+	url = git@github.com:kevmoo/qr.dart.git
