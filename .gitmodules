@@ -7,3 +7,9 @@
 [submodule "benchmarks/three"]
 	path = benchmarks/three
 	url = git@github.com:threeDart/three.dart.git
+[submodule "benchmarks/spectre"]
+	path = benchmarks/spectre
+	url = git@github.com:johnmccutchan/spectre.git
+[submodule "benchmarks/mongo_dart"]
+	path = benchmarks/mongo_dart
+	url = git@github.com:vadimtsushko/mongo_dart.git
