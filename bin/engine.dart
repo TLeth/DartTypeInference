@@ -142,7 +142,25 @@ class Engine {
     
     _printErrorsAndReset();
   }
- 
+
+  
+  static List<Source> GetDependencies(CommandLineOptions options, DartSdk sdk, Uri uri, JavaFile sourceFile) {
+   Engine engine = new Engine(options, sdk);
+   engine._entryFile = sourceFile;    
+   engine._setupSourceFactory();
+   engine._entrySource = engine._sourceFactory.forUri2(uri);
+   engine._setupAnalaysisContext();
+   
+   GeneralizingAstVisitor visitor = new GeneralizingAstVisitor();
+   CompilationUnit unit = engine.getCompilationUnit(engine._entrySource);
+   visitor.visitCompilationUnit(unit);
+   
+   engine._elementAnalysis = new ElementAnalysis(engine);
+   new ElementGenerator(engine, engine._entrySource, engine._elementAnalysis);
+   SourceElement entrySourceElement = engine._elementAnalysis.getSource(engine._entrySource);
+   return new List<Source>.from(engine._elementAnalysis.sources.keys);
+  }
+  
   void _printErrorsAndReset() {
     print(this.errors);
     this.errors.reset();
@@ -176,7 +194,7 @@ class Engine {
     contextOptions.enableAsync = options.enableAsync;
     contextOptions.enableEnum = options.enableEnum;
     _analysisContext.analysisOptions = contextOptions;
-  }
+  } 
   
   /** Creates a new compilation unit, given a source **/
   CompilationUnit getCompilationUnit(Source source) {
