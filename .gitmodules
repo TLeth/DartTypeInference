@@ -1,3 +1,6 @@
 [submodule "benchmarks/Dark"]
 	path = benchmarks/Dark
 	url = git@github.com:xNotch/dark.git
+[submodule "benchmarks/StageXL"]
+	path = benchmarks/StageXL
+	url = git@github.com:bp74/StageXL.git
