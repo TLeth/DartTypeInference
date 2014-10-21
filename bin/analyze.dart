@@ -14,6 +14,15 @@ class CommandLineOptions {
   /** The path to the dart SDK */
   final String dartSdkPath;
 
+  /** Path to root dir of expected output */
+  final String expectedRootPath;
+
+  /** Path to root dir of input */
+  final String actualRootPath;
+  
+  /** true if actual and expected are present */
+  bool get compareTypes => actualRootPath != null && expectedRootPath != null;
+
   /** Whether to log additional analysis messages and exceptions */
   final bool log;
 
@@ -71,10 +80,9 @@ class CommandLineOptions {
       printConstraints = args['debug-constraint'],
       printAstNodes = args['debug-ast'],
       printElementNodes = args['debug-element'],
+      expectedRootPath = args['expected-basedir'],
+      actualRootPath = args['actual-basedir'],
       sourceFiles = args.rest;
-  
-
-  
   
   /**
    * Parse [args] into [CommandLineOptions] describing the specified
@@ -107,6 +115,8 @@ class CommandLineOptions {
       ..addOption('dart-sdk', help: 'The path to the Dart SDK')
       ..addOption('package-root', abbr: 'p',
           help: 'The path to the package root')
+      ..addOption('expected-basedir', help: 'Path to expected output')
+      ..addOption('actual-basedir', help: 'Basedir, used to find correct expected files')
       ..addFlag('version', help: 'Print the analyzer version',
           defaultsTo: false, negatable: false)
       ..addFlag('no-override', help: 'Dont override files.', 
