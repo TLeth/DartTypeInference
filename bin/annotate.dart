@@ -64,10 +64,16 @@ class Annotator {
   Result res;
   
   Annotator(Engine this.engine){    
+    this.res = new Result.Empty();
+
     typeAnnotator = new TypeAnnotator(engine.constraintAnalysis.typeMap, elementAnalysis);
     
     elementAnalysis.sources.values.forEach(annotateSource); 
-    res = new Result.Empty();
+    
+    if (engine.options.compareTypes) {
+      stdout.writeln(res);
+      stderr.writeln(res.toJson()); 
+    }
   }
   
   annotateSource(SourceElement sourceElement){
@@ -95,10 +101,11 @@ class Annotator {
       else
         print(finalSource.source);
         
-      if (engine.options.compareTypes && !engine.options.noOverride){
+      if (engine.options.compareTypes && engine.options.overrideFiles){
         String actualFilePath = sourceElement.source.fullName;
         String expectedFilePath = actualFilePath.replaceFirst(engine.options.actualRootPath, engine.options.expectedRootPath);
-        this.res.add(compareTypes(expectedFilePath, actualFilePath));
+        
+        this.res.add(compareTypes(expectedFilePath, actualFilePath, sourceElement));
       }
     }
   }

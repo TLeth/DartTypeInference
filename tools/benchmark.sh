@@ -3,10 +3,31 @@
 cd "`dirname \"$0\"`"
 cd ".."
 
-mkdir -p "inferred/"
+dartDir=$(which dart)
 
-(for benchmark in $(ls ./benchmarks/)
-do
+mkdir -p "inferred/"
+mkdir -p ".stripped/"
+
+for benchmark in $(ls benchmarks); do
+
+    if [ ! -d .stripped/$benchmark ]; then
+        cp -r benchmarks/$benchmark .stripped/        
+    fi
+    
+    for file in $(find .stripped/$benchmark -name "*.dart"); do
+        strip.dart $file > tmp
+        rm $file
+        mv tmp $file
+    done
+
+    rm -rf inferred/$benchmark
+    cp -r .stripped/$benchmark inferred/
+
+    dart bin/analyze.dart -w --actual-basedir .inferred/$benchmark --expected-basedir benchmarks/$benchmark --dart-sdk ${dartDir%bin/dart} ./tests/output/tests.dart 
+
+done
+
+
   cp -r benchmarks/$benchmark inferred/
   cd "inferred/$benchmark"
 
@@ -30,7 +51,7 @@ do
 #      total=$((total+$(diff -U 0 <(dartfmt $file) <(dartfmt ../../benchmarks/$benchmark/$file) | grep ^+ | sed "1d" | wc -l)))
   done
 
-  dartDir=$(which dart)
+
 
   dart "../../bin/analyze.dart" --dart-sdk ${dartDir%bin/dart} -w $(head -n 1 ./files.info)
 

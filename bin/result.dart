@@ -1,8 +1,10 @@
 library typeanalysis.result;
 
-
+import 'element.dart' hide Block, ClassMember;
+import 'types.dart';
 import 'package:analyzer/src/generated/java_io.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'package:analyzer/src/generated/engine.dart';
 import 'package:analyzer/src/generated/source_io.dart';
 import 'package:analyzer/src/generated/parser.dart';
@@ -10,9 +12,13 @@ import 'package:analyzer/src/generated/scanner.dart';
 import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/error.dart';
 
-CompilationUnit expected, actual;
 
-Result compareTypes(String expectedFile, String actualFile) {
+
+CompilationUnit expected, actual;
+SourceElement sourceElem;
+
+Result compareTypes(String expectedFile, String actualFile, SourceElement sourceElement) {
+    sourceElem = sourceElement;
     
     expected = getCompilationUnit(new FileBasedSource.con1(new JavaFile(expectedFile)));
     actual = getCompilationUnit(new FileBasedSource.con1(new JavaFile(actualFile)));
@@ -23,50 +29,99 @@ Result compareTypes(String expectedFile, String actualFile) {
 
 
 class Result {
-  int type_mismatch = 0;
-  int generic_misses = 0;
-  int generic_mismatch = 0;
-  Result(int this.type_mismatch);
-  factory Result.Empty() => new Result(0);
+  int expectedFileAnnotations = 0;
+  int preciseAnnotations = 0;
+  int subtypeAnnotations = 0;
+  int supertypeAnnotations = 0;
+  int noTypeAnnotations = 0;
+  int unrelatedAnnotations = 0;
+  int shouldBeGenericTypeAnnotation = 0;
+  int genericTypeArgumentMissing = 0;
+  
+  Result();
+  
+  factory Result.Empty() => new Result();
 
-  void add(Result other){
-    this.type_mismatch += other.type_mismatch;
-    this.generic_misses += other.generic_misses;
-    this.generic_mismatch += other.generic_mismatch;
+  String toJson() {
+    var m = {
+      'expectedFileAnnotations': this.expectedFileAnnotations,
+      'preciseAnnotations': this.preciseAnnotations,
+      'subtypeAnnotations': this.subtypeAnnotations,
+      'supertypeAnnotations': this.supertypeAnnotations,
+      'noTypeAnnotations': this.noTypeAnnotations,
+      'unrelatedAnnotations': this.unrelatedAnnotations,
+      'shouldBeGenericTypeAnnotation': this.shouldBeGenericTypeAnnotation,
+      'genericTypeArgumentMissing': this.genericTypeArgumentMissing
+    };
+    
+    return new JsonEncoder().convert(m);
   }
 
-  String toString() => "${type_mismatch} ${generic_misses} ${generic_mismatch}";
+  void add(Result other){
+    this.expectedFileAnnotations += other.expectedFileAnnotations;
+    
+    this.preciseAnnotations += other.preciseAnnotations;
+    this.subtypeAnnotations += other.subtypeAnnotations;
+    this.supertypeAnnotations += other.supertypeAnnotations;
+    this.noTypeAnnotations += other.noTypeAnnotations;
+    this.unrelatedAnnotations += other.unrelatedAnnotations;
+    this.shouldBeGenericTypeAnnotation += other.shouldBeGenericTypeAnnotation;
+
+    this.genericTypeArgumentMissing += other.genericTypeArgumentMissing;
+  }
+
+  String toString() => 
+       """
+          Total annotations in expected: ${expectedFileAnnotations}
+          Total correct annotations: ${preciseAnnotations}
+          Total subtype annotations: ${subtypeAnnotations}
+          Total supertype annotations: ${supertypeAnnotations}
+          Total annotations that should be generictype: ${shouldBeGenericTypeAnnotation}
+          Total annotations where we gave up(dynamic): ${noTypeAnnotations}
+          Total unrelated annotations: ${unrelatedAnnotations}
+          Total Type arguments missing: ${genericTypeArgumentMissing}""";
 }
 
 //expected always non-null
 //actual may be null
-Result classify(TypeName expected, TypeName actual) {
-  Result res = new Result(0);
-  if (actual == null || 
-      actual.name.toString() != expected.name.toString()) res.type_mismatch++;
+Result classify(TypeName expected, TypeName actual, bool comparingGeneric) {
   
-  if (actual != null && (expected.typeArguments != null && actual.typeArguments == null || expected.typeArguments == null && actual.typeArguments != null))
-    res.generic_misses++;
+  Result res = new Result.Empty();
+
+  //Sum total annotations in expectedFile
+  res.expectedFileAnnotations++;
   
-  if (actual != null && (expected.typeArguments != null && actual.typeArguments != null)) {
-    NodeList<TypeName> a = actual.typeArguments.arguments, b = expected.typeArguments.arguments;
-    if (a.length < b.length){
-      a = b;
-      b = actual.typeArguments.arguments;
+  // actual should only be null when comparing recursivly on typearguments
+  if (comparingGeneric && actual == null){
+    res.genericTypeArgumentMissing++;
+    return res;
+  }
+  
+  if (expected != null && actual != null) {
+
+    ClassElement expectedClass = sourceElem.library.lookup(new Name.FromIdentifier(expected.name), false);
+    ClassElement actualClass = sourceElem.library.lookup(new Name.FromIdentifier(actual.name), false);
+
+    NominalType expectedType = new NominalType(expectedClass);
+    NominalType actualType = new NominalType(actualClass);
+    
+    if (expected.name.toString() == actual.name.toString()) {
+      res.preciseAnnotations++;
+    } else if (expected.name.toString().length == 1) {
+      res.shouldBeGenericTypeAnnotation++;
+    } else if (actual.name.toString() == 'dynamic' && expected.name.toString() != 'dynamic'){
+      res.noTypeAnnotations++;
+    } else if (actualType.isSubtypeOf(expectedType)) {
+      res.subtypeAnnotations++;      
+    } else if (actualType.isSupertypeOf(expectedType)) {
+      res.supertypeAnnotations++;      
+    } else {
+      res.unrelatedAnnotations++;      
     }
     
-    //generic mismatches can only be counted as one.
-    for(var i = 0; i < a.length; i++){
-      if (b.length <= i) {
-        res.generic_mismatch++;
-      } else {
-        Result r = classify(a[i], b[i]);
-        if (r.type_mismatch > 0) res.generic_mismatch++;
-      }
-    }
-      
   }
-   
+  if (expected.typeArguments != null)
+    res = expected.typeArguments.arguments.fold(res, (res, expectedArg) => res.add(classify(expectedArg, null, true)));
   
   return res;
 }
@@ -106,22 +161,9 @@ CompilationUnit getCompilationUnit(Source source) {
 class TwinVisitor extends GeneralizingAstVisitor {
 
   visitTypeName(TypeName expectedNode){
-
-    if (findMissingAnnotations) {
-      return (TypeName actualNode) {
-
-        if (actualNode == null) {
-          var loc =  expected.lineInfo.getLocation(expectedNode.offset);
-          print('Potential missing type at ${loc.lineNumber}:${loc.columnNumber}');
-        }
-        
-        return new Result.Empty();
-      };
-    } else {
-      return (TypeName actualNode){
-        return classify(expectedNode, actualNode);
-      };
-    }
+    return (TypeName actualNode){
+      return classify(expectedNode, actualNode, false);
+    };
   }
   
   visitAdjacentStrings(AdjacentStrings expectedNode){
