@@ -16,3 +16,9 @@
 [submodule "benchmarks/play_phaser"]
 	path = benchmarks/play_phaser
 	url = git@github.com:playif/play_phaser.git
+[submodule "benchmarks/play_p2"]
+	path = benchmarks/play_p2
+	url = git@github.com:playif/play_p2.git
+[submodule "benchmarks/play_pixi"]
+	path = benchmarks/play_pixi
+	url = git@github.com:playif/play_pixi.git
