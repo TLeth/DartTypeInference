@@ -86,10 +86,10 @@ class Annotator {
         rethrow;
       }
       
-      if (engine.options.noOverride)
-        print(finalSource.source);        
+      if (engine.options.overrideFiles)
+        new File.fromUri(sourceElement.source.uri).writeAsStringSync(finalSource.source);        
       else
-        new File.fromUri(sourceElement.source.uri).writeAsStringSync(finalSource.source);
+        print(finalSource.source);
     }
   }
 }
