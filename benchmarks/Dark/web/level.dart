@@ -63,7 +63,7 @@ class PerformLater {
   double time;
   Function toPerform;
   
-  PerformLater(double this.time, Function this.toPerform);
+  PerformLater(this.time, this.toPerform);
 }
 
 class Level {
@@ -83,7 +83,7 @@ class Level {
   
   HashMap<int, List<Sector>> sectorsWithTag = new HashMap<int, List<Sector>>();
 
-  Level(WAD.Level this.levelData) {
+  Level(this.levelData) {
     sectors = new List<Sector>(levelData.sectors.length);
     walls = new List<Wall>(levelData.linedefs.length);
     sidedefs = new List<Sidedef>(levelData.sidedefs.length);
@@ -313,7 +313,7 @@ class Segment {
   double sortDistance;
   double lowDistance, highDistance;
   
-  Segment(Level level, WAD.Seg this.data) {
+  Segment(Level level, this.data) {
     this.x0 = data.startVertex.x+0.0;
     this.y0 = data.startVertex.y+0.0;
     this.x1 = data.endVertex.x+0.0;
@@ -379,7 +379,7 @@ class Wall {
   
   bool triggerUsable = true;
   
-  Wall(Level level, WAD.Linedef this.data) {
+  Wall(Level level, this.data) {
     if (data.leftSectorId!=-1) leftSector = level.sectors[data.leftSectorId];
     if (data.rightSectorId!=-1) rightSector = level.sectors[data.rightSectorId];
     if (data.leftSidedefId!=-1) leftSidedef = level.sidedefs[data.leftSidedefId];
@@ -437,7 +437,7 @@ class Sidedef {
   Image middleTexture, upperTexture, lowerTexture;
   double xTextureOffs, yTextureOffs;
   
-  Sidedef(Level level, WAD.Sidedef this.data) {
+  Sidedef(Level level, this.data) {
     middleTexture = resources.wallTextures.containsKey(data.middleTexture)?resources.wallTextures[data.middleTexture]:null; 
     upperTexture = resources.wallTextures.containsKey(data.upperTexture)?resources.wallTextures[data.upperTexture]:null;
     lowerTexture = resources.wallTextures.containsKey(data.lowerTexture)?resources.wallTextures[data.lowerTexture]:null;
@@ -491,7 +491,7 @@ class Sector {
   Vector3 centerPos;
   LinedefTrigger onlyTriggerableBy = null;
 
-  Sector(Level level, WAD.Sector this.data) {
+  Sector(Level level, this.data) {
     floorHeight = data.floorHeight+0.0;
     ceilingHeight = data.ceilingHeight+0.0;
     floorTexture = resources.flats[data.floorTexture];
@@ -507,7 +507,7 @@ class Sector {
     double x1 = -100000000000.0;
     double y0 = 100000000000.0;
     double y1 = -100000000000.0;
-    segments.forEach((Segment segment) {
+    segments.forEach((segment) {
       if (segment.sector==this) {
         if (segment.x0<x0) x0 = segment.x0;
         if (segment.y0<y0) y0 = segment.y0;
@@ -518,7 +518,7 @@ class Sector {
     });
     neighborSectors = new List<Sector>.from(neighbors);
     darkestNeighbor = lightLevel;
-    neighborSectors.forEach((Sector sector) {
+    neighborSectors.forEach((sector) {
       if (sector.lightLevel<darkestNeighbor) {
         darkestNeighbor = sector.lightLevel;
       }

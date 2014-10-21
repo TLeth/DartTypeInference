@@ -4,25 +4,25 @@ class Texture {
   static List<Texture> all = new List<Texture>();
   
   static void loadAll() {
-    all.forEach((Texture texture)=>texture.load());
+    all.forEach((texture)=>texture.load());
   }
 
   String url;
-  Texture(String this.url) {
+  Texture(this.url) {
     all.add(this);
   }
   
   GL.Texture texture;
   
-  void load() {
+  load() {
     ImageElement img = new ImageElement();
     texture = gl.createTexture();
-    img.onLoad.listen((Event e) {
+    img.onLoad.listen((e) {
       gl.bindTexture(GL.TEXTURE_2D,  texture);
       gl.texImage2DImage(GL.TEXTURE_2D,  0,  GL.RGBA,  GL.RGBA,  GL.UNSIGNED_BYTE, img);
       gl.texParameteri(GL.TEXTURE_2D,  GL.TEXTURE_MIN_FILTER, GL.NEAREST);
       gl.texParameteri(GL.TEXTURE_2D,  GL.TEXTURE_MAG_FILTER, GL.NEAREST);
-    }, onError: (Error e) => print(e));
+    }, onError: (e) => print(e));
     img.src = url;
   }
 }
@@ -33,7 +33,7 @@ class ImageAtlas {
   int width, height;
   ImageAtlasCell cell;
   
-  ImageAtlas(int this.width, int this.height) {
+  ImageAtlas(this.width, this.height) {
     cell = new ImageAtlasCell(0, 0, width, height);
   }
   
@@ -60,7 +60,7 @@ class ImageAtlasCell {
   Image content;
   ImageAtlasCell child0, child1;
   
-  ImageAtlasCell(int this.x, int this.y, int this.width, int this.height) {
+  ImageAtlasCell(this.x, this.y, this.width, this.height) {
   }
   
   bool insert(Image image) {

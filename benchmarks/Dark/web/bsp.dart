@@ -6,8 +6,8 @@ class HitResult {
   Entity entity;
   Vector3 pos;
   
-  HitResult.seg(Segment this.segment);
-  HitResult.ent(Entity this.entity);
+  HitResult.seg(this.segment);
+  HitResult.ent(this.entity);
   HitResult.floor();
   HitResult.ceiling();
 }
@@ -17,7 +17,7 @@ class BSP {
   BSPNode root;
   Culler culler = new Culler();
   
-  BSP(Level this.level) {
+  BSP(this.level) {
     root = new BSPNode(level, level.levelData.nodes.last);
   }
   
@@ -233,7 +233,7 @@ class BSP {
 class ClipRange {
   double x0, x1;
   
-  ClipRange(double this.x0, double this.x1);
+  ClipRange(this.x0, this.x1);
   void set(double x0, double x1) {
     this.x0 = x0;
     this.x1 = x1;
@@ -355,7 +355,7 @@ class Culler {
     }
   }
   
-  static const double clipDist = 8.00;
+  static const clipDist = 8.00;
   void checkOccluders(SubSector subSector, List<Segment> result, int id) {
     subSector.sortedSubSectorId = id;
     for (int i=0; i<subSector.segs.length; i++) {
@@ -414,7 +414,7 @@ class Culler {
 class Bounds {
   double x0, y0, x1, y1;
   
-  Bounds(double this.x0, double this.y0, double this.x1, double this.y1);
+  Bounds(this.x0, this.y0, this.x1, this.y1);
 }
 
 class BSPNode {

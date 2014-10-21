@@ -23,7 +23,7 @@ class Sprites {
   Float32List vertexData = new Float32List(MAX_VERICES*FLOATS_PER_VERTEX);
   int spriteCount = 0;
   
-  Sprites(GL.Texture this.texture) {
+  Sprites(this.texture) {
     vertexBuffer = gl.createBuffer();
     gl.bindBuffer(GL.ARRAY_BUFFER, vertexBuffer);
     gl.bufferDataTyped(GL.ARRAY_BUFFER, vertexData, GL.DYNAMIC_DRAW);
@@ -161,7 +161,7 @@ class SpriteTemplateRot {
   double u1;
   double v1;  
   
-  SpriteTemplateRot(Image this.image, bool this.mirror) {
+  SpriteTemplateRot(this.image, this.mirror) {
     if (mirror) {
       int xc2 = image.width-image.xCenter;
       xOffs0 = (0.0-xc2);
@@ -203,7 +203,7 @@ class SpriteTemplate {
   String name;
   List<SpriteTemplateFrame> frames = new List<SpriteTemplateFrame>();
   
-  SpriteTemplate(String this.name) {
+  SpriteTemplate(this.name) {
   }
   
   void addFrame(Image image, int frame, int rot, bool mirror) {
@@ -250,7 +250,7 @@ class ScreenRenderer {
   
   Float32List vertexData = new Float32List(4*FLOATS_PER_VERTEX);
   
-  ScreenRenderer(Shader this.shader, GL.Texture this.texture, GL.Texture this.colorLookupTexture) {
+  ScreenRenderer(this.shader, this.texture, this.colorLookupTexture) {
     vertexBuffer = gl.createBuffer();
     gl.bindBuffer(GL.ARRAY_BUFFER, vertexBuffer);
     gl.bufferDataTyped(GL.ARRAY_BUFFER, vertexData, GL.DYNAMIC_DRAW);
@@ -334,7 +334,7 @@ class SkyRenderer {
   
   Float32List vertexData = new Float32List(4*FLOATS_PER_VERTEX);
   
-  SkyRenderer(Shader this.shader, GL.Texture this.texture) {
+  SkyRenderer(this.shader, this.texture) {
     vertexBuffer = gl.createBuffer();
     gl.bindBuffer(GL.ARRAY_BUFFER, vertexBuffer);
     gl.bufferDataTyped(GL.ARRAY_BUFFER, vertexData, GL.DYNAMIC_DRAW);

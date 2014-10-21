@@ -231,7 +231,7 @@ class Animation {
   int frame = 0;
   int size = 0;
 
-  Animation(String this.startFlatName, String this.endFlatName) {
+  Animation(this.startFlatName, this.endFlatName) {
   }
 
   void add(String flatName, Image image) {
@@ -256,7 +256,7 @@ class Animation {
 class Vertex {
   int x, y;
 
-  Vertex(int this.x, int this.y);
+  Vertex(this.x, this.y);
 
   static List<Vertex> read(LumpInfo lump, WadByteData data) {
     int vertexCount = lump.size ~/ 4;
@@ -284,10 +284,10 @@ class Level {
   Blockmap blockmap;
 
   void compile(WadFile wadFile) {
-    linedefs.forEach((Linedef l) => l.compile(this));
-    sidedefs.forEach((Sidedef s) => s.compile(this));
-    sSectors.forEach((SSector s) => s.compile(this));
-    segs.forEach((Seg s) => s.compile(this));
+    linedefs.forEach((l) => l.compile(this));
+    sidedefs.forEach((s) => s.compile(this));
+    sSectors.forEach((s) => s.compile(this));
+    segs.forEach((s) => s.compile(this));
     blockmap.compile(this);
   }
 }
@@ -303,7 +303,7 @@ class BlockCell {
   List<Linedef> linedefs;
 
   void compile(Level level) {
-    linedefs = new List<Linedef>.from(linedefIds.map((int id) => level.linedefs[id]), growable: false);
+    linedefs = new List<Linedef>.from(linedefIds.map((id) => level.linedefs[id]), growable: false);
   }
 }
 
@@ -714,14 +714,14 @@ class Image {
     return true;
   }
 
-  Image.empty(String this.name, int this.width, int this.height) {
+  Image.empty(this.name, this.width, this.height) {
     this.xCenter = 0;
     this.yCenter = 0;
 
     pixels = new Int16List(width * height)..fillRange(0,  width*height, -1);
   }
 
-  Image.tuttiFruttiEmpty(String this.name, int this.width, int this.height) {
+  Image.tuttiFruttiEmpty(this.name, this.width, this.height) {
     this.xCenter = 0;
     this.yCenter = 0;
 
@@ -752,7 +752,7 @@ class Image {
     }
   }
 
-  Image.readFlat(String this.name, WadByteData data) {
+  Image.readFlat(this.name, WadByteData data) {
     width = 64;
     height = 64;
     xCenter = 0;
@@ -781,7 +781,7 @@ class Image {
     }
   }
 
-  Image.read(String this.name, WadByteData data) {
+  Image.read(this.name, WadByteData data) {
     width = data.getInt16(0x00);
     height = data.getInt16(0x02);
     xCenter = data.getInt16(0x04);
@@ -815,7 +815,7 @@ class LumpInfo {
   int filePos, size, index;
   String name;
 
-  LumpInfo(String this.name, int this.filePos, int this.size, int this.index);
+  LumpInfo(this.name, this.filePos, this.size, this.index);
 
   WadByteData getByteData(WadByteData data) {
     return new WadByteData.view(data.data, filePos, size);

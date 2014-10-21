@@ -10,11 +10,11 @@ class WadByteData {
   int lengthInBytes;
   int offsetInBytes = 0;
   
-  WadByteData(ByteData this.data) {
+  WadByteData(this.data) {
     this.lengthInBytes = data.lengthInBytes;
   }
 
-  WadByteData.view(ByteData this.data, int offset, [int length = -1]) {
+  WadByteData.view(this.data, int offset, [int length = -1]) {
     this.offsetInBytes = offset;
     this.lengthInBytes = length>=0?length:(data.lengthInBytes-offset);
   }

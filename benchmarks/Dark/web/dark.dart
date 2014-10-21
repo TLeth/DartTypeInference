@@ -24,7 +24,7 @@ part "weapon.dart";
 part "linedeftriggers.dart";
 
 
-const int TEXTURE_ATLAS_SIZE = 1024;
+const TEXTURE_ATLAS_SIZE = 1024;
 
 bool crashed = false;
 bool gameVisible = false;
@@ -33,10 +33,11 @@ int screenWidth, screenHeight;
 
 int textureScrollOffset = 0;
 int transparentNoiseTime = 0;
-CanvasElement canvas;
+var canvas;
 GL.RenderingContext gl;
 
-PreElement consoleText;
+var consoleText;
+
 
 ScreenRenderer screenRenderer;
 ScreenRenderer transferRenderer;
@@ -56,7 +57,7 @@ void main() {
 
 int xMouseMovement = 0, yMouseMovement = 0;
 
-DivElement consoleHolder = querySelector("#consoleHolder");
+var consoleHolder = querySelector("#consoleHolder");
 void startup() {
 //  wadFile = new WadFile();
   consoleText = querySelector("#consoleText");
@@ -81,7 +82,7 @@ void startup() {
 
   for (int i=0; i<256; i++) lastFrameKeys[i] = keys[i] = false;
 
-  window.onKeyDown.listen((KeyboardEvent e) {
+  window.onKeyDown.listen((e) {
     if (!gameVisible) return;
     topLevelCatch((){
       print(e.keyCode);
@@ -89,14 +90,14 @@ void startup() {
     });
   });
 
-  window.onKeyUp.listen((KeyboardEvent e) {
+  window.onKeyUp.listen((e) {
     if (!gameVisible) return;
     topLevelCatch((){
       if (e.keyCode<256) keys[e.keyCode] = false;
     });
   });
 
-  window.onBlur.listen((Event e) {
+  window.onBlur.listen((e) {
     if (!gameVisible) return;
     topLevelCatch((){
       for (int i=0; i<256; i++) keys[i] = false;
@@ -106,7 +107,7 @@ void startup() {
   
   audioContext = new AudioContext();
 
-  canvas.onMouseDown.listen((MouseEvent e) {
+  canvas.onMouseDown.listen((e) {
     if (!gameVisible) return;
     topLevelCatch((){
       if (document.pointerLockElement!=canvas) {
@@ -117,11 +118,11 @@ void startup() {
     });
   });
   
-  canvas.onMouseUp.listen((MouseEvent e) {
+  canvas.onMouseUp.listen((e) {
     fireButton=false;
   });  
   
-  window.onMouseMove.listen((MouseEvent e) {
+  window.onMouseMove.listen((e) {
     if (!gameVisible) return;
     topLevelCatch((){
       if (document.pointerLockElement==canvas && player!=null) {
@@ -132,17 +133,17 @@ void startup() {
   });
   
   printToConsole("Loading and compiling shaders");
-  shaders.loadAndCompileAll().catchError((Error e){
+  shaders.loadAndCompileAll().catchError((e){
     crash("Failed to load shaders", e);
-  }).then((Shader _) { 
+  }).then((_) { 
     topLevelCatch(() {
       printToConsole("Loading WAD file");
-      attemptToLoadWadData(["originaldoom/doom.wad", "freedoom/doom.wad"]).then((ByteData data) {
+      attemptToLoadWadData(["originaldoom/doom.wad", "freedoom/doom.wad"]).then((data) {
         topLevelCatch((){
           WAD.WadFile wadFile = new WAD.WadFile.read(data); 
           wadFileLoaded(wadFile);
         });
-      }).catchError((Error e) {
+      }).catchError((e) {
         crash("Failed to load WAD file", e);
       });
     });
@@ -152,14 +153,14 @@ void startup() {
 Future<ByteData> attemptToLoadWadData(List<String> urls) {
   Completer<ByteData> completer = new Completer<ByteData>();
 
-  Future<ByteData> future = loadByteDataFromUrl(urls[0]).then((ByteData byteData) {
+  Future<ByteData> future = loadByteDataFromUrl(urls[0]).then((byteData) {
     completer.complete(byteData);
-  }).catchError((Error e) {
+  }).catchError((e) {
     if (urls.length>1) {
       printToConsole("Can't find ${urls[0]}, trying ${urls[1]}");
-      attemptToLoadWadData(urls.sublist(1)).then((ByteData byteData) {
+      attemptToLoadWadData(urls.sublist(1)).then((byteData) {
         completer.complete(byteData);
-      }).catchError((Error e) {
+      }).catchError((e) {
         completer.completeError(e);
       });
     } else {
@@ -190,15 +191,15 @@ void loadLevel(String levelName) {
 Future<String> loadStringFromUrl(String url) {
   Completer<String> completer = new Completer<String>();
   ByteData result;
-  HttpRequest request = new HttpRequest();
+  var request = new HttpRequest();
   request.open("get",  url);
-  Future future = request.onLoadEnd.first.then((ProgressEvent e) {
+  Future future = request.onLoadEnd.first.then((e) {
     if (request.status~/100==2) {
       completer.complete(request.response as String);
     } else {
       completer.completeError("Can't load $url. Response type ${request.status}");
     }
-  }).catchError((Error e)=>completer.completeError(e));
+  }).catchError((e)=>completer.completeError(e));
   request.send("");
   
   return completer.future;
@@ -210,17 +211,17 @@ Future<ByteData> loadByteDataFromUrl(String url) {
   HttpRequest request = new HttpRequest();
   request.open("get",  url);
   request.responseType = "arraybuffer";
-  request.onProgress.every((ProgressEvent progressEvent) {
+  request.onProgress.every((progressEvent) {
     printToConsoleNoNewLine(".");
     return true;
   });
-  Future future = request.onLoadEnd.first.then((ProgressEvent e) {
+  Future future = request.onLoadEnd.first.then((e) {
     if (request.status~/100==2) {
       completer.complete(new ByteData.view(request.response as ByteBuffer));
     } else {
       completer.completeError("Can't load $url. Response type ${request.status}");
     }
-  }).catchError((Error e)=>completer.completeError(e));
+  }).catchError((e)=>completer.completeError(e));
   request.send("");
   
   return completer.future;
@@ -278,7 +279,7 @@ class GameEndError extends Error {
   }
 }
 
-void crash(String title, String payload, [String stackTrace = null]) {
+void crash(String title, var payload, [stackTrace = null]) {
   if (crashed) throw payload;
   
   try {
@@ -386,7 +387,7 @@ class SoundChannel {
     double rate = 1.0+((random.nextDouble()-0.5)*0.1);
     source = audioContext.createBufferSource();
     source.playbackRate.setValueAtTime(rate,  0.0);
-    source.onEnded.listen((Event e)=>finished());
+    source.onEnded.listen((e)=>finished());
     AudioNode node = source;
     if (volume!=1.0) {
       GainNode gain = audioContext.createGain();
@@ -512,7 +513,7 @@ void start(Level _level) {
   skyRenderer = new SkyRenderer(shaders.skyShader, skyTexture);
 
   querySelector("#consoleHolder").setAttribute("style",  "display:none;");
-  window.onResize.listen((Event event) => resize());
+  window.onResize.listen((event) => resize());
   resize();
   
   pannerNode = audioContext.createPanner();
@@ -532,7 +533,7 @@ class Framebuffer {
   GL.Framebuffer framebuffer;
   static GL.Renderbuffer depthbuffer;
 
-  Framebuffer(int this.width, int this.height) {
+  Framebuffer(this.width, this.height) {
     framebuffer = gl.createFramebuffer();
     gl.bindFramebuffer(GL.FRAMEBUFFER, framebuffer);
 
@@ -640,7 +641,7 @@ void renderGame() {
   }
   
   Set<Entity> visibleEntities = new Set<Entity>();
-  visibleSectors.forEach((Sector sector)=>visibleEntities.addAll(sector.entities));
+  visibleSectors.forEach((sector)=>visibleEntities.addAll(sector.entities));
 
   renderers.floors.buildBackWallHackData(visibleSegs, cameraPos);
   
@@ -659,7 +660,7 @@ void renderGame() {
   gl.depthFunc(GL.LEQUAL);
 
   gl.viewport(0,  0,  screenWidth,  screenHeight);
-  renderers.walls.values.forEach((Walls walls) {
+  renderers.walls.values.forEach((walls) {
     walls.render();
     walls.clear();
   });
@@ -676,32 +677,32 @@ void renderGame() {
   gl.disable(GL.BLEND);
   projectionMatrix = oldMatrix;
 
-  visibleEntities.forEach((Entity entity) {
+  visibleEntities.forEach((entity) {
     entity.addToDisplayList(player.rot);
   });
 
 
   gl.depthFunc(GL.ALWAYS);
-  renderers.spriteMaps.values.forEach((Sprites sprites) {
+  renderers.spriteMaps.values.forEach((sprites) {
     sprites.render(shaders.spriteShader, segDistanceBuffer.texture, segNormalBuffer.texture, true);
   });
   gl.colorMask(false, false, false, false);
-  renderers.transparentSpriteMaps.values.forEach((Sprites sprites) {
+  renderers.transparentSpriteMaps.values.forEach((sprites) {
     sprites.render(shaders.spriteShader, segDistanceBuffer.texture, segNormalBuffer.texture, true);
   });
   gl.colorMask(true, true, true, true);
   gl.depthFunc(GL.LEQUAL);
-  renderers.spriteMaps.values.forEach((Sprites sprites) {
+  renderers.spriteMaps.values.forEach((sprites) {
     sprites.render(shaders.spriteShader, segDistanceBuffer.texture, segNormalBuffer.texture, true);
     sprites.clear();
   });
   gl.colorMask(false, false, false, false);
-  renderers.transparentSpriteMaps.values.forEach((Sprites sprites) {
+  renderers.transparentSpriteMaps.values.forEach((sprites) {
     sprites.render(shaders.spriteShader, segDistanceBuffer.texture, segNormalBuffer.texture, true);
   });
   gl.colorMask(true, true, true, true);
   
-  renderers.transparentMiddleWalls.values.forEach((Walls walls) {
+  renderers.transparentMiddleWalls.values.forEach((walls) {
     walls.render();
     walls.clear();
   });
@@ -722,7 +723,7 @@ void renderGame() {
   gl.enable(GL.DEPTH_TEST);
   projectionMatrix = oldProjection;
   
-  renderers.transparentSpriteMaps.values.forEach((Sprites sprites) {
+  renderers.transparentSpriteMaps.values.forEach((sprites) {
     sprites.render(shaders.transparentSpriteShader, indexColorBuffers[1].texture, indexColorBuffers[1].texture, false);
     sprites.clear();
   });
@@ -756,7 +757,7 @@ void renderGui() {
   gl.enable(GL.BLEND);
   gl.disable(GL.CULL_FACE);
   gl.blendFunc(GL.SRC_ALPHA,  GL.ONE_MINUS_SRC_ALPHA);
-  renderers.guiSprites.values.forEach((Sprites sprites) {
+  renderers.guiSprites.values.forEach((sprites) {
     sprites.render(shaders.spriteShader, segDistanceBuffer.texture, segNormalBuffer.texture, false);
     sprites.clear();
   });  
@@ -800,7 +801,7 @@ void updateAnimations(double passedTime) {
 double time = 0.0;
 void requestAnimationFrame() {
   if (crashed) return;
-  window.animationFrame.then((num time)=>topLevelCatch(()=>render(time)));
+  window.animationFrame.then((time)=>topLevelCatch(()=>render(time)));
 }
 
 double lastTime = -1.0;

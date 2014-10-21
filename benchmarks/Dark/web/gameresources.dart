@@ -11,9 +11,9 @@ class WallAnimation {
   
   Map<String, Image> mapToAnimate;
 
-  WallAnimation(WAD.Animation data, Map<String, Image> this.mapToAnimate) {
+  WallAnimation(WAD.Animation data, this.mapToAnimate) {
     wallNames = new List<String>.from(data.flatNames, growable: false);
-    images = new List<Image>.from(wallNames.map((String name)=>mapToAnimate[name]));
+    images = new List<Image>.from(wallNames.map((name)=>mapToAnimate[name]));
     size = images.length;
   }
 
@@ -116,7 +116,7 @@ class GameResources {
   HashMap<String, Image> wallTextures, flats, sprites;
   WAD.WadFile wadFile;
   
-  GameResources(WAD.WadFile this.wadFile) {
+  GameResources(this.wadFile) {
   }
   
   void loadAll() {
@@ -133,7 +133,7 @@ class GameResources {
     flats = loadImagesIntoTextureAtlases(wadFile.flats, renderers.setFlatMap);
     sprites = loadImagesIntoTextureAtlases(wadFile.sprites, renderers.addSpriteMap);
     
-    sprites.values.forEach((Sprite sprite) {
+    sprites.values.forEach((sprite) {
       SpriteTemplate.addFrameFromLump(sprite.name, sprite);
     });
 
@@ -143,7 +143,7 @@ class GameResources {
   HashMap<String, Image> loadImagesIntoTextureAtlases(HashMap<String, WAD.Image> wadImages, Function onNewImageAtlas) {
     HashMap<String, Image> result = new HashMap<String, Image>();
     List<Image> toInsert = new List<Image>();
-    wadImages.forEach((String name, wadImage) {
+    wadImages.forEach((name, wadImage) {
       Image image = new Image.fromWadImage(wadImage);
       result[name] = image;
       toInsert.add(image);
@@ -165,7 +165,7 @@ class GameResources {
   }
   
   void loadSounds() {
-    wadFile.samples.forEach((String name, sample) {
+    wadFile.samples.forEach((name, sample) {
       if (sample==null) {
         printToConsole("$name is not a sample!");
         AudioBuffer audioBuffer = audioContext.createBuffer(1, 1000, 11000);

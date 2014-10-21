@@ -4,16 +4,16 @@ class PlayerSpawn {
   Vector3 pos;
   double rot;
   
-  PlayerSpawn(Vector3 this.pos, double this.rot);
+  PlayerSpawn(this.pos, this.rot);
 }
 
 class EntityBlockerType {
-  static const EntityBlockerType NONE = const EntityBlockerType._(0);
-  static const EntityBlockerType BLOCKING = const EntityBlockerType._(1);
-  static const EntityBlockerType PICKUP = const EntityBlockerType._(2);
+  static const NONE = const EntityBlockerType._(0);
+  static const BLOCKING = const EntityBlockerType._(1);
+  static const PICKUP = const EntityBlockerType._(2);
 
   final int type;
-  const EntityBlockerType._(int this.type);
+  const EntityBlockerType._(this.type);
 }
 
 class Entity {
@@ -38,11 +38,11 @@ class Entity {
   
   BlockCell blockCell;
   
-  Entity(Level this.level, Vector3 this.pos, EntityBlockerType this.blockerType) {
+  Entity(this.level, this.pos, this.blockerType) {
     inSector = level.bsp.findSector(pos.x, pos.z);
 //    inSector.entities.add(this);
     inSectors = level.bsp.findSectorsInRadius(pos.x, pos.z, radius*0.9);
-    inSectors.forEach((Sector s)=>s.entities.add(this));
+    inSectors.forEach((s)=>s.entities.add(this));
 
     if (blockerType!=EntityBlockerType.NONE) {
       blockCell = level.blockmap.getBlockCell(pos.x, pos.z);
@@ -86,7 +86,7 @@ class Entity {
     } else if (blockerType==EntityBlockerType.PICKUP) {
       if (blockCell!=null) blockCell.pickups.remove(this);
     }
-    inSectors.forEach((Sector s)=>s.entities.remove(this));
+    inSectors.forEach((s)=>s.entities.remove(this));
     stopSoundAtUniqueId(this);
     
     removed = true;
@@ -131,7 +131,7 @@ class Entity {
       }
     }
     
-    tmpWallsInRange.forEach((Wall wall) {
+    tmpWallsInRange.forEach((wall) {
       double oldDist = oldx*wall.xn+oldy*wall.yn;
       double newDist = pos.x*wall.xn+pos.z*wall.yn;
       if ((oldDist<wall.d && newDist>=wall.d)||
@@ -146,8 +146,8 @@ class Entity {
     tmpSectorsInRange.addAll(sectorsInRange);
     tmpSectorsInRange.add(inSector);
     
-    inSectors.difference(tmpSectorsInRange).forEach((Sector s)=>s.entities.remove(this));
-    tmpSectorsInRange.difference(inSectors).forEach((Sector s)=>s.entities.add(this));
+    inSectors.difference(tmpSectorsInRange).forEach((s)=>s.entities.remove(this));
+    tmpSectorsInRange.difference(inSectors).forEach((s)=>s.entities.add(this));
     inSectors.clear();
     inSectors.addAll(tmpSectorsInRange);
 
@@ -428,7 +428,7 @@ class Projectile extends Entity {
   int animStep;
   double animAccum = 0.0;
   
-  Projectile(String templateName, String this.frames, Level level, Vector3 pos, Vector3 this.dir, Entity this.owner) : super(level, pos, EntityBlockerType.NONE) {
+  Projectile(String templateName, this.frames, Level level, Vector3 pos, this.dir, this.owner) : super(level, pos, EntityBlockerType.NONE) {
     spriteTemplate = spriteTemplates[templateName];
     radius = 8.0;
     height = 8.0;
@@ -452,7 +452,7 @@ class Projectile extends Entity {
     sectorsInRange.clear();
     clipMove(dir,  passedTime, sectorsInRange);
 //    sectorsInRange.add(level.bsp.findSector(pos.x, pos.z));
-    inSectors.forEach((Sector sector) {
+    inSectors.forEach((sector) {
       if (sector.floorHeight>pos.y) collided = true;
       if (sector.ceilingHeight<pos.y+height) collided = true;
     });
@@ -597,7 +597,7 @@ class Mob extends Entity {
 
     double floorHeight = -10000000.0;
 //    sectorsInRange.add(level.bsp.findSector(pos.x, pos.z));
-    inSectors.forEach((Sector sector) {
+    inSectors.forEach((sector) {
       if (sector.floorHeight>floorHeight) floorHeight=sector.floorHeight;
     });
     motion = (pos-oldPos)/passedTime;

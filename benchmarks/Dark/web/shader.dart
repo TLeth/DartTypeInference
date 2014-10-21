@@ -35,7 +35,7 @@ class Shader {
   HashMap<String, GL.UniformLocation> uniforms = new HashMap<String, GL.UniformLocation>();
   
 
-  Shader(String this.name) {
+  Shader(this.name) {
     allShaders.add(this);
   }
   
@@ -82,16 +82,16 @@ class Shader {
     Completer completer = new Completer();
     Shader _this = this;
     
-    loadStringFromUrl("$shaderRootUrl.vertex.glsl").then((String vertexShaderSource) {
-      loadStringFromUrl("$shaderRootUrl.fragment.glsl").then((String fragmentShaderSource) {
+    loadStringFromUrl("$shaderRootUrl.vertex.glsl").then((vertexShaderSource) {
+      loadStringFromUrl("$shaderRootUrl.fragment.glsl").then((fragmentShaderSource) {
         try {
           create(vertexShaderSource, fragmentShaderSource);
           completer.complete(_this);
         } catch (e) {
           completer.completeError("Failed to create shader $name\r$e");
         }
-      }).catchError((Error e)=>completer.completeError(e));
-    }).catchError((Error e)=>completer.completeError(e));
+      }).catchError((e)=>completer.completeError(e));
+    }).catchError((e)=>completer.completeError(e));
     return completer.future;
   }
 

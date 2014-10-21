@@ -145,7 +145,7 @@ class LinedefTrigger {
       wall.triggerUsable = false;
     }
     bool triggered = false;
-    level.getSectorsWithTag(wall.data.tag).forEach((Sector sector) {
+    level.getSectorsWithTag(wall.data.tag).forEach((sector) {
       if (sector.onlyTriggerableBy!=null && sector.onlyTriggerableBy!=this) return;
       
       if (sector.effect==null) {
@@ -191,7 +191,7 @@ class DoorTrigger extends LinedefTrigger {
   int keyNeeded = LinedefTriggers.KEY_NONE;
   int speed;
   
-  DoorTrigger(int this.type, int this.speed) {
+  DoorTrigger(this.type, this.speed) {
   }
   
   void requireKey(int keyNeeded) {
@@ -225,7 +225,7 @@ class CeilingRaiseTrigger extends LinedefTrigger {
 class CeilingLowerTrigger extends LinedefTrigger {
   double gap;
   
-  CeilingLowerTrigger(double this.gap);
+  CeilingLowerTrigger(this.gap);
   
   void triggerOnSector(Sector sector, Wall wall, bool rightSide) {
     sector.effect = new CeilingLowerEffect(gap);
@@ -235,7 +235,7 @@ class CeilingLowerTrigger extends LinedefTrigger {
 class LiftTrigger extends LinedefTrigger {
   int speed;
   
-  LiftTrigger(int this.speed);
+  LiftTrigger(this.speed);
   
   void triggerOnSector(Sector sector, Wall wall, bool rightSide) {
     sector.setEffect(new LiftEffect(speed));
@@ -246,7 +246,7 @@ class FloorRaiseTrigger extends LinedefTrigger {
   int speed;
   bool transferProperties = false;
   
-  FloorRaiseTrigger(int this.speed);
+  FloorRaiseTrigger(this.speed);
   
   void setTransferProperties() {
     this.transferProperties = true;
@@ -264,7 +264,7 @@ class FloorRaiseNextHigherTrigger extends FloorRaiseTrigger {
 class FloorRaiseLowestCeilingTrigger extends FloorRaiseTrigger {
   double margin = 0.0;
   
-  FloorRaiseLowestCeilingTrigger(int speed, double this.margin) : super(speed);
+  FloorRaiseLowestCeilingTrigger(int speed, this.margin) : super(speed);
 }
 
 
@@ -294,7 +294,7 @@ class LiftEffect extends SectorEffect {
   double waitTime = 0.0;
   double startHeight;
   
-  LiftEffect(int this.speed);
+  LiftEffect(this.speed);
   
   void start(Sector sector) {
     super.start(sector);
@@ -315,10 +315,10 @@ class LiftEffect extends SectorEffect {
     double margin = 0.001;
 
     // Maybe move entities on this elevator down..
-    sector.entities.forEach((Entity entity){
+    sector.entities.forEach((entity){
       if (entity.pos.y<=orgHeight+margin) {
         double highest = sector.floorHeight;
-        entity.inSectors.forEach((Sector s) {
+        entity.inSectors.forEach((s) {
           if (s.floorHeight>highest) highest = s.floorHeight;
         });
         if (entity.pos.y>highest+margin) {
@@ -342,9 +342,9 @@ class LiftEffect extends SectorEffect {
     double maxHeight = sector.floorHeight;
     
     double margin = 0.001;
-    sector.entities.forEach((Entity entity){
+    sector.entities.forEach((entity){
       double lowestCeiling = sector.ceilingHeight;
-      entity.inSectors.forEach((Sector s) {
+      entity.inSectors.forEach((s) {
         if (s.ceilingHeight<lowestCeiling) lowestCeiling = s.ceilingHeight;
       });
       double highestPossibleEntityPos = lowestCeiling - entity.height;
@@ -363,10 +363,10 @@ class LiftEffect extends SectorEffect {
     }
     
     // Maybe move entities on this elevator down..
-    sector.entities.forEach((Entity entity){
+    sector.entities.forEach((entity){
       if (entity.pos.y<=orgHeight+margin) {
         double highest = sector.floorHeight;
-        entity.inSectors.forEach((Sector s) {
+        entity.inSectors.forEach((s) {
           if (s.floorHeight>highest) highest = s.floorHeight;
         });
         if (entity.pos.y<highest+margin) {
@@ -433,13 +433,13 @@ class CeilingRaiseEffect extends SectorEffect {
 class CeilingLowerEffect extends SectorEffect {
   double gap;
 
-  CeilingLowerEffect(double this.gap);
+  CeilingLowerEffect(this.gap);
   
   void tick(double passedTime) {
     sector.ceilingHeight-=passedTime*35.0*2.0;
     
     double lowest = sector.floorHeight+gap;
-    sector.entities.forEach((Entity e){
+    sector.entities.forEach((e){
       if (e.pos.y+e.height+1.0>lowest) {
         lowest = e.pos.y+e.height+1.0;
       }
@@ -458,7 +458,7 @@ class DoorEffect extends SectorEffect {
   DoorTrigger trigger; 
   int speed;
   
-  DoorEffect(DoorTrigger this.trigger, int this.speed);
+  DoorEffect(this.trigger, this.speed);
 
   bool openDoor(double passedTime) {
     double lowestNeighborCeiling = 10000000.0; 
@@ -478,7 +478,7 @@ class DoorEffect extends SectorEffect {
   
   bool closeDoor(double passedTime) {
     sector.ceilingHeight-=passedTime*35.0*2.0;
-    sector.entities.forEach((Entity e){
+    sector.entities.forEach((e){
       if (e.pos.y+e.height+1.0>=sector.ceilingHeight) {
         hitEntityOnClose(e, e.pos.y+e.height+1.0);
       }
