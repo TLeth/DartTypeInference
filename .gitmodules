@@ -22,3 +22,6 @@
 [submodule "benchmarks/play_pixi"]
 	path = benchmarks/play_pixi
 	url = git@github.com:playif/play_pixi.git
+[submodule "benchmarks/start"]
+	path = benchmarks/start
+	url = git@github.com:lvivski/start.git
