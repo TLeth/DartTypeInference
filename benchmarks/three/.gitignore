@@ -1,9 +1,0 @@
-thumbs.db
-robots.txt
-.project
-packages
-pubspec.lock
-*.js
-*.map
-*.dart.js.deps
-out
