@@ -4,3 +4,6 @@
 [submodule "benchmarks/StageXL"]
 	path = benchmarks/StageXL
 	url = git@github.com:bp74/StageXL.git
+[submodule "benchmarks/three"]
+	path = benchmarks/three
+	url = git@github.com:threeDart/three.dart.git
