@@ -82,5 +82,6 @@ import 'getter_staticmethod.dart';
 import 'gettersetter.dart';
 import 'method_gettersetter.dart';
 import 'static_gettersetter.dart';
+import 'generic.dart';
 
 void main() {}
