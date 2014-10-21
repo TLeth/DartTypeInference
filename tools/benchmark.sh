@@ -32,7 +32,7 @@ do
 
   dartDir=$(which dart)
 
-  dart "../../bin/analyze.dart" --dart-sdk ${dartDir%bin/dart} $(head -n 1 ./files.info)
+  dart "../../bin/analyze.dart" --dart-sdk ${dartDir%bin/dart} -w $(head -n 1 ./files.info)
 
   type_mismatch_diffs=0
   generic_misses_diffs=0

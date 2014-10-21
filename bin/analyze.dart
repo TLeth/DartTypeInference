@@ -33,7 +33,7 @@ class CommandLineOptions {
   final List<String> sourceFiles;
   
   /** Wheather to override the local files */
-  final bool noOverride; 
+  final bool overrideFiles; 
 
   /** Whether to report hints */
   final bool disableHints;
@@ -67,7 +67,7 @@ class CommandLineOptions {
    * Initialize options from the given parsed [args].
    */
   CommandLineOptions._fromArgs(ArgResults args)
-    : noOverride = args['no-override'],
+    : overrideFiles = args['override'],
       disableHints = args['no-hints'],
       displayVersion = args['version'],
       enableAsync = args['enable-async'],
@@ -119,8 +119,8 @@ class CommandLineOptions {
       ..addOption('actual-basedir', help: 'Basedir, used to find correct expected files')
       ..addFlag('version', help: 'Print the analyzer version',
           defaultsTo: false, negatable: false)
-      ..addFlag('no-override', help: 'Dont override files.', 
-          abbr: 'o', defaultsTo: false, negatable: false)
+      ..addFlag('override', help: 'Override files.', 
+          abbr: 'w', defaultsTo: false, negatable: false)
       ..addFlag('help', abbr: 'h', help: 'Display this help message',
           defaultsTo: false, negatable: false)
       ..addFlag('log', help: 'Log additional messages and exceptions',
