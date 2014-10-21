@@ -1,0 +1,3 @@
+[submodule "benchmarks/Dark"]
+	path = benchmarks/Dark
+	url = git@github.com:xNotch/dark.git
