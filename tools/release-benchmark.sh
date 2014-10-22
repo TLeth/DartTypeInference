@@ -63,8 +63,8 @@ for benchmark in $benchmarks; do
         # delete ];
         sed -i '' -e '$ d' benchmarks/results.json
 
-        date=$(date -j -f "%a %b %d %T %Z %Y" "`date`" "+%s")
-        printf "{\"benchmark\": \"%s\", \"rev\": \"%s\", \"time\": \"%s\", \"data\":" $benchmark $(git rev-parse HEAD) $date >> benchmarks/results.json
+        #date=$(date -j -f "%a %b %d %T %Z %Y" "`date`" "+%s")
+        printf "{\"benchmark\": \"%s\", \"rev\": \"%s\", \"time\": \"%s\", \"data\":" $benchmark $(git rev-parse HEAD) $(date) >> benchmarks/results.json
         cat res.json >> benchmarks/results.json
         printf "}\n];" >> benchmarks/results.json
 
