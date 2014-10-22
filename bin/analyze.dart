@@ -22,7 +22,8 @@ class CommandLineOptions {
   
   /** true if actual and expected are present */
   bool get compareTypes => actualRootPath != null && expectedRootPath != null;
-
+  final bool emitJSON;
+  
   /** Whether to log additional analysis messages and exceptions */
   final bool log;
 
@@ -82,6 +83,7 @@ class CommandLineOptions {
       printElementNodes = args['debug-element'],
       expectedRootPath = args['expected-basedir'],
       actualRootPath = args['actual-basedir'],
+      emitJSON = args['json'],
       sourceFiles = args.rest;
   
   CommandLineOptions({bool this.overrideFiles: false,
@@ -99,6 +101,7 @@ class CommandLineOptions {
     bool this.printElementNodes: false,
     String this.expectedRootPath: null,
     String this.actualRootPath: null,
+    bool this.emitJSON: false,
     List<String> this.sourceFiles: null}) {
     {
       var sdkPath = this.dartSdkPath;
@@ -148,6 +151,7 @@ class CommandLineOptions {
           help: 'The path to the package root')
       ..addOption('expected-basedir', help: 'Path to expected output')
       ..addOption('actual-basedir', help: 'Basedir, used to find correct expected files')
+      ..addFlag('json', help: 'Emit JSON formatted results', negatable: false)
       ..addFlag('version', help: 'Print the analyzer version',
           defaultsTo: false, negatable: false)
       ..addFlag('override', help: 'Override files.', 

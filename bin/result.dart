@@ -16,9 +16,12 @@ import 'package:analyzer/src/generated/error.dart';
 
 CompilationUnit expectedUnit, actualUnit;
 SourceElement sourceElem;
-
-Result compareTypes(String expectedFile, String actualFile, SourceElement sourceElement) {
+String expectedFileName;
+bool findingNewTypes;
+Result compareTypes(String expectedFile, String actualFile, SourceElement sourceElement, bool b) {
     sourceElem = sourceElement;
+    expectedFileName = expectedFile.split('/')[expectedFile.split('/').length - 1];
+    findingNewTypes = b;
     
     actualUnit = getCompilationUnit(new FileBasedSource.con1(new JavaFile(actualFile)));
     expectedUnit = getCompilationUnit(new FileBasedSource.con1(new JavaFile(expectedFile)));    
@@ -38,6 +41,8 @@ class Result {
   List shouldBeGenericTypeAnnotation = [];
   List genericTypeArgumentMissing = [];
   List unresolvedTypeAnnotation = [];
+  List newDynamicAnnotations = [];
+  List newNoneDynamicAnnotations = [];
   
   Result();
   
@@ -53,7 +58,9 @@ class Result {
       'unrelatedAnnotations': this.unrelatedAnnotations,
       'shouldBeGenericTypeAnnotation': this.shouldBeGenericTypeAnnotation,
       'genericTypeArgumentMissing': this.genericTypeArgumentMissing,
-      'unresolvedTypeAnnotation': this.unresolvedTypeAnnotation
+      'unresolvedTypeAnnotation': this.unresolvedTypeAnnotation,
+      'newDynamicAnnotations': this.newDynamicAnnotations,
+      'newNoneDynamicAnnotations': this.newNoneDynamicAnnotations
     };
     
     return new JsonEncoder().convert(m);
@@ -69,6 +76,8 @@ class Result {
     this.shouldBeGenericTypeAnnotation.addAll(other.shouldBeGenericTypeAnnotation);
     this.unresolvedTypeAnnotation.addAll(other.unresolvedTypeAnnotation);
     this.genericTypeArgumentMissing.addAll(other.genericTypeArgumentMissing);
+    this.newDynamicAnnotations.addAll(other.newDynamicAnnotations);
+    this.newNoneDynamicAnnotations.addAll(other.newNoneDynamicAnnotations);
   }
 
   String toString() => 
@@ -81,7 +90,9 @@ class Result {
           Total annotations where we gave up(dynamic): ${noTypeAnnotations.length}
           Total unrelated annotations: ${unrelatedAnnotations.length}
           Total Type arguments missing: ${genericTypeArgumentMissing.length}
-          Total unresolvable typeannotations: ${unresolvedTypeAnnotation.length}""";
+          Total unresolvable typeannotations: ${unresolvedTypeAnnotation.length}
+          Total new Dynamic Annotations: ${newDynamicAnnotations.length}
+          Total new None Dynamic Annotations: ${newNoneDynamicAnnotations.length}""";
 }
 
 //expected always non-null
@@ -92,12 +103,25 @@ Result classify(TypeName expected, TypeName actual, bool comparingGeneric) {
 
   LineInfo_Location loc = expectedUnit.lineInfo.getLocation(expected.offset);
   Map entry = {
-    'url': sourceElem.source.fullName,
+    'url': expectedFileName,
     'line': loc.lineNumber,
     'col': loc.columnNumber,
     'expected': expected.toString(),
     'actual': actual.toString()
   };
+  
+  if (findingNewTypes) {
+    if (actual == null) {
+      if (expected.name.toString() == 'dynamic') {
+        res.newDynamicAnnotations.add(entry);        
+      } else {
+        res.newNoneDynamicAnnotations.add(entry);
+      }
+    }
+      
+    return res;
+  }
+  
 
   //Sum total annotations in expectedFile
   res.expectedFileAnnotations++;
@@ -120,10 +144,10 @@ Result classify(TypeName expected, TypeName actual, bool comparingGeneric) {
       res.preciseAnnotations = [entry];
     } else if (expected.name.toString().length == 1) {
       res.shouldBeGenericTypeAnnotation = [entry];
-    } else if (actualClass == null || expectedClass == null) {
-      res.unresolvedTypeAnnotation = [entry];
     } else if (actual.name.toString() == 'dynamic' && expected.name.toString() != 'dynamic'){
       res.noTypeAnnotations = [entry];
+    } else if (actualClass == null || expectedClass == null) {
+      res.unresolvedTypeAnnotation = [entry];
     } else if (actualType.isSubtypeOf(expectedType)) {
       res.subtypeAnnotations = [entry];      
     } else if (actualType.isSupertypeOf(expectedType)) {
@@ -1217,9 +1241,9 @@ class TwinVisitor extends GeneralizingAstVisitor {
       var res = new Result.Empty();
       //visitExpression(node);
       {
-        if (expectedNode.constructorName != null) {
-          res.add(expectedNode.constructorName.accept(this)(actualNode.constructorName));
-        }
+//        if (expectedNode.constructorName != null) {
+//          res.add(expectedNode.constructorName.accept(this)(actualNode.constructorName));
+//        }
         if (expectedNode.argumentList != null) {
           res.add(expectedNode.argumentList.accept(this)(actualNode.argumentList));
         }

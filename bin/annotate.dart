@@ -81,8 +81,11 @@ class Annotator {
     elementAnalysis.sources.values.forEach(annotateSource); 
     
     if (engine.options.compareTypes) {
-      stderr.writeln(res);
-      stdout.writeln(res.toJson()); 
+      stdout.writeln(res);
+      
+      if (engine.options.emitJSON) {
+        new File('./res.json').writeAsStringSync(res.toJson());         
+      }
     }
   }
   
@@ -115,7 +118,8 @@ class Annotator {
         String actualFilePath = sourceElement.source.fullName;
         String expectedFilePath = actualFilePath.replaceFirst(engine.options.actualRootPath, engine.options.expectedRootPath);
         
-        this.res.add(compareTypes(expectedFilePath, actualFilePath, sourceElement));
+        this.res.add(compareTypes(expectedFilePath, actualFilePath, sourceElement, false));
+        this.res.add(compareTypes(actualFilePath, expectedFilePath, sourceElement, true));
       }
     }
   }
@@ -163,7 +167,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
       if (parameterElement is ParameterElement) {
         visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier, sourceElement.library, true, node.offset), followedBy: space);
       } else {
-        engine.errors.addError(new EngineError("A FieldFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
+        engine.errors.addError(new EngineError("A FieldFormalParameter was not mapped to a) ParameterElement", sourceElement.source, node.offset, node.length), false);
       }
   
      token(node.thisToken);
