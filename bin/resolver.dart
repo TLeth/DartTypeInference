@@ -18,6 +18,7 @@ import 'util.dart';
 class LibraryElement {
   Map<Name, List<NamedElement>> scope = <Name, List<NamedElement>>{};
   Map<Name, NamedElement> exports = <Name, NamedElement>{};
+  Map<NamedElement, Name> names = <NamedElement, Name>{}; 
   
   List<Name> imports = <Name>[];
   List<Name> defined = <Name>[];
@@ -40,7 +41,10 @@ class LibraryElement {
   bool containsDefined(Name name) => defined.contains(name);
   
   bool containsElement(Name name) => scope.containsKey(name);
-  void addElement(Name name, NamedElement element) { scope.containsKey(name) ? scope[name].add(element) : scope[name] = <NamedElement>[element]; }
+  void addElement(Name name, NamedElement element) {
+    names[element] = name;
+    scope.containsKey(name) ? scope[name].add(element) : scope[name] = <NamedElement>[element]; 
+  }
   void addElements(Name name, List<NamedElement> elements) => elements.forEach((NamedElement e) => addElement(name,e));
   void addElementMap(Map<Name, NamedElement> pairs) => scope.forEach(addElements);
   void containsElements(List<Name> names) => names.fold(false, (prev, name) => prev || scope.containsKey(name));

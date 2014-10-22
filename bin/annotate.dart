@@ -18,41 +18,51 @@ class TypeAnnotator {
   
   TypeAnnotator(TypeMap this.typemap, ElementAnalysis this.analysis);
   
-  TypeName annotateIdentifier(Identifier identifier, [bool cannotBeVoid = false, int offset = 0]){
+  TypeName annotateIdentifier(Identifier identifier, LibraryElement library, [bool cannotBeVoid = false, int offset = 0]){
     TypeIdentifier typeIdent = new ExpressionTypeIdentifier(identifier);
-    return annotateTypeIdentifier(typeIdent, cannotBeVoid, offset);
+    return annotateTypeIdentifier(typeIdent, library, cannotBeVoid, offset);
   }
   
-  TypeName annotateTypeIdentifier(TypeIdentifier typeIdent, [bool cannotBeVoid = false, int offset = 0]){
+  TypeName annotateTypeIdentifier(TypeIdentifier typeIdent, LibraryElement library, [bool cannotBeVoid = false, int offset = 0]){
     TypeVariable typeVariable = typemap[typeIdent];
     if (typeVariable == null)
       return new TypeName(new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset)), null);
     
     AbstractType type = typeVariable.getLeastUpperBound();
     if (type is VoidType && cannotBeVoid)
-      return AbstractTypeToTypeName(new DynamicType(), offset);
+      return AbstractTypeToTypeName(new DynamicType(), library, offset);
     else
-      return AbstractTypeToTypeName(type, offset);
+      return AbstractTypeToTypeName(type, library, offset);
   }
   
-  TypeName AbstractTypeToTypeName(AbstractType t, [int offset = 0]){
-    SimpleIdentifier identifier = null;
+  TypeName AbstractTypeToTypeName(AbstractType t, LibraryElement library, [int offset = 0]){
+    Identifier identifier = null;
     if (t is DynamicType)
       identifier = new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset));
     else if (t is VoidType)
       identifier = new SimpleIdentifier(new KeywordToken(Keyword.VOID, offset));
-    else if (t is FunctionType)
-      //This sould be more specific.
-      identifier = new SimpleIdentifier(new StringToken(TokenType.IDENTIFIER, 'Function', offset));
-    else if (t is NominalType){
+    else if (t is FunctionType) {
+      //TODO (jln): this could be more specific, maybe with use of typedef.
+      ClassElement functionClassElement = analysis.resolveClassElement(new Name("Function"), analysis.dartCore, analysis.dartCore.source);
+      identifier = convertClassName(functionClassElement, library, offset);
+    } else if (t is NominalType){
       ClassElement objectClassElement = analysis.resolveClassElement(new Name("Object"), analysis.dartCore, analysis.dartCore.source);
       if (t.element == objectClassElement)
         identifier = new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset));
       else
-        identifier = new SimpleIdentifier(new StringToken(TokenType.IDENTIFIER, t.toString(), offset));
+        identifier = convertClassName(t.element, library, offset);
     }
     
     return new TypeName(identifier, null);
+  }
+  
+  Identifier convertClassName(ClassElement classElement, LibraryElement library, [int offset = 0]){
+    Name n = library.names[classElement];
+    if (n == null)
+      //The file ClassElement could not be mapped to a name within this library.
+      return new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset));
+    else
+      return Name.ConvertToIdentifier(n);
   }
 }
 
@@ -138,7 +148,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
    
    Element parameterElement = elementAnalysis.elements[node];
    if (parameterElement is ParameterElement) {
-     visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier, true, node.offset), followedBy: nonBreakingSpace);
+     visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier, sourceElement.library, true, node.offset), followedBy: nonBreakingSpace);
    } else {
      engine.errors.addError(new EngineError("A SimpleFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
    }
@@ -151,7 +161,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
      
       Element parameterElement = elementAnalysis.elements[node];
       if (parameterElement is ParameterElement) {
-        visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier, true, node.offset), followedBy: space);
+        visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier, sourceElement.library, true, node.offset), followedBy: space);
       } else {
         engine.errors.addError(new EngineError("A FieldFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
       }
@@ -166,7 +176,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
     Element functionParameterElement = elementAnalysis.elements[node];
     if (functionParameterElement is CallableElement) {
       ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(functionParameterElement);
-      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent), followedBy: space);
+      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, sourceElement.library), followedBy: space);
     } else {
       engine.errors.addError(new EngineError("A SimpleFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
     }
@@ -183,7 +193,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
     
     if (functionElement is FunctionElement) {
       ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(functionElement);
-      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, false, node.name.offset), followedBy: space);
+      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, sourceElement.library, false, node.name.offset), followedBy: space);
     } else {
       engine.errors.addError(new EngineError("A FunctionDeclaration was not mapped to a FunctionElement", sourceElement.source, node.offset, node.length), false);     
     }
@@ -211,7 +221,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
     if (node.variables.length > 0) {
       Element variableElement = elementAnalysis.elements[node.variables[0]];
       if (variableElement is NamedElement) {
-        visitNode(typeAnnotator.annotateIdentifier(variableElement.identifier, true, node.offset), followedBy: space);
+        visitNode(typeAnnotator.annotateIdentifier(variableElement.identifier, sourceElement.library, true, node.offset), followedBy: space);
       } else {
         engine.errors.addError(new EngineError("A VariableDeclaration was not mapped to a NamedElement", sourceElement.source, node.variables[0].offset, node.variables[0].length), false);
       }
@@ -252,7 +262,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
       Element methodElement = elementAnalysis.elements[node];
       if (methodElement is MethodElement) {
         ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(methodElement);
-        visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, false, node.offset), followedBy: space);
+        visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, sourceElement.library, false, node.offset), followedBy: space);
       } else {
         engine.errors.addError(new EngineError("A MethodDeclaration was not mapped to a MethodElement", sourceElement.source, node.offset, node.length), false);
       }
