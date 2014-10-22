@@ -44,7 +44,7 @@ for benchmark in $benchmarks; do
 
             for  f in $(dart tools/dependency.dart --dart-sdk ${dartDir%bin/dart} .stripped/$benchmark/$entryfile); do
                 echo -e -n "$f\r"
-                strip.dart -w $f
+                strip.dart -g -w $f
             done
             echo "Strip done"
             
