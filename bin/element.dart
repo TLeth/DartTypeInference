@@ -120,9 +120,7 @@ class PrefixedName implements Name {
   
   PrefixedName(Name this._prefix, Name this._postfixName);
   factory PrefixedName.FromIdentifier(Identifier prefix, Name postfixName) => new PrefixedName(new Name.FromIdentifier(prefix), postfixName);
-  factory PrefixedName.FromPrefixedIdentifier(PrefixedIdentifier ident) {
-    new PrefixedName(new Name.FromIdentifier(ident.prefix), new Name.FromIdentifier(ident.identifier));
-  }
+  factory PrefixedName.FromPrefixedIdentifier(PrefixedIdentifier ident) => new PrefixedName(new Name.FromIdentifier(ident.prefix), new Name.FromIdentifier(ident.identifier));
   
   bool get isPrivate => Identifier.isPrivateName(_postfixName.toString()) || Identifier.isPrivateName(_prefix.toString());
   
