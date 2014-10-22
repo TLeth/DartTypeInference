@@ -75,12 +75,21 @@ class Name {
   
   Name(String this._name);
   
+  int get length => _name.length; 
+  
   factory Name.FromIdentifier(Identifier name){
     if (name is PrefixedIdentifier){
       return new PrefixedName.FromPrefixedIdentifier(name); 
     } else {
       return new Name(name.toString());
     }
+  }
+  
+  static Identifier ConvertToIdentifier(Name name, [int offset = 0]){
+    if (name is PrefixedName)
+      return new PrefixedIdentifier(ConvertToIdentifier(name._prefix, offset), new Token(TokenType.PERIOD, offset + name.length), ConvertToIdentifier(name._postfixName, offset + name.length + 1));
+    else 
+      return new SimpleIdentifier(new StringToken(TokenType.IDENTIFIER, name._name, offset));
   }
   
   factory Name.FromToken(Token name) => new Name(name.toString());
@@ -107,9 +116,13 @@ class PrefixedName implements Name {
   Name _prefix;
   Name _postfixName;
   
+  int get length => _prefix.length + _postfixName.length + 1; 
+  
   PrefixedName(Name this._prefix, Name this._postfixName);
   factory PrefixedName.FromIdentifier(Identifier prefix, Name postfixName) => new PrefixedName(new Name.FromIdentifier(prefix), postfixName);
-  factory PrefixedName.FromPrefixedIdentifier(PrefixedIdentifier ident) => new PrefixedName(new Name.FromIdentifier(ident.prefix), new Name.FromIdentifier(ident.identifier));
+  factory PrefixedName.FromPrefixedIdentifier(PrefixedIdentifier ident) {
+    new PrefixedName(new Name.FromIdentifier(ident.prefix), new Name.FromIdentifier(ident.identifier));
+  }
   
   bool get isPrivate => Identifier.isPrivateName(_postfixName.toString()) || Identifier.isPrivateName(_prefix.toString());
   
