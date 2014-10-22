@@ -58,7 +58,17 @@ for benchmark in $benchmarks; do
         rm -rf inferred/$benchmark
         cp -r .stripped/$benchmark inferred
 
-        dart --old_gen_heap_size=1000m bin/analyze.dart -w --actual-basedir inferred --expected-basedir benchmarks --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfile
+        dart --old_gen_heap_size=1000m bin/analyze.dart -w --json --actual-basedir inferred --expected-basedir benchmarks --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfile
+
+        # delete ];
+        sed -i '' -e '$ d' benchmarks/results.json
+
+        date=$(date -j -f "%a %b %d %T %Z %Y" "`date`" "+%s")
+        printf "{\"benchmark\": \"%s\", \"rev\": \"%s\", \"time\": \"%s\", \"data\":" $benchmark $(git rev-parse HEAD) $date >> benchmarks/results.json
+        cat res.json >> benchmarks/results.json
+        printf "}\n];" >> benchmarks/results.json
+
+        rm -f res.json
 
     fi
 done
