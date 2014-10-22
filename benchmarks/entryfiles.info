@@ -7,7 +7,6 @@ dgrep	bin/dgrep.dart
 mongo_dart	lib/mongo_dart.dart
 play_p2	lib/p2.dart
 play_phaser	lib/phaser.dart
-play_pixi	lib/pixi.dart
 pop_pop_win_package	pop_pop_win.dart
 qr	lib/qr.dart
 rikulo_UI	lib/view.dart
