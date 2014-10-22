@@ -8,7 +8,61 @@ dartDir=$(which dart)
 mkdir -p "inferred/"
 mkdir -p ".stripped/"
 
+if [ ! -f benchmarks/results.info ]; then
+    printf "var results = [\n];" > benchmarks/results.info
+fi
+
+benchmarks=$(ls benchmarks)
+if [ $# -ne 0 ]; then
+    benchmarks=$*
+fi
+
+for benchmark in $benchmarks; do
+    if [ -d benchmarks/$benchmark ]; then
+
+        echo "Working on " $benchmark
+
+        #If the test is completely new, copy an initial copy to stripped cache
+        if [ ! -d .stripped/$benchmark ]; then
+            cp -r benchmarks/$benchmark .stripped/        
+            touch benchmarks/$benchmark
+        fi
+
+        #Prepare stripped
+        entryfile=($(grep ^$benchmark benchmarks/entryfiles.info))
+        entryfile=${entryfile[1]}
+
+        if [ benchmarks/$benchmark -nt .stripped/$benchmark ]; then
+
+            dart tools/dependency.dart --dart-sdk ${dartDir%bin/dart} .stripped/$benchmark/$entryfile
+
+            for  f in $(dart tools/dependency.dart --dart-sdk ${dartDir%bin/dart} .stripped/$benchmark/$entryfile); do
+                echo $f
+                strip.dart -w $f
+                wc -l $f
+            done
+        fi
+        
+        echo "Strip done"
+
+        #Prepare benchmark to run on
+        rm -rf inferred/$benchmark
+        cp -r .stripped/$benchmark inferred
+
+        dart --old_gen_heap_size=1000m bin/analyze.dart -w --actual-basedir inferred --expected-basedir benchmarks --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfile > tmp
+        
+        #date=$(date -j -f "%a %b %d %T %Z %Y" "`date`" "+%s")
+
+    fi
+done
+
+    
+
+exit
+
+
 for benchmark in $(ls benchmarks); do
+
 
     if [ ! -d .stripped/$benchmark ]; then
         cp -r benchmarks/$benchmark .stripped/        
@@ -23,7 +77,7 @@ for benchmark in $(ls benchmarks); do
     rm -rf inferred/$benchmark
     cp -r .stripped/$benchmark inferred/
 
-    dart bin/analyze.dart -w --actual-basedir .inferred/$benchmark --expected-basedir benchmarks/$benchmark --dart-sdk ${dartDir%bin/dart} ./tests/output/tests.dart 
+    dart --old_gen_heap_size=1000m bin/analyze.dart -w --actual-basedir .inferred/$benchmark --expected-basedir benchmarks/$benchmark --dart-sdk ${dartDir%bin/dart} ./tests/output/tests.dart 
 
 done
 
@@ -144,3 +198,5 @@ else
 fi
 
 #rm -r inferred/
+
+

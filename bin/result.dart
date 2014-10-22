@@ -14,29 +14,30 @@ import 'package:analyzer/src/generated/error.dart';
 
 
 
-CompilationUnit expected, actual;
+CompilationUnit expectedUnit, actualUnit;
 SourceElement sourceElem;
 
 Result compareTypes(String expectedFile, String actualFile, SourceElement sourceElement) {
     sourceElem = sourceElement;
     
-    expected = getCompilationUnit(new FileBasedSource.con1(new JavaFile(expectedFile)));
-    actual = getCompilationUnit(new FileBasedSource.con1(new JavaFile(actualFile)));
-    
-    return expected.accept(new TwinVisitor())(actual);
+    actualUnit = getCompilationUnit(new FileBasedSource.con1(new JavaFile(actualFile)));
+    expectedUnit = getCompilationUnit(new FileBasedSource.con1(new JavaFile(expectedFile)));    
+
+    return expectedUnit.accept(new TwinVisitor())(actualUnit);
 }
 
 
 
 class Result {
   int expectedFileAnnotations = 0;
-  int preciseAnnotations = 0;
-  int subtypeAnnotations = 0;
-  int supertypeAnnotations = 0;
-  int noTypeAnnotations = 0;
-  int unrelatedAnnotations = 0;
-  int shouldBeGenericTypeAnnotation = 0;
-  int genericTypeArgumentMissing = 0;
+  List preciseAnnotations = [];
+  List subtypeAnnotations = [];
+  List supertypeAnnotations = [];
+  List noTypeAnnotations = [];
+  List unrelatedAnnotations = [];
+  List shouldBeGenericTypeAnnotation = [];
+  List genericTypeArgumentMissing = [];
+  List unresolvedTypeAnnotation = [];
   
   Result();
   
@@ -51,7 +52,8 @@ class Result {
       'noTypeAnnotations': this.noTypeAnnotations,
       'unrelatedAnnotations': this.unrelatedAnnotations,
       'shouldBeGenericTypeAnnotation': this.shouldBeGenericTypeAnnotation,
-      'genericTypeArgumentMissing': this.genericTypeArgumentMissing
+      'genericTypeArgumentMissing': this.genericTypeArgumentMissing,
+      'unresolvedTypeAnnotation': this.unresolvedTypeAnnotation
     };
     
     return new JsonEncoder().convert(m);
@@ -59,27 +61,27 @@ class Result {
 
   void add(Result other){
     this.expectedFileAnnotations += other.expectedFileAnnotations;
-    
-    this.preciseAnnotations += other.preciseAnnotations;
-    this.subtypeAnnotations += other.subtypeAnnotations;
-    this.supertypeAnnotations += other.supertypeAnnotations;
-    this.noTypeAnnotations += other.noTypeAnnotations;
-    this.unrelatedAnnotations += other.unrelatedAnnotations;
-    this.shouldBeGenericTypeAnnotation += other.shouldBeGenericTypeAnnotation;
-
-    this.genericTypeArgumentMissing += other.genericTypeArgumentMissing;
+    this.preciseAnnotations.addAll(other.preciseAnnotations);
+    this.subtypeAnnotations.addAll(other.subtypeAnnotations);
+    this.supertypeAnnotations.addAll(other.supertypeAnnotations);
+    this.noTypeAnnotations.addAll(other.noTypeAnnotations);
+    this.unrelatedAnnotations.addAll(other.unrelatedAnnotations);
+    this.shouldBeGenericTypeAnnotation.addAll(other.shouldBeGenericTypeAnnotation);
+    this.unresolvedTypeAnnotation.addAll(other.unresolvedTypeAnnotation);
+    this.genericTypeArgumentMissing.addAll(other.genericTypeArgumentMissing);
   }
 
   String toString() => 
        """
           Total annotations in expected: ${expectedFileAnnotations}
-          Total correct annotations: ${preciseAnnotations}
-          Total subtype annotations: ${subtypeAnnotations}
-          Total supertype annotations: ${supertypeAnnotations}
-          Total annotations that should be generictype: ${shouldBeGenericTypeAnnotation}
-          Total annotations where we gave up(dynamic): ${noTypeAnnotations}
-          Total unrelated annotations: ${unrelatedAnnotations}
-          Total Type arguments missing: ${genericTypeArgumentMissing}""";
+          Total correct annotations: ${preciseAnnotations.length}
+          Total subtype annotations: ${subtypeAnnotations.length}
+          Total supertype annotations: ${supertypeAnnotations.length}
+          Total annotations that should be generictype: ${shouldBeGenericTypeAnnotation.length}
+          Total annotations where we gave up(dynamic): ${noTypeAnnotations.length}
+          Total unrelated annotations: ${unrelatedAnnotations.length}
+          Total Type arguments missing: ${genericTypeArgumentMissing.length}
+          Total unresolvable typeannotations: ${unresolvedTypeAnnotation.length}""";
 }
 
 //expected always non-null
@@ -88,12 +90,21 @@ Result classify(TypeName expected, TypeName actual, bool comparingGeneric) {
   
   Result res = new Result.Empty();
 
+  LineInfo_Location loc = expectedUnit.lineInfo.getLocation(expected.offset);
+  Map entry = {
+    'url': sourceElem.source.fullName,
+    'line': loc.lineNumber,
+    'col': loc.columnNumber,
+    'expected': expected.toString(),
+    'actual': actual.toString()
+  };
+
   //Sum total annotations in expectedFile
   res.expectedFileAnnotations++;
   
   // actual should only be null when comparing recursivly on typearguments
   if (comparingGeneric && actual == null){
-    res.genericTypeArgumentMissing++;
+    res.genericTypeArgumentMissing = [entry];
     return res;
   }
   
@@ -106,23 +117,32 @@ Result classify(TypeName expected, TypeName actual, bool comparingGeneric) {
     NominalType actualType = new NominalType(actualClass);
     
     if (expected.name.toString() == actual.name.toString()) {
-      res.preciseAnnotations++;
+      res.preciseAnnotations = [entry];
     } else if (expected.name.toString().length == 1) {
-      res.shouldBeGenericTypeAnnotation++;
+      res.shouldBeGenericTypeAnnotation = [entry];
+    } else if (actualClass == null || expectedClass == null) {
+      res.unresolvedTypeAnnotation = [entry];
     } else if (actual.name.toString() == 'dynamic' && expected.name.toString() != 'dynamic'){
-      res.noTypeAnnotations++;
+      res.noTypeAnnotations = [entry];
     } else if (actualType.isSubtypeOf(expectedType)) {
-      res.subtypeAnnotations++;      
+      res.subtypeAnnotations = [entry];      
     } else if (actualType.isSupertypeOf(expectedType)) {
-      res.supertypeAnnotations++;      
+      res.supertypeAnnotations = [entry];      
     } else {
-      res.unrelatedAnnotations++;      
+      res.unrelatedAnnotations = [entry];      
     }
     
   }
-  if (expected.typeArguments != null)
-    res = expected.typeArguments.arguments.fold(res, (res, expectedArg) => res.add(classify(expectedArg, null, true)));
-  
+
+  if (expected.typeArguments != null) {
+    if (res == null) { print('BEFORE'); }
+    
+    expected.typeArguments.arguments.forEach((expectedArg) {
+      res.add(classify(expectedArg, null, true));
+    });
+    
+    if (res == null) { print('AFTER'); }
+  }
   return res;
 }
 
@@ -135,6 +155,7 @@ CompilationUnit getCompilationUnit(Source source) {
   scanner.preserveComments = options.preserveComments;
   Token tokenStream= scanner.tokenize();
   LineInfo lineInfo = new LineInfo(scanner.lineStarts);
+  
   List<AnalysisError> errors = errorListener.getErrorsForSource(source);
   
   if (errors.length > 0) {
@@ -162,7 +183,9 @@ class TwinVisitor extends GeneralizingAstVisitor {
 
   visitTypeName(TypeName expectedNode){
     return (TypeName actualNode){
-      return classify(expectedNode, actualNode, false);
+      var res = classify(expectedNode, actualNode, false);
+      if (res == null) print('sdkl;jaslkdjaldkajsdkl;asjdalks;jdakls;djasdl;kadjakls;d');
+      return res;
     };
   }
   
@@ -1491,7 +1514,7 @@ class TwinVisitor extends GeneralizingAstVisitor {
   }
 
   /*
-  visitNode(AstNode expectedNode) {
+    visitNode(AstNode expectedNode) {
     return (AstNode actualNode){
       var res = new Result.Empty();
       //node.visitChildren(this);

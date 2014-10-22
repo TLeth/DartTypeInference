@@ -71,8 +71,8 @@ class Annotator {
     elementAnalysis.sources.values.forEach(annotateSource); 
     
     if (engine.options.compareTypes) {
-      stdout.writeln(res);
-      stderr.writeln(res.toJson()); 
+      stderr.writeln(res);
+      stdout.writeln(res.toJson()); 
     }
   }
   
