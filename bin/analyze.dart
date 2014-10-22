@@ -84,6 +84,37 @@ class CommandLineOptions {
       actualRootPath = args['actual-basedir'],
       sourceFiles = args.rest;
   
+  CommandLineOptions({bool this.overrideFiles: false,
+    bool this.disableHints: false,
+    bool this.displayVersion: false,
+    bool this.enableAsync: false,
+    bool this.enableEnum: false,
+    String this.dartSdkPath: "", 
+    bool this.log: false,
+    String this.packageRootPath: "",
+    bool this.printBlock: false,
+    bool this.printNameResolving: false,
+    bool this.printConstraints: false,
+    bool this.printAstNodes: false,
+    bool this.printElementNodes: false,
+    String this.expectedRootPath: "",
+    String this.actualRootPath: null,
+    List<String> this.sourceFiles: null}) {
+    {
+      var sdkPath = this.dartSdkPath;
+      // check that SDK is specified
+      if (sdkPath == null) {
+        print('Usage: $_BINARY_NAME: no Dart SDK found.');
+        exit(15);
+      }
+      // check that SDK is existing directory
+      if (!(new Directory(sdkPath)).existsSync()) {
+        print('Usage: $_BINARY_NAME: invalid Dart SDK path: $sdkPath');
+        exit(15);
+      }
+    }
+  }
+  
   /**
    * Parse [args] into [CommandLineOptions] describing the specified
    * analyzer options. In case of a format error, prints error and exists.
