@@ -5,6 +5,9 @@ packages/
 
 # dont include tests related output
 inferred/
+tmp
+.stripped/
+benchmarks/results.info
 tests_stripped/
 log
 
