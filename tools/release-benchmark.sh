@@ -37,38 +37,42 @@ for benchmark in $benchmarks; do
 
         #Prepare stripped
         entryfile=($(grep ^$benchmark benchmarks/entryfiles.info))
-        entryfile=${entryfile[1]}
 
-        if [ ! $doStrip -eq 0 ]; then
-            echo "Stripping..."
-
-            for  f in $(dart tools/dependency.dart --dart-sdk ${dartDir%bin/dart} .stripped/$benchmark/$entryfile); do
-                echo -e -n "$f\r"
-                strip.dart -g -w $f
-            done
-            echo "Strip done"
-            
+        if [ ! $? -eq 0 ]; then
+            echo "Couldnt find entry file, skipping"
         else
-            echo "Using cache"
+            entryfile=${entryfile[1]}
+
+            if [ ! $doStrip -eq 0 ]; then
+                echo "Stripping..."
+
+                for  f in $(dart tools/dependency.dart --dart-sdk ${dartDir%bin/dart} .stripped/$benchmark/$entryfile); do
+                    echo -e -n "$f\r"
+                    strip.dart -g -w $f
+                done
+                echo "Strip done"
+                
+            else
+                echo "Using cache"
+            fi
+            
+
+
+            #Prepare benchmark to run on
+            rm -rf inferred/$benchmark
+            cp -r .stripped/$benchmark inferred
+
+            dart --old_gen_heap_size=1000m bin/analyze.dart -w --json --actual-basedir inferred --expected-basedir benchmarks --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfile
+
+            # delete ];
+            sed -i '' -e '$ d' benchmarks/results.json
+
+            #date=$(date -j -f "%a %b %d %T %Z %Y" "`date`" "+%s")
+            printf "{\"benchmark\": \"%s\", \"rev\": \"%s\", \"time\": \"%s\", \"data\":" $benchmark $(git rev-parse HEAD) $(date) >> benchmarks/results.json
+            cat res.json >> benchmarks/results.json
+            printf "}\n];" >> benchmarks/results.json
+
+            rm -f res.json
         fi
-        
-
-
-        #Prepare benchmark to run on
-        rm -rf inferred/$benchmark
-        cp -r .stripped/$benchmark inferred
-
-        dart --old_gen_heap_size=1000m bin/analyze.dart -w --json --actual-basedir inferred --expected-basedir benchmarks --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfile
-
-        # delete ];
-        sed -i '' -e '$ d' benchmarks/results.json
-
-        #date=$(date -j -f "%a %b %d %T %Z %Y" "`date`" "+%s")
-        printf "{\"benchmark\": \"%s\", \"rev\": \"%s\", \"time\": \"%s\", \"data\":" $benchmark $(git rev-parse HEAD) $(date) >> benchmarks/results.json
-        cat res.json >> benchmarks/results.json
-        printf "}\n];" >> benchmarks/results.json
-
-        rm -f res.json
-
     fi
 done
