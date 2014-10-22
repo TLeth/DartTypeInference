@@ -21,36 +21,43 @@ for benchmark in $benchmarks; do
     if [ -d benchmarks/$benchmark ]; then
 
         echo "Working on " $benchmark
-
+        doStrip=0
         #If the test is completely new, copy an initial copy to stripped cache
-        if [ ! -d .stripped/$benchmark ]; then
-            cp -r benchmarks/$benchmark .stripped/        
-            touch benchmarks/$benchmark
+        if [ ! -d .stripped/$benchmark -o benchmarks/$benchmark -nt .stripped/$benchmark ]; then
+            echo "Benchmark has changed - making new cache"
+            rm -rf .stripped/$benchmark
+            cp -r benchmarks/$benchmark .stripped/ 
+            
+            doStrip=1
         fi
 
         #Prepare stripped
         entryfile=($(grep ^$benchmark benchmarks/entryfiles.info))
         entryfile=${entryfile[1]}
 
-        if [ benchmarks/$benchmark -nt .stripped/$benchmark ]; then
-
-            dart tools/dependency.dart --dart-sdk ${dartDir%bin/dart} .stripped/$benchmark/$entryfile
+        if [ ! $doStrip -eq 0 ]; then
+            echo "Stripping..."
 
             for  f in $(dart tools/dependency.dart --dart-sdk ${dartDir%bin/dart} .stripped/$benchmark/$entryfile); do
                 echo $f
                 strip.dart -w $f
                 wc -l $f
             done
+            echo "Strip done"
+            
+        else
+            echo "Using cache"
         fi
         
-        echo "Strip done"
+
 
         #Prepare benchmark to run on
         rm -rf inferred/$benchmark
         cp -r .stripped/$benchmark inferred
 
         dart --old_gen_heap_size=1000m bin/analyze.dart -w --actual-basedir inferred --expected-basedir benchmarks --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfile > tmp
-        
+
+        rm tmp
         #date=$(date -j -f "%a %b %d %T %Z %Y" "`date`" "+%s")
 
     fi
