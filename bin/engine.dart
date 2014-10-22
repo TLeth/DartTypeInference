@@ -174,7 +174,7 @@ class Engine {
         if (options.packageRootPath != null) {
           packageDirectory = new JavaFile(options.packageRootPath);
         } else {
-          packageDirectory = AnalyzerImpl.getPackageDirectoryFor(_entryFile);
+          packageDirectory = AnalyzerImpl.getPackageDirectoryFor(_entryFile); 
         }
         if (packageDirectory != null) {
           resolvers.add(new PackageUriResolver([packageDirectory]));
@@ -199,7 +199,6 @@ class Engine {
   /** Creates a new compilation unit, given a source **/
   CompilationUnit getCompilationUnit(Source source) {
     RecordingErrorListener errorListener = new RecordingErrorListener();
-    
     String content = source.contents.data;
     AnalysisOptions options = _analysisContext.analysisOptions;
     Scanner scanner = new Scanner(source, new CharSequenceReader(content), errorListener);
@@ -281,7 +280,6 @@ class Engine {
   }*/
   
   Source resolveUri(Source entrySource, String uri) {
-    
     return _sourceFactory.resolveUri(entrySource, uri);
   }
   

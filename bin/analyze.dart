@@ -89,15 +89,15 @@ class CommandLineOptions {
     bool this.displayVersion: false,
     bool this.enableAsync: false,
     bool this.enableEnum: false,
-    String this.dartSdkPath: "", 
+    String this.dartSdkPath: null, 
     bool this.log: false,
-    String this.packageRootPath: "",
+    String this.packageRootPath: null,
     bool this.printBlock: false,
     bool this.printNameResolving: false,
     bool this.printConstraints: false,
     bool this.printAstNodes: false,
     bool this.printElementNodes: false,
-    String this.expectedRootPath: "",
+    String this.expectedRootPath: null,
     String this.actualRootPath: null,
     List<String> this.sourceFiles: null}) {
     {
