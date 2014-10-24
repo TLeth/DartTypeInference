@@ -26,7 +26,7 @@ for benchmark in $benchmarks; do
         if [ ! -d .stripped/$benchmark -o benchmarks/$benchmark -nt .stripped/$benchmark ]; then
             echo "Benchmark has changed - making new cache"
             rm -rf .stripped/$benchmark
-            cp -r benchmarks/$benchmark .stripped/ 
+            cp -a benchmarks/$benchmark .stripped/ 
 
             cd .stripped/$benchmark
             pub get
@@ -60,7 +60,11 @@ for benchmark in $benchmarks; do
 
             #Prepare benchmark to run on
             rm -rf inferred/$benchmark
-            cp -r .stripped/$benchmark inferred
+            cp -a .stripped/$benchmark inferred
+
+            cd inferred/$benchmark
+            pub get
+            cd ../..
 
             dart --old_gen_heap_size=1000m bin/analyze.dart -w --actual-basedir inferred --expected-basedir benchmarks --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfile
         fi
