@@ -62,7 +62,7 @@ class TypeAnnotator {
       //The file ClassElement could not be mapped to a name within this library.
       return new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset));
     else
-      return Name.ConvertToIdentifier(n);
+      return Name.ConvertToIdentifier(n, offset);
   }
 }
 

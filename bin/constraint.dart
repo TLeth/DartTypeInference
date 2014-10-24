@@ -551,6 +551,14 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     else
       types.put(n, new NominalType(_currentClassElement.extendsElement));
   }  
+  
+  visitFunctionExpressionInvocation(FunctionExpressionInvocation node){
+    super.visitFunctionExpressionInvocation(node);
+    
+    TypeIdentifier returnIdent = new ExpressionTypeIdentifier(node);
+    TypeIdentifier functionIdent = new ExpressionTypeIdentifier(node.function);
+    _methodCall(functionIdent, node.argumentList.arguments, returnIdent);
+  }
 
   visitMethodInvocation(MethodInvocation node){
     super.visitMethodInvocation(node);
