@@ -9,13 +9,16 @@ mkdir -p "inferred/"
 mkdir -p ".stripped/"
 
 if [ ! -f benchmarks/results.json ]; then
-    printf "var results = [\n];" > benchmarks/results.json
+    printf "[\n]" > benchmarks/results.json
 fi
 
 benchmarks=$(ls benchmarks)
 if [ $# -ne 0 ]; then
     benchmarks=$*
 fi
+
+sed -i '' -e '$ d' benchmarks/results.json
+printf "{\"rev\": \"%s\", \"date\": \"%s\", \"suite\": [\n" $(git rev-parse HEAD) "$(date)" >> benchmarks/results.json
 
 for benchmark in $benchmarks; do
     if [ -d benchmarks/$benchmark ]; then
@@ -64,15 +67,19 @@ for benchmark in $benchmarks; do
 
             dart --old_gen_heap_size=1000m bin/analyze.dart -w --json --actual-basedir inferred --expected-basedir benchmarks --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfile
 
-            # delete ];
-            sed -i '' -e '$ d' benchmarks/results.json
+            # delete ]}] or ,
+            #sed -i '' -e '$ d' benchmarks/results.json
 
             #date=$(date -j -f "%a %b %d %T %Z %Y" "`date`" "+%s")
-            printf "{\"benchmark\": \"%s\", \"rev\": \"%s\", \"time\": \"%s\", \"data\":" $benchmark $(git rev-parse HEAD) $(date) >> benchmarks/results.json
+            printf "{\"benchmark\": \"%s\", \"data\":" $benchmark >> benchmarks/results.json
             cat res.json >> benchmarks/results.json
-            printf "}\n];" >> benchmarks/results.json
+            printf "}\n," >> benchmarks/results.json
 
             rm -f res.json
         fi
     fi
 done
+
+# delete ]}] or ,
+sed -i '' -e '$ d' benchmarks/results.json
+printf "]},\nnull]" >> benchmarks/results.json

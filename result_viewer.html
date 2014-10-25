@@ -1,0 +1,186 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="../../favicon.ico">
+
+    <title>Starter Template for Bootstrap</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+  <body ng-app="ResultApp" ng-controller="ResultController">
+
+    <div class="container">
+      <div class="row">
+        <div class="col-md-12" ng-if="!results">
+          <div ng-if="!loading">
+            <h1>Vælg results-fil</h1>
+            <p class="bg-warning" ng-if="error">
+              Den valgte fil kunne ikke parses.
+            </p>
+            <input type="file" class="input-lg" name="input" on-read-file="readFile($fileContent)" />
+            Du skal vælge en fil du vil fremvise i result vieweren.
+          </div>
+          <div ng-if="loading">
+            <h1>Parser...</h1>
+          </div>
+        </div>
+
+        <div class="col-md-12" ng-if="results">
+          <div class="panel-group" id="suite">
+            <div class="panel panel-default" ng-repeat="suite in results" ng-init="suiteIndex = $index">
+              <div class="panel-heading">
+                <h4 class="panel-title">
+                  <a data-toggle="collapse" data-parent="#suite" href="#suite{{suiteIndex}}">
+                    <span class="text-left">{{suite.date}}</span>
+                  </a>
+                  <span class="pull-right"><a href="{{getRevUrl(suite.rev)}}" target="_blank">{{suite.rev}}</a></span>
+                </h4>
+              </div>
+              <div id="suite{{suiteIndex}}" class="panel-collapse collapse">
+                <div class="panel-body">
+
+                  <div class="panel-group" id="benchmark">
+                    <div class="panel panel-default" ng-repeat="benchmark in suite.suite" ng-init="benchmarkIndex = $index">
+                      <div class="panel-heading">
+                        <h4 class="panel-title">
+                          <a data-toggle="collapse" data-parent="#benchmark" href="#suite{{suiteIndex}}benchmark{{benchmarkIndex}}">
+                            <span class="text-left">{{benchmark.benchmark}}</span>
+                          </a>
+                          <span class="pull-right">{{benchmark.data.preciseAnnotations.length / benchmark.data.expectedFileAnnotations * 100 | number: 2}}%</span>
+                        </h4>
+                      </div>
+                      <div id="suite{{suiteIndex}}benchmark{{benchmarkIndex}}" class="panel-collapse collapse">
+                        <div class="panel-body">
+
+                          <div class="panel-group" id="errorgroup">
+                            <div class="panel panel-default" ng-repeat="(error_key,error_title) in errors" ng-if="benchmark.data[error_key].length > 0" ng-init="errorgroup = benchmark.data[error_key]">
+                              <div class="panel-heading">
+                                <h4 class="panel-title">
+                                  <a data-toggle="collapse" data-parent="#errorgroup" href="#suite{{suiteIndex}}benchmark{{benchmarkIndex}}errorgroup{{$index}}">
+                                    <span class="text-left">{{error_title}}</span>
+                                  </a>
+                                  <span class="pull-right">{{errorgroup.length / benchmark.data.expectedFileAnnotations * 100 | number: 2}}%</span>
+                                </h4>
+                              </div>
+                              <div id="suite{{suiteIndex}}benchmark{{benchmarkIndex}}errorgroup{{$index}}" class="panel-collapse collapse">
+                                <div class="panel-body">
+                                  <table class="table table-bordered table-condensed table-hover">
+                                    <thead>
+                                      <tr>
+                                        <th>File</th>
+                                        <th>Line:Column</th>
+                                        <th class="text-right">Expected / Actual</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr ng-repeat="error in errorgroup">
+                                        <td>{{error.url}}</td>
+                                        <td>{{error.line}}:{{error.col}}</td>
+                                        <td class="text-right">{{error.expected}} / {{error.actual}}</td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /.container -->
+
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.0/angular.min.js"></script>
+    <script>
+    angular.module('ResultApp', [])
+    .directive('onReadFile', function ($parse) {
+      return {
+        restrict: 'A',
+        scope: false,
+        link: function(scope, element, attrs) {
+                var fn = $parse(attrs.onReadFile);
+                
+          element.on('change', function(onChangeEvent) {
+            var reader = new FileReader();
+                    
+            reader.onload = function(onLoadEvent) {
+              scope.$apply(function() {
+                fn(onLoadEvent.target.result);
+                fn(scope, {$fileContent:onLoadEvent.target.result});
+              });
+            };
+
+            reader.readAsText((onChangeEvent.srcElement || onChangeEvent.target).files[0]);
+          });
+        }
+      };
+    })
+    .controller('ResultController', ['$scope', function($scope) {
+         $scope.results = null;
+         $scope.loading = false;
+         $scope.error =false;
+         $scope.getRevUrl = function(rev){
+          return 'https://github.com/TLeth/DartTypeInference/tree/'+ rev;
+         }
+
+         $scope.errors = {
+          'noTypeAnnotations': 'Missing type annotations',
+          'shouldBeGenericTypeAnnotations': 'Should have been a generic type annotations',
+          'SubtypeAnnotations': 'Sub-type annotations',
+          'supertypeAnnotations': 'Super-type annotations',
+          'genericTypeArgumentMissing': 'Generic type argument missing',
+          'unrelatedAnnotations': 'Unrelated annotations',
+          'unresolvedTypeAnnotations': 'Unresolved type annotations',
+          'newDynamicAnnotations': 'New dynamic annotations',
+          'newNoneDynamicAnnotations': 'New non-dynamic annotations'
+         };
+
+         $scope.readFile = function(content){
+          try {
+            $scope.loading = true;
+            $scope.results = JSON.parse(content);
+            $scope.results.pop(); //First always null
+            $scope.error =false;
+
+          } catch(e){
+            console.log(e);
+            $scope.error = true;
+            $scope.loading= false;
+          }
+         };
+
+      }]);
+
+    </script>
+  </body>
+</html>
