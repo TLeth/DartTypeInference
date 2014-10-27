@@ -36,7 +36,7 @@ for benchmark in $benchmarks; do
         fi
 
         #Prepare stripped
-        entryfile=($(grep ^$benchmark benchmarks/entryfiles.info))
+        entryfile=($(grep ^$benchmark benchmarks/benchmarks.info))
         
         if [ ! $? -eq 0 ]; then
             echo "Couldnt find entry file, skipping"

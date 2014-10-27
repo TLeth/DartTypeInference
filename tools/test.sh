@@ -6,15 +6,21 @@ cd ".."
 dartDir=$(which dart)
 rm -f log
 
+if [ ! -d tests/.stripped ]; then
+    mkdir tests/.stripped
+fi
+
 for f in $(ls tests/cases/)
 do
     if [ ! -f tests/.stripped/$f ]; then
-        strip.dart tests/cases/$f > tests/.stripped/$f
+        cp tests/cases/$f tests/.stripped/$f
+        strip.dart -w tests/.stripped/$f
         dartfmt -w tests/.stripped/$f
     fi
     
     if [ tests/cases/$f -nt tests/.stripped/$f ]; then
-        strip.dart tests/cases/$f > tests/.stripped/$f
+        cp tests/cases/$f tests/.stripped/$f
+        strip.dart -w tests/.stripped/$f
         dartfmt -w tests/.stripped/$f
     fi
 done
