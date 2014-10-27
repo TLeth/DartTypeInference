@@ -14,11 +14,14 @@ class CommandLineOptions {
   /** The path to the dart SDK */
   final String dartSdkPath;
 
-  /** Path to root dir of expected output */
+  /** For benchmark puposes: Path to root dir of expected output */
   final String expectedRootPath;
 
-  /** Path to root dir of input */
+  /** For benchmark purposes: Path to root dir of input */
   final String actualRootPath;
+  
+  /** For benchmark purposes: The complete path to benchmark root. */
+  final String benchmarkRootPath;
   
   /** true if actual and expected are present */
   bool get compareTypes => actualRootPath != null && expectedRootPath != null;
@@ -84,6 +87,7 @@ class CommandLineOptions {
       expectedRootPath = args['expected-basedir'],
       actualRootPath = args['actual-basedir'],
       emitJSON = args['json'],
+      benchmarkRootPath = (new JavaFile(args['benchmarkdir'])).getAbsolutePath(),
       sourceFiles = args.rest;
   
   CommandLineOptions({bool this.overrideFiles: false,
@@ -101,6 +105,7 @@ class CommandLineOptions {
     bool this.printElementNodes: false,
     String this.expectedRootPath: null,
     String this.actualRootPath: null,
+    String this.benchmarkRootPath: null,
     bool this.emitJSON: false,
     List<String> this.sourceFiles: null}) {
     {
@@ -151,6 +156,7 @@ class CommandLineOptions {
           help: 'The path to the package root')
       ..addOption('expected-basedir', help: 'Path to expected output')
       ..addOption('actual-basedir', help: 'Basedir, used to find correct expected files')
+      ..addOption('benchmarkdir', help: 'Benchmark dir, only used when together with json.')
       ..addFlag('json', help: 'Emit JSON formatted results', negatable: false)
       ..addFlag('version', help: 'Print the analyzer version',
           defaultsTo: false, negatable: false)
@@ -223,7 +229,6 @@ class CommandLineOptions {
 void main(args){
   CommandLineOptions options = CommandLineOptions.parse(args);
   sdk = new DirectoryBasedDartSdk(new JavaFile(options.dartSdkPath));
-  
   _typeAnnotate(options);
 }
 

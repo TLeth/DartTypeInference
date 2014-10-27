@@ -116,10 +116,12 @@ class Annotator {
         
       if (engine.options.compareTypes && engine.options.overrideFiles){
         String actualFilePath = sourceElement.source.fullName;
+        
         String expectedFilePath = actualFilePath.replaceFirst(engine.options.actualRootPath, engine.options.expectedRootPath);
         
-        this.res.add(compareTypes(expectedFilePath, actualFilePath, sourceElement, false));
-        this.res.add(compareTypes(actualFilePath, expectedFilePath, sourceElement, true));
+        
+        this.res.add(compareTypes(expectedFilePath, actualFilePath, engine.options.benchmarkRootPath, sourceElement, false));
+        this.res.add(compareTypes(actualFilePath, expectedFilePath, engine.options.benchmarkRootPath, sourceElement, true));
       }
     }
   }

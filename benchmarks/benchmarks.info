@@ -1,15 +1,15 @@
-Dark	web/dark.dart
-StageXL	lib/stagexl.dart
-dart-webgl	web/learn_gl.dart
-dart2js	bin/_internal/compiler/implementation/dart2js.dart
-dcat	bin/dcat.dart
-dgrep	bin/dgrep.dart
-mongo_dart	lib/mongo_dart.dart
-play_p2	lib/p2.dart
-play_phaser	lib/phaser.dart
-pop_pop_win_package	pop_pop_win.dart
-qr	lib/qr.dart
-rikulo_UI	lib/view.dart
-spectre	lib/spectre.dart
-start	lib/start.dart
-three	lib/three.dart
+Dark	web/dark.dart 	https://github.com/xNotch/dark/tree/9555bba1b345b5ae25fbc4d45151d5bf8c74ba27
+StageXL	lib/stagexl.dart 	https://github.com/bp74/StageXL/tree/3172fe4b64526f9f5102268cab1ac436705179db
+dart-webgl	web/learn_gl.dart 	https://github.com/jtmcdole/dart-webgl/tree/45cc563c7a2e85361667b47931565dc0f6c06de3
+dart2js	bin/_internal/compiler/implementation/dart2js.dart 	https://github.com/TLeth/DartTypeInference/tree/master/benchmarks/dart2js
+dcat	bin/dcat.dart 	https://github.com/TLeth/DartTypeInference/tree/master/benchmarks/dcat
+dgrep	bin/dgrep.dart 	https://github.com/TLeth/DartTypeInference/tree/master/benchmarks/dgrep
+mongo_dart	lib/mongo_dart.dart 	https://github.com/vadimtsushko/mongo_dart/tree/06c4ff13a9c213f6bab33423d774ba1e7c5e6984
+play_p2	lib/p2.dart 	https://github.com/playif/play_p2/tree/bf19dbb0143a0140236d7a9551b5e4308f5b37c1
+play_phaser	lib/phaser.dart 	https://github.com/playif/play_phaser/tree/cdd27669dd64ece6ad6e39f1fb42c3b3c7a9957e
+pop_pop_win_package	pop_pop_win.dart 	https://github.com/TLeth/DartTypeInference/tree/master/benchmarks/pop_pop_win_package
+qr	lib/qr.dart 	https://github.com/kevmoo/qr.dart/tree/c60cf956a2ec3de00b573763c29d7ed06f39ffb2
+rikulo_UI	lib/view.dart 	https://github.com/rikulo/ui/tree/1027143b83fa8f1f15f8857aed69e35587921186
+spectre	lib/spectre.dart 	https://github.com/johnmccutchan/spectre/tree/04d2a2330a37a54de679bfdd3ce906d08b362d3c
+start	lib/start.dart 	https://github.com/lvivski/start/tree/4534e2953c6e7bfca03870670fd5bc237bcc01fa
+three	lib/three.dart 	https://github.com/threeDart/three.dart/tree/2b3de25ab4294646830e25eeac65e35835f39fe0

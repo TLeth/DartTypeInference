@@ -44,12 +44,12 @@ for benchmark in $benchmarks; do
         if [ ! $? -eq 0 ]; then
             echo "Couldnt find entry file, skipping"
         else
-            entryfile=${entryfile[1]}
+            entryfiledir=${entryfile[1]}
 
             if [ ! $doStrip -eq 0 ]; then
                 echo "Stripping..."
 
-                for  f in $(dart tools/dependency.dart --dart-sdk ${dartDir%bin/dart} .stripped/$benchmark/$entryfile); do
+                for  f in $(dart tools/dependency.dart --dart-sdk ${dartDir%bin/dart} .stripped/$benchmark/$entryfiledir); do
                     echo -e -n "$f\r"
                     strip.dart -g -w $f
                 done
@@ -70,13 +70,13 @@ for benchmark in $benchmarks; do
             cd ../..
 
 
-            dart --old_gen_heap_size=1000m bin/analyze.dart -w --json --actual-basedir inferred --expected-basedir benchmarks --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfile
+            dart --old_gen_heap_size=1000m bin/analyze.dart -w --json --actual-basedir inferred --expected-basedir benchmarks --benchmarkdir inferred/$benchmark --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfiledir
 
             # delete ]}] or ,
             #sed -i '' -e '$ d' benchmarks/results.json
 
             #date=$(date -j -f "%a %b %d %T %Z %Y" "`date`" "+%s")
-            printf "{\"benchmark\": \"%s\", \"data\":" $benchmark >> benchmarks/results.json
+            printf "{\"benchmark\": \"%s\", \"url\": \"%s\", \"data\":" $benchmark ${entryfile[2]} >> benchmarks/results.json
             cat res.json >> benchmarks/results.json
             printf "}\n," >> benchmarks/results.json
 

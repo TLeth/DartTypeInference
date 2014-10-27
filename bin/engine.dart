@@ -97,6 +97,7 @@ class Engine {
   ConstraintAnalysis _constraintAnalysis;
   ConstraintAnalysis get constraintAnalysis => _constraintAnalysis;
   
+  JavaFile get entryFile => _entryFile;
   Source get entrySource => _entrySource;
   
   Engine(CommandLineOptions this.options, DartSdk this._sdk) {

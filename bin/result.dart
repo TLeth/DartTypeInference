@@ -16,17 +16,19 @@ import 'package:analyzer/src/generated/error.dart';
 
 CompilationUnit expectedUnit, actualUnit;
 SourceElement sourceElem;
-String expectedFileName;
+String expectedFilePath;
 bool findingNewTypes;
-Result compareTypes(String expectedFile, String actualFile, SourceElement sourceElement, bool b) {
+//String benchmarkPath;
+Result compareTypes(String expectedFile, String actualFile, String benchmark, SourceElement sourceElement, bool findNewTypes) {
     sourceElem = sourceElement;
-    expectedFileName = expectedFile.split('/')[expectedFile.split('/').length - 1];
-    findingNewTypes = b;
+    expectedFilePath = (findNewTypes ? expectedFile: actualFile).replaceFirst(benchmark, '');
+    findingNewTypes = findNewTypes;
+    //benchmarkPath = benchmark;
     
     actualUnit = getCompilationUnit(new FileBasedSource.con1(new JavaFile(actualFile)));
     expectedUnit = getCompilationUnit(new FileBasedSource.con1(new JavaFile(expectedFile)));    
 
-    return expectedUnit.accept(new TwinVisitor())(actualUnit);
+    return expectedUnit.accept(new _TwinVisitor())(actualUnit);
 }
 
 
@@ -97,13 +99,13 @@ class Result {
 
 //expected always non-null
 //actual may be null
-Result classify(TypeName expected, TypeName actual, bool comparingGeneric) {
+Result _classify(TypeName expected, TypeName actual, bool comparingGeneric) {
   
   Result res = new Result.Empty();
 
   LineInfo_Location loc = expectedUnit.lineInfo.getLocation(expected.offset);
   Map entry = {
-    'url': expectedFileName,
+    'url': expectedFilePath,
     'line': loc.lineNumber,
     'col': loc.columnNumber,
     'expected': expected.toString(),
@@ -162,7 +164,7 @@ Result classify(TypeName expected, TypeName actual, bool comparingGeneric) {
     if (res == null) { print('BEFORE'); }
     
     expected.typeArguments.arguments.forEach((expectedArg) {
-      res.add(classify(expectedArg, null, true));
+      res.add(_classify(expectedArg, null, true));
     });
     
     if (res == null) { print('AFTER'); }
@@ -203,11 +205,11 @@ CompilationUnit getCompilationUnit(Source source) {
   return unit;
 }
 
-class TwinVisitor extends GeneralizingAstVisitor {
+class _TwinVisitor extends GeneralizingAstVisitor {
 
   visitTypeName(TypeName expectedNode){
     return (TypeName actualNode){
-      var res = classify(expectedNode, actualNode, false);
+      var res = _classify(expectedNode, actualNode, false);
       if (res == null) print('sdkl;jaslkdjaldkajsdkl;asjdalks;jdakls;djasdl;kadjakls;d');
       return res;
     };

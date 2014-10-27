@@ -20,6 +20,11 @@
       <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
       <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
+    <style type="text/css">
+    .clickable {
+      cursor:pointer;
+    }
+    </style>
   </head>
 
   <body ng-app="ResultApp" ng-controller="ResultController">
@@ -88,7 +93,7 @@
                                       </tr>
                                     </thead>
                                     <tbody>
-                                      <tr ng-repeat="error in errorgroup">
+                                      <tr ng-repeat="error in errorgroup" class="clickable" ng-click="openLink(benchmark, error)">
                                         <td>{{error.url}}</td>
                                         <td>{{error.line}}:{{error.col}}</td>
                                         <td class="text-right">{{error.expected}} / {{error.actual}}</td>
@@ -165,11 +170,16 @@
           'newNoneDynamicAnnotations': 'New non-dynamic annotations'
          };
 
+         $scope.openLink = function(benchmark, error){
+          window.open(benchmark.url + error.url +'#L'+error.line, '_blank');
+         };
+
          $scope.readFile = function(content){
           try {
             $scope.loading = true;
             $scope.results = JSON.parse(content);
             $scope.results.pop(); //First always null
+            console.log($scope.results);
             $scope.error =false;
 
           } catch(e){
