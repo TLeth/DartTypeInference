@@ -223,11 +223,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   }
 
 
-  @override
-  visitCascadeExpression(CascadeExpression node) {
-  }
-
-
   //Only resolve the prefix.
   //TODO handle library 'as ...' imports.
   @override

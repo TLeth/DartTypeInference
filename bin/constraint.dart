@@ -334,16 +334,14 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     super.visitInstanceCreationExpression(n);
     // new ClassName(arg_1,..., arg_n);
     NamedElement element = source.resolvedIdentifiers[n.constructorName.type.name];
-    
     //TODO (jln): What about generics.
-    
     if (element != null){
       //{ClassName} \in [n]
       TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
       if (element is ClassElement) { //The constructor called is unnammed.
         AbstractType classType = new NominalType(element);
         if (element.declaredConstructors.isEmpty) {
-          //Class does not contain a constructor, so use the implicit constructor. 
+          //Class does not contain a constructor, so use the implicit constructor.
           types.put(nodeIdent, classType);
         } else {
           //Call the constructor like a function.
