@@ -66,7 +66,7 @@
                           <a data-toggle="collapse" data-parent="#benchmark" href="#suite{{suiteIndex}}benchmark{{benchmarkIndex}}">
                             <span class="text-left">{{benchmark.benchmark}}</span>
                           </a>
-                          <span class="pull-right">{{benchmark.data.preciseAnnotations.length / benchmark.data.expectedFileAnnotations * 100 | number: 2}}%</span>
+                          <span class="pull-right">{{benchmark.data.preciseAnnotations.length}} - {{benchmark.data.preciseAnnotations.length / benchmark.data.expectedFileAnnotations * 100 | number: 2}}%</span>
                         </h4>
                       </div>
                       <div id="suite{{suiteIndex}}benchmark{{benchmarkIndex}}" class="panel-collapse collapse">
@@ -79,7 +79,7 @@
                                   <a data-toggle="collapse" data-parent="#errorgroup" href="#suite{{suiteIndex}}benchmark{{benchmarkIndex}}errorgroup{{$index}}">
                                     <span class="text-left">{{error_title}}</span>
                                   </a>
-                                  <span class="pull-right">{{errorgroup.length / benchmark.data.expectedFileAnnotations * 100 | number: 2}}%</span>
+                                  <span class="pull-right">{{errorgroup.length}} - {{errorgroup.length / benchmark.data.expectedFileAnnotations * 100 | number: 2}}%</span>
                                 </h4>
                               </div>
                               <div id="suite{{suiteIndex}}benchmark{{benchmarkIndex}}errorgroup{{$index}}" class="panel-collapse collapse">
