@@ -289,7 +289,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
   visitIntegerLiteral(IntegerLiteral n) {
     super.visitIntegerLiteral(n);
     // {int} \in [n]
-    types.put(n, _getAbstractType(new Name('int'), constraintAnalysis.dartCore, source));
+    types.put(n, _getAbstractType(new Name("int"), constraintAnalysis.dartCore, source));
   }
   
   visitDoubleLiteral(DoubleLiteral n) {
@@ -363,7 +363,7 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
      super.visitVariableDeclaration(vd);
      
      if (!elementAnalysis.containsElement(vd))
-       engine.errors.addError(new EngineError("A VariableDeclaration was visited, but didn't have a associated elemenet.", source.source, vd.offset, vd.length ), true);
+       engine.errors.addError(new EngineError("A VariableDeclaration was visited, but didnt have a associated elemenet.", source.source, vd.offset, vd.length ), true);
      
      Element element = elementAnalysis.elements[vd];
      if (element is FieldElement){
@@ -877,16 +877,26 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     
     // exp1 op exp2
     TypeIdentifier leftIdent = new ExpressionTypeIdentifier(be.leftOperand);
+    TypeIdentifier rightIdent = new ExpressionTypeIdentifier(be.rightOperand);
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(be);
     
-
-    //  \forall \gamma \in [exp1], 
-    //  \forall (\alpha -> \beta) \in [ \gamma .op ] => 
-    //      \alpha \in [exp2] && \beta \in [exp1 op exp2].
-    foreach(leftIdent).update((AbstractType gamma) {
-      TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(be.operator));
-      _methodCall(methodIdent, <Expression>[be.rightOperand], nodeIdent);
-    });
+    if (be.operator.type == TokenType.AMPERSAND_AMPERSAND ||
+        be.operator.type == TokenType.BAR_BAR) {
+      // Binop only implemented for bools
+      types.put(leftIdent, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+      types.put(rightIdent, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+      types.put(nodeIdent, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+        
+    } else {
+      //  Binop handled as method call
+      //  \forall \gamma \in [exp1], 
+      //  \forall (\alpha -> \beta) \in [ \gamma .op ] => 
+      //      \alpha \in [exp2] && \beta \in [exp1 op exp2].
+      foreach(leftIdent).update((AbstractType gamma) {
+        TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(be.operator));
+        _methodCall(methodIdent, <Expression>[be.rightOperand], nodeIdent);
+      });
+    }
   }
   
   visitIsExpression(IsExpression n){
