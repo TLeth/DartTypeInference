@@ -84,5 +84,7 @@ import 'method_gettersetter.dart';
 import 'static_gettersetter.dart';
 import 'generic.dart';
 import 'casq_ctor.dart';
+import 'logic_and.dart';
+import 'logic_or.dart';
 
 void main() {}
