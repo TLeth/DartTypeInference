@@ -56,10 +56,10 @@
                   <span class="pull-right"><a href="{{getRevUrl(suite.rev)}}" target="_blank">{{suite.rev}}</a></span>
                 </h4>
               </div>
-              <div id="suite{{suiteIndex}}" class="panel-collapse collapse">
+              <div id="suite{{suiteIndex}}" class="panel-collapse collapse" data-index="{{suiteIndex}}">
                 <div class="panel-body">
 
-                  <div class="panel-group" id="benchmark">
+                  <div class="panel-group" id="benchmark" ng-if="activeSuite == suiteIndex">
                     <div class="panel panel-default" ng-repeat="benchmark in suite.suite" ng-init="benchmarkIndex = $index">
                       <div class="panel-heading">
                         <h4 class="panel-title">
@@ -69,22 +69,22 @@
                           <span class="pull-right">{{benchmark.data.preciseAnnotations.length}} - {{benchmark.data.preciseAnnotations.length / benchmark.data.expectedFileAnnotations * 100 | number: 2}}%</span>
                         </h4>
                       </div>
-                      <div id="suite{{suiteIndex}}benchmark{{benchmarkIndex}}" class="panel-collapse collapse">
+                      <div id="suite{{suiteIndex}}benchmark{{benchmarkIndex}}" data-index="{{benchmarkIndex}}" class="panel-collapse collapse">
                         <div class="panel-body">
 
-                          <div class="panel-group" id="errorgroup">
-                            <div class="panel panel-default" ng-repeat="(error_key,error_title) in errors" ng-if="benchmark.data[error_key].length > 0" ng-init="errorgroup = benchmark.data[error_key]">
+                          <div class="panel-group" id="errorgroup" ng-if="activeBenchmark == benchmarkIndex">
+                            <div class="panel panel-default" ng-repeat="error_key in errors" ng-if="benchmark.data[error_key].length > 0" ng-init="errorgroup = benchmark.data[error_key]">
                               <div class="panel-heading">
                                 <h4 class="panel-title">
                                   <a data-toggle="collapse" data-parent="#errorgroup" href="#suite{{suiteIndex}}benchmark{{benchmarkIndex}}errorgroup{{$index}}">
-                                    <span class="text-left">{{error_title}}</span>
+                                    <span class="text-left">{{errorNames[error_key]}}</span>
                                   </a>
                                   <span class="pull-right">{{errorgroup.length}} - {{errorgroup.length / benchmark.data.expectedFileAnnotations * 100 | number: 2}}%</span>
                                 </h4>
                               </div>
-                              <div id="suite{{suiteIndex}}benchmark{{benchmarkIndex}}errorgroup{{$index}}" class="panel-collapse collapse">
+                              <div id="suite{{suiteIndex}}benchmark{{benchmarkIndex}}errorgroup{{$index}}" data-index="{{$index}}" class="panel-collapse collapse">
                                 <div class="panel-body">
-                                  <table class="table table-bordered table-condensed table-hover">
+                                  <table class="table table-bordered table-condensed table-hover" ng-if="activeErrorgroup == $index">
                                     <thead>
                                       <tr>
                                         <th>File</th>
@@ -157,18 +157,58 @@
          $scope.getRevUrl = function(rev){
           return 'https://github.com/TLeth/DartTypeInference/tree/'+ rev;
          }
+         
+         $scope.errors = ['supertypeAnnotations', 
+                                 'subtypeAnnotations',
+                                 'shouldBeGenericTypeAnnotation',
+                                 'unrelatedAnnotations',
+                                 'unresolvedTypeAnnotation',
+                                 'genericTypeArgumentMissing',
+                                 'noTypeAnnotations',
+                                 'newNoneDynamicAnnotations',
+                                 'newDynamicAnnotations'];
 
-         $scope.errors = {
+         $scope.errorNames = {
+          'subtypeAnnotations': 'Sub-type annotations',
           'noTypeAnnotations': 'Missing type annotations',
-          'shouldBeGenericTypeAnnotations': 'Should have been a generic type annotations',
+          'shouldBeGenericTypeAnnotation': 'Should have been a generic type annotations',
           'subtypeAnnotations': 'Sub-type annotations',
           'supertypeAnnotations': 'Super-type annotations',
           'genericTypeArgumentMissing': 'Generic type argument missing',
           'unrelatedAnnotations': 'Unrelated annotations',
-          'unresolvedTypeAnnotations': 'Unresolved type annotations',
+          'unresolvedTypeAnnotation': 'Unresolved type annotations',
           'newDynamicAnnotations': 'New dynamic annotations',
           'newNoneDynamicAnnotations': 'New non-dynamic annotations'
          };
+         
+         $scope.activeBenchmark = null;
+         $scope.activeSuite = null;
+         $scope.activeErrorgroup = null;
+         
+         
+         $(document).on('show.bs.collapse', '#suite', function(e){
+           $scope.$apply(function () {
+            $scope.activeSuite = $(e.target).data('index');
+            $scope.activeBenchmark = null;
+            $scope.activeErrorgroup = null;
+            e.stopPropagation();
+           });
+         });
+         
+         $(document).on('show.bs.collapse', '#benchmark', function(e){
+           $scope.$apply(function () {
+             $scope.activeBenchmark = $(e.target).data('index');
+             $scope.activeErrorgroup = null;
+            e.stopPropagation();
+           });
+         });
+         
+         $(document).on('show.bs.collapse', '#errorgroup', function(e){
+           $scope.$apply(function () {
+            $scope.activeErrorgroup = $(e.target).data('index');
+            e.stopPropagation();
+           });
+         });
 
          $scope.openLink = function(benchmark, error){
           window.open(benchmark.url + error.url +'#L'+error.line, '_blank');
@@ -179,7 +219,6 @@
             $scope.loading = true;
             $scope.results = JSON.parse(content);
             $scope.results.pop(); //First always null
-            console.log($scope.results);
             $scope.error =false;
 
           } catch(e){
@@ -188,6 +227,23 @@
             $scope.loading= false;
           }
          };
+         
+         window.printLatex = function() {
+            for(var i = 0 ; i < $scope.results.length; i++){
+              console.log($scope.results[i].date);
+              var res = "";
+              for(var j = 0; j < $scope.results[i].suite.length; j++){
+                var resa = [];
+                resa.push($scope.results[i].suite[j].benchmark);
+                resa.push(Math.round($scope.results[i].suite[j].data.preciseAnnotations.length / $scope.results[i].suite[j].data.expectedFileAnnotations * 10000) / 100 + '\\%');
+                for(var k = 0; k < $scope.errors.length; k++){
+                  resa.push(Math.round($scope.results[i].suite[j].data[$scope.errors[k]].length / $scope.results[i].suite[j].data.expectedFileAnnotations * 10000) / 100 + '\\%');
+                }
+                res += resa.join('\t\\&\t') + ' \\\\\n';
+              }
+              console.log(res);
+            }
+         }
 
       }]);
 
