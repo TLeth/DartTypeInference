@@ -576,7 +576,10 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       });
     }
   }
-  
+
+  //  TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(be.operator));
+  //  _methodCall(methodIdent, <Expression>[be.rightOperand], nodeIdent);
+
   _methodCall(TypeIdentifier method, List argumentList, [TypeIdentifier returnIdent = null]){
     // method(arg_1,...,arg_n) : return
     List<TypeIdentifier> parameters = <TypeIdentifier>[];
@@ -594,27 +597,59 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
           engine.errors.addError(new EngineError("_methodCall in constraint.dart was called with a unreal argument: `${arg.runtimeType}`", source.source), true);
       }
     }
-    //\forall (\gamma_1 -> ... -> \gamma_n -> \beta) \in [method] =>
-    //  \gamma_i \in [arg_i] &&  \beta \in [method]
-    foreach(method)
-      .where((AbstractType func) {
-          return func is FunctionType && 
-          MapUtil.submap(namedParameters, func.namedParameterTypes) &&
-          func.optionalParameterTypes.length + func.normalParameterTypes.length >= parameters.length; })
-      .update((AbstractType func) {
-        if (func is FunctionType) {
-          for (var i = 0; i < parameters.length;i++){
-            if (i < func.normalParameterTypes.length)
-              subsetConstraint(parameters[i], func.normalParameterTypes[i]);              
-            else
-              subsetConstraint(parameters[i], func.optionalParameterTypes[i - func.normalParameterTypes.length]);
-          }
-          for(Name name in namedParameters.keys){
-            subsetConstraint(namedParameters[name], func.namedParameterTypes[name]);
-          }
-          if (returnIdent != null) subsetConstraint(func.returnType, returnIdent);
+
+    AbstractType intElem = _getAbstractType(new Name("int"), constraintAnalysis.dartCore, source);
+    AbstractType numElem = _getAbstractType(new Name("num"), constraintAnalysis.dartCore, source);
+    AbstractType doubleElem = _getAbstractType(new Name("double"), constraintAnalysis.dartCore, source);
+    List specialMethods = [TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.TILDE_SLASH, TokenType.PERCENT].map((token) {
+      return new Name(token.lexeme);
+    });
+
+    if (method is PropertyTypeIdentifier &&
+        method.propertyIdentifierType == intElem &&
+        specialMethods.contains(method.propertyIdentifierName) &&
+        parameters.length == 1 &&
+        returnIdent != null) {
+      
+      bool hadSpecificNumericType = false;
+      
+      [intElem, doubleElem].forEach((numericType) {
+        if ((types[returnIdent] != null && types[returnIdent].types.contains(numericType)) ||
+            (types[parameters[0]] != null && types[parameters[0]].types.contains(numericType))) {
+          types.put(returnIdent, numericType);
+          types.put(parameters[0], numericType);
+          hadSpecificNumericType = true;
         }
-      }); 
+      });
+      
+      if (!hadSpecificNumericType) {
+        types.put(returnIdent, numElem);
+        types.put(parameters[0], numElem);
+      }
+    } else {
+
+      //\forall (\gamma_1 -> ... -> \gamma_n -> \beta) \in [method] =>
+      //  \gamma_i \in [arg_i] &&  \beta \in [method]
+      foreach(method)
+        .where((AbstractType func) {
+          return func is FunctionType && 
+            MapUtil.submap(namedParameters, func.namedParameterTypes) &&
+            func.optionalParameterTypes.length + func.normalParameterTypes.length >= parameters.length; })
+        .update((AbstractType func) {
+          if (func is FunctionType) {
+            for (var i = 0; i < parameters.length;i++){
+              if (i < func.normalParameterTypes.length)
+                subsetConstraint(parameters[i], func.normalParameterTypes[i]);              
+              else
+                subsetConstraint(parameters[i], func.optionalParameterTypes[i - func.normalParameterTypes.length]);
+            }
+            for(Name name in namedParameters.keys){
+            subsetConstraint(namedParameters[name], func.namedParameterTypes[name]);
+            }
+            if (returnIdent != null) subsetConstraint(func.returnType, returnIdent);
+          }
+        }); 
+    }
   }
   
   visitIfStatement(IfStatement node) {
@@ -880,23 +915,56 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     TypeIdentifier rightIdent = new ExpressionTypeIdentifier(be.rightOperand);
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(be);
     
+    // Binop only implemented for bools
     if (be.operator.type == TokenType.AMPERSAND_AMPERSAND ||
         be.operator.type == TokenType.BAR_BAR) {
-      // Binop only implemented for bools
       types.put(leftIdent, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
       types.put(rightIdent, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
       types.put(nodeIdent, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
-        
-    } else {
-      //  Binop handled as method call
-      //  \forall \gamma \in [exp1], 
-      //  \forall (\alpha -> \beta) \in [ \gamma .op ] => 
-      //      \alpha \in [exp2] && \beta \in [exp1 op exp2].
-      foreach(leftIdent).update((AbstractType gamma) {
-        TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(be.operator));
-        _methodCall(methodIdent, <Expression>[be.rightOperand], nodeIdent);
-      });
+      return;
     }
+
+    // +, -, *, ~/, and % have special status in the Dart type checker - this is replicated here.
+    // Sections 15.26 and 15.27 has more info on this.
+    if ([TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.TILDE_SLASH, TokenType.PERCENT].contains(be.operator.type)) {
+      AbstractType intElem = _getAbstractType(new Name("int"), constraintAnalysis.dartCore, source);
+      AbstractType numElem = _getAbstractType(new Name("num"), constraintAnalysis.dartCore, source);
+      AbstractType doubleElem = _getAbstractType(new Name("double"), constraintAnalysis.dartCore, source);
+
+      foreach(leftIdent).update((AbstractType gamma) {
+        if (gamma == intElem) {
+          
+          bool hadSpecificNumericType = false;
+          
+          [intElem, doubleElem].forEach((numericType) {
+            if ((types[rightIdent] != null && types[rightIdent].types.contains(numericType)) ||
+                (types[nodeIdent] != null && types[nodeIdent].types.contains(numericType))) {
+              types.put(nodeIdent, numericType);
+              types.put(rightIdent, numericType);
+              hadSpecificNumericType = true;
+            }
+          });
+          
+          if (!hadSpecificNumericType) {
+            types.put(nodeIdent, numElem);
+            types.put(rightIdent, numElem);
+          }
+        } else {
+          TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(be.operator));
+          _methodCall(methodIdent, <Expression>[be.rightOperand], nodeIdent);
+        }
+      });
+      return;
+    }
+    
+    //  Fallback - Binop handled as method call
+    //  \forall \gamma \in [exp1], 
+    //  \forall (\alpha -> \beta) \in [ \gamma .op ] => 
+    //      \alpha \in [exp2] && \beta \in [exp1 op exp2].
+    foreach(leftIdent).update((AbstractType gamma) {
+      TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(be.operator));
+      _methodCall(methodIdent, <Expression>[be.rightOperand], nodeIdent);
+    });
   }
   
   visitIsExpression(IsExpression n){
