@@ -8,10 +8,6 @@ dartDir=$(which dart)
 mkdir -p "inferred/"
 mkdir -p ".stripped/"
 
-if [ ! -f benchmarks/results.json ]; then
-    printf "var results = [\n];" > benchmarks/results.json
-fi
-
 benchmarks=$(ls benchmarks)
 if [ $# -ne 0 ]; then
     benchmarks=$*
