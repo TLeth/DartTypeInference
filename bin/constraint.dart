@@ -614,7 +614,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
         functionCall(functionIdent, node.argumentList.arguments, returnIdent);
       });
     }
-  } 
+  }
   
   visitReturnStatement(ReturnStatement node){
     super.visitReturnStatement(node);
@@ -904,6 +904,79 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     else
       types.add(n, new NominalType(_currentClassElement.extendsElement));
   }
+
+  /* TODO (jln): What todo?
+  _methodCall(TypeIdentifier method, List argumentList, [TypeIdentifier returnIdent = null]){
+    // method(arg_1,...,arg_n) : return
+    List<TypeIdentifier> parameters = <TypeIdentifier>[];
+    Map<Name, TypeIdentifier> namedParameters = <Name, TypeIdentifier>{};
+    
+    if (argumentList != null){
+      for(var arg in argumentList){
+        if (arg is NamedExpression)
+          namedParameters[new Name.FromIdentifier(arg.name.label)] = new ExpressionTypeIdentifier(arg.expression);
+        else if (arg is Expression)
+          parameters.add(new ExpressionTypeIdentifier(arg));
+        else if (arg is TypeIdentifier)
+          parameters.add(arg);
+        else
+          engine.errors.addError(new EngineError("_methodCall in constraint.dart was called with a unreal argument: `${arg.runtimeType}`", source.source), true);
+      }
+    }
+
+    AbstractType intElem = _getAbstractType(new Name("int"), constraintAnalysis.dartCore, source);
+    AbstractType numElem = _getAbstractType(new Name("num"), constraintAnalysis.dartCore, source);
+    AbstractType doubleElem = _getAbstractType(new Name("double"), constraintAnalysis.dartCore, source);
+    List specialMethods = [TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.TILDE_SLASH, TokenType.PERCENT].map((token) {
+      return new Name(token.lexeme);
+    });
+
+    if (method is PropertyTypeIdentifier &&
+        method.propertyIdentifierType == intElem &&
+        specialMethods.contains(method.propertyIdentifierName) &&
+        parameters.length == 1 &&
+        returnIdent != null) {
+      
+      bool hadSpecificNumericType = false;
+      
+      [intElem, doubleElem].forEach((numericType) {
+        if ((types[returnIdent] != null && types[returnIdent].types.contains(numericType)) ||
+            (types[parameters[0]] != null && types[parameters[0]].types.contains(numericType))) {
+          types.put(returnIdent, numericType);
+          types.put(parameters[0], numericType);
+          hadSpecificNumericType = true;
+        }
+      });
+      
+      if (!hadSpecificNumericType) {
+        types.put(returnIdent, numElem);
+        types.put(parameters[0], numElem);
+      }
+    } else {
+
+      //\forall (\gamma_1 -> ... -> \gamma_n -> \beta) \in [method] =>
+      //  \gamma_i \in [arg_i] &&  \beta \in [method]
+      foreach(method)
+        .where((AbstractType func) {
+          return func is FunctionType && 
+            MapUtil.submap(namedParameters, func.namedParameterTypes) &&
+            func.optionalParameterTypes.length + func.normalParameterTypes.length >= parameters.length; })
+        .update((AbstractType func) {
+          if (func is FunctionType) {
+            for (var i = 0; i < parameters.length;i++){
+              if (i < func.normalParameterTypes.length)
+                subsetConstraint(parameters[i], func.normalParameterTypes[i]);              
+              else
+                subsetConstraint(parameters[i], func.optionalParameterTypes[i - func.normalParameterTypes.length]);
+            }
+            for(Name name in namedParameters.keys){
+            subsetConstraint(namedParameters[name], func.namedParameterTypes[name]);
+            }
+            if (returnIdent != null) subsetConstraint(func.returnType, returnIdent);
+          }
+        }); 
+    }
+  }*/
   
   visitIfStatement(IfStatement node) {
     super.visitIfStatement(node);
@@ -995,7 +1068,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     if (node.operator.type == TokenType.AMPERSAND_AMPERSAND ||
         node.operator.type == TokenType.BAR_BAR)
       logicalBinaryExpression(node);
+    else if ([TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.TILDE_SLASH, TokenType.PERCENT].contains(node.operator.type))
+      integerBinaryExpression(node);
     else {
+      
       /*
        * Desugaring is made
        */
@@ -1028,7 +1104,38 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     types.add(nodeIdent, getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source)); 
   }
   
-  //bool _isIncrementOperator(String operator) => operator == '--' || operator == '++';
+  integerBinaryExpression(BinaryExpression node){
+    TypeIdentifier leftIdent = new ExpressionTypeIdentifier(node.leftOperand);
+    TypeIdentifier rightIdent = new ExpressionTypeIdentifier(node.rightOperand);
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+    AbstractType intElem = getAbstractType(new Name("int"), constraintAnalysis.dartCore, source);
+    AbstractType numElem = getAbstractType(new Name("num"), constraintAnalysis.dartCore, source);
+    AbstractType doubleElem = getAbstractType(new Name("double"), constraintAnalysis.dartCore, source);
+  
+    /* TODO (jln): What todo?
+    foreach(leftIdent).update((AbstractType gamma) {
+      if (gamma == intElem) {
+        
+        bool hadSpecificNumericType = false;
+        
+        [intElem, doubleElem].forEach((numericType) {
+          if (types[rightIdent].types.contains(numericType) || types[nodeIdent].types.contains(numericType)) {
+            types.add(nodeIdent, numericType);
+            types.add(rightIdent, numericType);
+            hadSpecificNumericType = true;
+          }
+        });
+        
+        if (!hadSpecificNumericType) {
+          types.add(nodeIdent, numElem);
+          types.add(rightIdent, numElem);
+        }
+      } else {
+        TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(node.operator));
+        functionCall(methodIdent, [rightIdent], nodeIdent);
+      }
+    });*/
+  }
   
   /*
    * Prefix expressions needs to be desugared
@@ -1072,8 +1179,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     
     if (operator == null)
       engine.errors.addError(new EngineError("incrementDecrementPrefixExpression was called but the operator was neither MINUS_MINUS or PLUS_PLUS.", source.source, node.offset, node.length), true);
-    
-    
+        
     TypeIdentifier vIdent = new ExpressionTypeIdentifier(node.operand);
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
     

@@ -1,3 +1,3 @@
 library tests.binop_plus_int;
 
-num v = 3 + 4;
+int v = 3 + 4;
