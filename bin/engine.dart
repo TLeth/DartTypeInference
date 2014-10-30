@@ -22,8 +22,6 @@ import 'resolver.dart' hide IdentifierResolver;
 import 'printer.dart';
 
 //TODO (jln): split files into smaller ones.
-
-
 const int MAX_CACHE_SIZE = 512;
 const String DART_EXT_SCHEME = "dart-ext:";
 
@@ -264,7 +262,8 @@ class Engine {
   
   _makeConstraintAnalysis(){
     _constraintAnalysis = new ConstraintAnalysis(this, _elementAnalysis);
-    new ConstraintGenerator(_constraintAnalysis);
+    new RichTypeGenerator(_constraintAnalysis);
+    ConstraintGenerator.Generate(_constraintAnalysis);
 
     if (this.options.printConstraints) {
       new PrintConstraintVisitor(_constraintAnalysis, _entrySource);

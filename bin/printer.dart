@@ -1253,74 +1253,9 @@ class PrintConstraintVisitor extends GeneralizingAstVisitor {
     }
   }
   
-  visitIntegerLiteral(IntegerLiteral n) {    
-    // {int} \subseteq [n]
-    TypeIdentifier nodeTypeIdent = new ExpressionTypeIdentifier(n);
-    super.visitIntegerLiteral(n);
+  visitExpression(Expression e){
+    TypeIdentifier eType = new ExpressionTypeIdentifier(e);
+    print("${e} // ${types[eType]}");
+    super.visitExpression(e);
   }
-  
-  visitDoubleLiteral(DoubleLiteral n) {
-    // {double} \subseteq [n]
-    TypeIdentifier nodeTypeIdent = new ExpressionTypeIdentifier(n);
-    super.visitDoubleLiteral(n);
-  }
-  
-  visitVariableDeclaration(VariableDeclaration vd){
-    // var v = exp;
-    TypeIdentifier vType = new ExpressionTypeIdentifier(vd.name);
-    TypeIdentifier expTyp = new ExpressionTypeIdentifier(vd.initializer);
-    print("${vd} // ${types[vType]}");
-    super.visitVariableDeclaration(vd);
-  }
-  
-  visitNormalFormalParameter(NormalFormalParameter node) {
-    TypeIdentifier paramType = new ExpressionTypeIdentifier(node.identifier);
-    print("${node.identifier} // ${types[paramType]}");
-  }
-  
-  visitFieldFormalParameter(FieldFormalParameter node){
-    TypeIdentifier paramType = new ExpressionTypeIdentifier(node.identifier);
-    print("${node.identifier} // ${types[paramType]}");
-  }
-  
-  visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node){
-    TypeIdentifier paramType = new ExpressionTypeIdentifier(node.identifier);
-    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! analysis.CallableElement)
-      return; //Nogood;
-    
-    analysis.CallableElement callableElement = elementAnalysis.elements[node];
-    TypeIdentifier returnType = new ReturnTypeIdentifier(callableElement);
-    TypeIdentifier funcType = new ExpressionTypeIdentifier(node.identifier);
-    print("${returnType} // ${types[returnType]}");
-    print("${funcType} // ${types[funcType]}");
-    
-    super.visitFormalParameterList(node.parameters);
-  }
-  
-  visitFunctionExpression(FunctionExpression node){
-    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! analysis.CallableElement)
-      return; //Nogood;
-    
-    analysis.CallableElement callableElement = elementAnalysis.elements[node];
-    TypeIdentifier returnType = new ReturnTypeIdentifier(callableElement);
-    TypeIdentifier funcType = new ExpressionTypeIdentifier(node);
-    print("${returnType} // ${types[returnType]}");
-    print("${funcType} // ${types[funcType]}");
-    super.visitFunctionExpression(node);
-  }
-  
-  visitAssignmentExpression(AssignmentExpression node){
-    // v = exp;
-    TypeIdentifier vType = new ExpressionTypeIdentifier(node.leftHandSide);
-    print("${node} // ${types[vType]}");
-    super.visitAssignmentExpression(node);
-  }
-  
-  visitBinaryExpression(BinaryExpression be) {
-    super.visitBinaryExpression(be);
-  }
-    
-  
-  
-  
 }
