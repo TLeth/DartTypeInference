@@ -93,6 +93,8 @@ class Name {
   
   factory Name.FromToken(Token name) => new Name(name.toString());
   
+  factory Name.FromTokenType(TokenType name) => new Name(name.lexeme);
+  
   bool get isPrivate => Identifier.isPrivateName(_name);
   String get name => _name;
   

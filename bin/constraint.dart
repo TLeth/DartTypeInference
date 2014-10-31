@@ -490,13 +490,13 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   
 
   /*
-   * +, -, *, ~/, and % have special status in the Dart type checker - this is replicated here.
+   * +, -, *, and % have special status in the Dart type checker - this is replicated here.
    * Sections 15.26 and 15.27 has more info on this.
    * This function checks if this is a special case, if not it returns false.  
    */
   bool isNumberBinaryFunctionCall(TypeIdentifier functionIdent, List<TypeIdentifier> arguments, Map<Name, TypeIdentifier> namedArguments, TypeIdentifier returnIdent){
     AbstractType intElem = getAbstractType(new Name("int"), constraintAnalysis.dartCore, source);
-    List numberMethods = [TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.TILDE_SLASH, TokenType.PERCENT].map(
+    List numberMethods = [TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.PERCENT].map(
         (token) => new Name(token.lexeme));
     
     return functionIdent is PropertyTypeIdentifier &&
