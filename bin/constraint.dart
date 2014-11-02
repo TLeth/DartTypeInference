@@ -125,11 +125,11 @@ class TypeVariable {
    * least upper bound.
    *
    */
-  AbstractType getLeastUpperBound() {
+  AbstractType getLeastUpperBound(Engine engine) {
     if (_types.length == 0) return new DynamicType();
     Queue<AbstractType> queue = new Queue<AbstractType>.from(_types);
     AbstractType res = queue.removeFirst();
-    res = queue.fold(res, (AbstractType res, AbstractType t) => res.getLeastUpperBound(t));
+    res = queue.fold(res, (AbstractType res, AbstractType t) => res.getLeastUpperBound(t, engine));
     if (res == null)
       return new DynamicType();
     else 
@@ -496,7 +496,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
    */
   bool isNumberBinaryFunctionCall(TypeIdentifier functionIdent, List<TypeIdentifier> arguments, Map<Name, TypeIdentifier> namedArguments, TypeIdentifier returnIdent){
     AbstractType intElem = getAbstractType(new Name("int"), constraintAnalysis.dartCore, source);
-    List numberMethods = [TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.PERCENT].map(
+    var numberMethods = [TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.PERCENT].map(
         (token) => new Name(token.lexeme));
     
     return functionIdent is PropertyTypeIdentifier &&
@@ -728,6 +728,13 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
           }
        });
     }
+  
+  visitDefaultFormalParameter(DefaultFormalParameter node){
+    super.visitDefaultFormalParameter(node);
+    
+    if (node.defaultValue != null)
+      assignmentExpression(node.identifier, node.defaultValue);
+  }
   
   
   /****************************************/

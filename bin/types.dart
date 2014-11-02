@@ -4,6 +4,7 @@ import 'package:analyzer/src/generated/ast.dart' hide ClassMember;
 import 'package:analyzer/src/generated/utilities_dart.dart';
 import 'element.dart';
 import 'util.dart';
+import 'engine.dart';
 
 abstract class AbstractType {
   
@@ -12,7 +13,7 @@ abstract class AbstractType {
    * least upper bound.
    *
    */
-   AbstractType getLeastUpperBound(AbstractType type);
+   AbstractType getLeastUpperBound(AbstractType type, Engine engine);
   
   /**
    * Return `true` if this type is assignable to the given type. A type <i>T</i> may be
@@ -97,9 +98,13 @@ class FunctionType extends AbstractType {
     return false;
   }
   
-  AbstractType getLeastUpperBound(AbstractType t) {
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine) {
     if (t is DynamicType || t is VoidType)
           return t;
+    
+    ClassElement funcElement = engine.elementAnalysis.resolveClassElement(new Name('Function'), engine.elementAnalysis.dartCore, engine.elementAnalysis.dartCore.source);
+    if (funcElement == null)
+      engine.errors.addError(new EngineError("Function could not be found in dart core library. Called from functionType getLeastUpperBound."), true);
     
     if (t is FunctionType){
       if (t.normalParameterTypes.length == optionalParameterTypes.length && 
@@ -107,17 +112,19 @@ class FunctionType extends AbstractType {
           t.namedParameterTypes.length == namedParameterTypes.length && 
           ListUtil.union(namedParameterTypes.keys, t.namedParameterTypes.keys).length == namedParameterTypes.length) {
         
-        //TODO (jln): Since elements in the function is typeIdentifiers we need to have a link to the types.
         
-      } else {
-        //TODO (jln): Both was functions so just return functions instead.
-        return new DynamicType();
-      }
-      
+        //TODO (jln): Since elements in the function is typeIdentifiers we need to have a link to the types.
+        //            This is only if typedefs are used, in functionTypedParameters, this is handled by constraints.
+        return new NominalType(funcElement);
+        
+      } else
+        return new NominalType(funcElement);
     }
     
-    //TODO (jln): Implement this, a simple implementation could be if t is a FunctionType then return the nominalType Function.
-    return new DynamicType();
+    if (t is NominalType && t.element == funcElement)
+      return t;
+    else
+      return new DynamicType();
   }
   
   bool operator ==(Object other) => 
@@ -147,7 +154,7 @@ class NominalType extends AbstractType {
       return false;
   }
   
-  AbstractType getLeastUpperBound(AbstractType t){
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine){
     if (t is NominalType) {
       ClassElement leastUpperBound = element.getLeastUpperBound(t.element);
       if (leastUpperBound == null)
@@ -159,8 +166,14 @@ class NominalType extends AbstractType {
     
     if (t is DynamicType || t is VoidType)
       return t;
-
-    //TODO (jln): If t is FunctionType the only possible case would be if this nominalType is FunctionType.
+   
+    //If this type is Function and t is FunctionType, return Function.
+    ClassElement funcElement = engine.elementAnalysis.resolveClassElement(new Name('Function'), engine.elementAnalysis.dartCore, engine.elementAnalysis.dartCore.source);
+    if (funcElement == null)
+      engine.errors.addError(new EngineError("Function could not be found in dart core library. Called from functionType getLeastUpperBound."), true);
+    if (t is FunctionType && this.element == funcElement)
+      return this;
+    
     return new DynamicType();
   }
   
@@ -175,7 +188,7 @@ class DynamicType extends AbstractType {
   
   bool isSubtypeOf(DynamicType t) => true;
   
-  AbstractType getLeastUpperBound(AbstractType t) => this;
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine) => this;
   
   String toString() => "dynamic";
   bool operator ==(Object other) => other is VoidType;
@@ -207,7 +220,7 @@ class VoidType extends AbstractType {
   
   bool isSubtypeOf(AbstractType t) => t is VoidType;
   
-  AbstractType getLeastUpperBound(AbstractType t) => (t is DynamicType ? t : this);
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine) => (t is DynamicType ? t : this);
   
   String toString() => "void";
   bool operator ==(Object other) => other is VoidType;

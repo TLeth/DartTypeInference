@@ -14,9 +14,10 @@ import 'result.dart';
 class TypeAnnotator {
   
   TypeMap typemap;
-  ElementAnalysis analysis;
+  Engine engine;
+  ElementAnalysis get analysis => engine.elementAnalysis; 
   
-  TypeAnnotator(TypeMap this.typemap, ElementAnalysis this.analysis);
+  TypeAnnotator(TypeMap this.typemap, Engine this.engine);
   
   TypeName annotateIdentifier(Identifier identifier, LibraryElement library, {bool canBeVoid: false, int offset: 0}){
     TypeIdentifier typeIdent = new ExpressionTypeIdentifier(identifier);
@@ -28,7 +29,7 @@ class TypeAnnotator {
     if (typeVariable == null)
       return new TypeName(new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset)), null);
     
-    AbstractType type = typeVariable.getLeastUpperBound();
+    AbstractType type = typeVariable.getLeastUpperBound(engine);
     if (type is VoidType && !canBeVoid)
       return AbstractTypeToTypeName(new DynamicType(), library, offset);
     else
@@ -76,7 +77,7 @@ class Annotator {
   Annotator(Engine this.engine){    
     this.res = new Result.Empty();
 
-    typeAnnotator = new TypeAnnotator(engine.constraintAnalysis.typeMap, elementAnalysis);
+    typeAnnotator = new TypeAnnotator(engine.constraintAnalysis.typeMap, engine);
     
     elementAnalysis.sources.values.forEach(annotateSource); 
     
