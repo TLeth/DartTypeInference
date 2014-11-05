@@ -66,7 +66,7 @@
                           <a data-toggle="collapse" data-parent="#benchmark" href="#suite{{suiteIndex}}benchmark{{benchmarkIndex}}">
                             <span class="text-left">{{benchmark.benchmark}}</span>
                           </a>
-                          <span class="pull-right">{{benchmark.data.preciseAnnotations.length}} - {{benchmark.data.preciseAnnotations.length / benchmark.data.expectedFileAnnotations * 100 | number: 2}}%</span>
+                          <span class="pull-right">New Info/Warning/Error: {{benchmark.infos}}/{{benchmark.warnings}}/{{benchmark.errors}} - Runtime: {{benchmark.time}}ms - {{benchmark.data.preciseAnnotations.length}} - {{benchmark.data.preciseAnnotations.length / benchmark.data.expectedFileAnnotations * 100 | number: 2}}%</span>
                         </h4>
                       </div>
                       <div id="suite{{suiteIndex}}benchmark{{benchmarkIndex}}" data-index="{{benchmarkIndex}}" class="panel-collapse collapse">
