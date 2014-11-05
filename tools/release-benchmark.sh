@@ -75,14 +75,13 @@ for benchmark in $benchmarks; do
             dart --old_gen_heap_size=1000m bin/analyze.dart -w --json --actual-basedir inferred --expected-basedir benchmarks --benchmarkdir inferred/$benchmark --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfiledir
             end=$(php -r 'echo microtime(TRUE);')
 
-            old_ifs=IFS
             IFS='.';
             start=($start)
             end=($end)
             delta[0]=$((10#${end[0]}-10#${start[0]}))
             delta[1]=$((10#${end[1]}-10#${start[1]}))
             ms=$((${delta[0]}*1000+${delta[1]}/10))
-            IFS=old_ifs
+            unset IFS
 
             dartanalyzer --format=machine "inferred/$benchmark/$entryfiledir" 2> new
             dartanalyzer --format=machine "benchmarks/$benchmark/$entryfiledir" 2> old

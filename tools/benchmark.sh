@@ -14,8 +14,8 @@ if [ $# -ne 0 ]; then
 fi
 
 for benchmark in $benchmarks; do
+    
     if [ -d benchmarks/$benchmark ]; then
-
         echo "Working on " $benchmark
         doStrip=0
         #If the test is completely new, copy an initial copy to stripped cache
@@ -68,7 +68,6 @@ for benchmark in $benchmarks; do
 
             end=$(php -r 'echo microtime(TRUE);')
 
-            old_ifs=IFS
             IFS='.';
             start=($start)
             end=($end)
@@ -76,7 +75,7 @@ for benchmark in $benchmarks; do
             delta[1]=$((10#${end[1]}-10#${start[1]}))
             ms=$((${delta[0]}*1000+${delta[1]}/10))
             printf ".. in %s ms!\n" $ms
-            IFS=old_ifs
+            unset IFS
         fi
     fi
 done
