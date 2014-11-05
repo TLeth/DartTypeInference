@@ -1084,7 +1084,9 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       /*
        * In cases where the negate(!) operator was used, the result will be a bool for surtain. 
        */
-      types.add(node, getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source)); 
+      AbstractType bool = getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source);
+      types.add(node, bool);
+      types.add(node.operand, bool);
     } else {
       /* 
        * In other cases the desugaring is like calling the method on the element and then assign the result into the node.

@@ -85,6 +85,7 @@ import 'generic.dart';
 import 'casq_ctor.dart';
 import 'logic_and.dart';
 import 'logic_or.dart';
+import 'logic_not.dart';
 import 'functype_var.dart';
 import 'functype_merg.dart';
 import 'default_optparameter.dart';
