@@ -62,7 +62,21 @@ for benchmark in $benchmarks; do
             pub get
             cd ../..
 
+            start=$(php -r 'echo microtime(TRUE);')
+
             dart --old_gen_heap_size=1000m bin/analyze.dart -w --actual-basedir inferred --expected-basedir benchmarks --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfile
+
+            end=$(php -r 'echo microtime(TRUE);')
+
+            old_ifs=IFS
+            IFS='.';
+            start=($start)
+            end=($end)
+            delta[0]=$((10#${end[0]}-10#${start[0]}))
+            delta[1]=$((10#${end[1]}-10#${start[1]}))
+            ms=$((${delta[0]}*1000+${delta[1]}/10))
+            printf ".. in %s ms!\n" $ms
+            IFS=old_ifs
         fi
     fi
 done
