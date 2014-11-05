@@ -31,3 +31,6 @@
 [submodule "benchmarks/StageXL"]
 	path = benchmarks/StageXL
 	url = git@github.com:TLeth/StageXL.git
+[submodule "benchmarks/play_pixi"]
+	path = benchmarks/play_pixi
+	url = git@github.com:TLeth/play_pixi.git
