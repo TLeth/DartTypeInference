@@ -84,19 +84,18 @@ for benchmark in $benchmarks; do
             ms=$((${delta[0]}*1000+${delta[1]}/10))
             IFS=old_ifs
 
-            dartanalyze --format=machine inferred/$benchmark/$entryfiledir 2> new
-            dartanalyze --format=machine benchmarks/$benchmark/$entryfiledir 2> old
-            infos= $(($(cat old | grep ^INFO | wc -l) - $(cat new | grep ^INFO | wc -l)))
-            warnings= $(($(cat old | grep ^WARNING | wc -l) - $(cat new | grep ^INFO | wc -l)))
-            errros= $(($(cat old | grep ^ERROR | wc -l) - $(cat new | grep ^INFO | wc -l)))
+            dartanalyzer --format=machine "inferred/$benchmark/$entryfiledir" 2> new
+            dartanalyzer --format=machine "benchmarks/$benchmark/$entryfiledir" 2> old
+            infos=$((`cat new | grep ^INFO | wc -l` - `cat old | grep ^INFO | wc -l`))
+            warnings=$((`cat new | grep ^WARNING | wc -l` - `cat old | grep ^WARNING | wc -l`))
+            errors=$((`cat new | grep ^ERROR | wc -l` - `cat old | grep ^ERROR | wc -l`))
             rm new
             rm old
-
             # delete ]}] or ,
             #sed -i '' -e '$ d' benchmarks/results.json
 
             #date=$(date -j -f "%a %b %d %T %Z %Y" "`date`" "+%s")
-            printf "{\"benchmark\": \"%s\", \"url\": \"%s\", \"infos\":\"%s\", \"warnings\":\"%s\", \"errors\":\"%s\", \"time\":\"%s\", \"data\":" $benchmark ${entryfile[2]} $infos $warnings $errors $ms >> benchmarks/results.json
+            printf "{\"benchmark\": \"%s\", \"url\": \"%s\", \"infos\":\"%s\", \"warnings\":\"%s\", \"errors\":\"%s\", \"time\":\"%s\", \"data\":" $benchmark "${entryfile[2]}" $infos $warnings $errors $ms >> benchmarks/results.json
             cat res.json >> benchmarks/results.json
             printf "}\n," >> benchmarks/results.json
 
