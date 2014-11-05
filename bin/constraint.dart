@@ -1,6 +1,7 @@
 library typeanalysis.constraints;
 
 import 'package:analyzer/src/generated/ast.dart' hide ClassMember;
+import 'package:analyzer/src/generated/utilities_dart.dart';
 import 'package:analyzer/src/generated/scanner.dart';
 import 'engine.dart';
 import 'element.dart';
@@ -15,11 +16,9 @@ class ConstraintAnalysis {
   LibraryElement get dartCore => elementAnalysis.dartCore;
   Engine engine;
   ElementAnalysis elementAnalysis;
-  ElementTyper elementTyper;
   
-  ConstraintAnalysis(Engine this.engine, ElementAnalysis this.elementAnalysis) {
-    elementTyper = new ElementTyper(this); 
-    typeMap = new TypeMap(this);
+  ConstraintAnalysis(Engine this.engine, ElementAnalysis this.elementAnalysis) { 
+    typeMap = new TypeMap();
   }
 }
 
@@ -27,52 +26,23 @@ class ConstraintAnalysis {
 class TypeMap {
   Map<TypeIdentifier, TypeVariable> _typeMap = <TypeIdentifier, TypeVariable>{};
   
-  ConstraintAnalysis constraintAnalysis;
-  
-  TypeMap(ConstraintAnalysis this.constraintAnalysis);
-  
-  TypeVariable _lookup(TypeIdentifier ident, ConstraintHelper helper){
-    if (containsKey(ident))
-      return _typeMap[ident];
-    if (ident.isPropertyLookup && ident.propertyIdentifierType is NominalType){
-      NominalType type = ident.propertyIdentifierType;
-      ClassMember member = type.element.lookup(ident.propertyIdentifierName);
-    
-      if (member != null)
-        return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeClassMember(member, type.element.sourceElement.library, helper)];
-      else
-        if (helper.source.source.shortName == 'test.dart')
-          print("Didnt find the lookup: ${ident}");
-    } else if (ident is ExpressionTypeIdentifier && helper.source.resolvedIdentifiers.containsKey(ident.exp)){
-
-      NamedElement namedElement = helper.source.resolvedIdentifiers[ident.exp];
-      return _typeMap[ident] = _typeMap[constraintAnalysis.elementTyper.typeNamedElement(namedElement, namedElement.sourceElement.library, helper)];
-    }
-    
-    if (!containsKey(ident))
-      _typeMap[ident] = new TypeVariable();
-    
-    return _typeMap[ident];
-  }
-  
-  TypeVariable getter(dynamic i, ConstraintHelper helper) {
-    TypeIdentifier ident = TypeIdentifier.ConvertToTypeIdentifier(i);
-    return _lookup(ident, helper);
-  }
-  
-  TypeVariable replace(TypeIdentifier i, TypeVariable v) => _typeMap[i] = v;
-  
-  TypeVariable operator [](TypeIdentifier ident) => _typeMap[ident];
+  TypeVariable operator [](TypeIdentifier ident) => containsKey(ident) ? _typeMap[ident] : _typeMap[ident] = new TypeVariable();
   
   Iterable<TypeIdentifier> get keys => _typeMap.keys;
   
   bool containsKey(TypeIdentifier ident) => _typeMap.containsKey(ident);  
   
-  void put(dynamic i, AbstractType t){
+  void add(dynamic i, AbstractType t){
     TypeIdentifier ident = TypeIdentifier.ConvertToTypeIdentifier(i);
     if (!_typeMap.containsKey(ident))
       _typeMap[ident] = new TypeVariable();
     _typeMap[ident].add(t);
+  }
+  
+  void create(dynamic i){
+    TypeIdentifier ident = TypeIdentifier.ConvertToTypeIdentifier(i);
+    if (!_typeMap.containsKey(ident))
+      _typeMap[ident] = new TypeVariable();
   }
   
   String toString() {
@@ -155,11 +125,11 @@ class TypeVariable {
    * least upper bound.
    *
    */
-  AbstractType getLeastUpperBound() {
+  AbstractType getLeastUpperBound(Engine engine) {
     if (_types.length == 0) return new DynamicType();
     Queue<AbstractType> queue = new Queue<AbstractType>.from(_types);
     AbstractType res = queue.removeFirst();
-    res = queue.fold(res, (AbstractType res, AbstractType t) => res.getLeastUpperBound(t));
+    res = queue.fold(res, (AbstractType res, AbstractType t) => res.getLeastUpperBound(t, engine));
     if (res == null)
       return new DynamicType();
     else 
@@ -180,13 +150,11 @@ class TypeVariable {
 }
 
 
-
 abstract class ConstraintHelper {
   TypeIdentifier _lastTypeIdentifier = null;
   FilterFunc _lastWhere = null;
   
   TypeMap get types;
-  SourceElement get source;
   
   ConstraintHelper foreach(dynamic ident) {
     _lastTypeIdentifier = TypeIdentifier.ConvertToTypeIdentifier(ident);
@@ -205,7 +173,7 @@ abstract class ConstraintHelper {
       
       _lastTypeIdentifier = null;
       _lastWhere = null;
-      types.getter(identifier, this).onChange((AbstractType t) {
+      types[identifier].onChange((AbstractType t) {
         if (filter == null || filter(t))
            func(t);
       });
@@ -219,48 +187,238 @@ abstract class ConstraintHelper {
   
   void subsetConstraint(TypeIdentifier a, TypeIdentifier b) {
     if (a != b)
-      foreach(a).update((AbstractType type) => types.put(b, type));
+      foreach(a).update((AbstractType type) => types.add(b, type));
   }
 }
 
-
-class ConstraintGenerator {
+/* 
+ * `RichTypeGenerator` generated types for the structural types including the ones made on user annotations.
+ * 
+ */ 
+class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
   
   ElementAnalysis get elementAnalysis => constraintAnalysis.elementAnalysis;
   ConstraintAnalysis constraintAnalysis;
-  
-  ConstraintGenerator(ConstraintAnalysis this.constraintAnalysis) {
-    elementAnalysis.sources.values.forEach((SourceElement source) {
-      ConstraintGeneratorVisitor constraintVisitor = new ConstraintGeneratorVisitor(source, this.constraintAnalysis);
-    });
-  }
-}
-
-class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintHelper {
+  Engine get engine => elementAnalysis.engine;
   TypeMap get types => constraintAnalysis.typeMap;
   
-  bool operator [](TypeIdentifier e) => true; 
+  AbstractType resolveType(TypeName type, LibraryElement library, SourceElement source){
+    if (type == null || type.name.toString() == 'void' || type.name.toString() == 'dynamic')
+      return null;
+    
+    ClassElement classElement = elementAnalysis.resolveClassElement(new Name.FromIdentifier(type.name), library, source);
+    if (classElement != null)
+      return new NominalType(classElement);
+    else 
+      return null;
+  }
   
-  SourceElement source;
-  ConstraintAnalysis constraintAnalysis;
-  ElementTyper get elementTyper => constraintAnalysis.elementTyper;
+  
+  bool returnsVoid(CallableElement node) {
+    if (node.isExternal)
+      return false;
+    else if (node is MethodElement && (node.isAbstract || node.isGetter))
+      return false;
+    else if (node is NamedFunctionElement && node.isGetter)
+      return false;
+    else if (node is FunctionParameterElement)
+      return false;
+    else
+      return node.returns.fold(true, (bool res, ReturnElement r) => res && r.ast.expression == null);
+  }
+  
+  TypeIdentifier typeReturn(CallableElement element, LibraryElement library, SourceElement source){
+    TypeIdentifier ident = new ReturnTypeIdentifier(element);
+    AbstractType type;
+    
+    types.create(ident);
+    
+    type = resolveType(element.returnType, library, source);
+    if (type != null)
+      types.add(ident, type);
+    else if (returnsVoid(element))
+      types.add(ident, new VoidType());
+    
+    return ident;
+  }
+  
+  RichTypeGenerator(ConstraintAnalysis this.constraintAnalysis){
+    visitElementAnalysis(elementAnalysis);
+  }
+  
+  visitClassElement(ClassElement node){
+    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
+    types.create(elementTypeIdent);
+    types.add(elementTypeIdent, new NominalType(node));
+    
+    //Make inheritance
+    if (node.extendsElement != null){
+      Map<Name, NamedElement> classElements = node.classElements;
+      List<Name> inheritedElements = ListUtil.complement(node.classElements.keys, node.declaredElements.keys);
+      for(Name n in inheritedElements){
+        TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(node.extendsElement), n);
+        TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node), n);
+        equalConstraint(parentTypeIdent, thisTypeIdent);
+      }
+    }
+    
+    super.visitClassElement(node);
+  }
+  
+  visitMethodElement(MethodElement node){
+    super.visitMethodElement(node); //Visit parameters
+    
+    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
+    
+    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement.library, node.sourceElement);
+    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
+    
+    if (node.isGetter){
+      equalConstraint(elementTypeIdent, returnIdent);
+    } else if (node.isSetter){
+      if (paramIdents.normalParameterTypes.length == 1)
+        equalConstraint(elementTypeIdent, paramIdents.normalParameterTypes[0]);  
+      else
+        engine.errors.addError(new EngineError("A setter method was found, but did not have 1 parameter.", node.sourceElement.source, node.identifier.offset, node.identifier.length), true);
+    } else {
+      types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));  
+    }    
+    
+    //Class members needs to be bound to the class property as well.
+    if (node.isSetter)
+      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.getterName));
+    else
+      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.name));
+  }
+  
+  visitNamedFunctionElement(NamedFunctionElement node) {
+    super.visitNamedFunctionElement(node); //Visit parameters
+        
+    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
+    
+    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement.library, node.sourceElement);
+    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
+    
+    if (node.isGetter){
+      equalConstraint(elementTypeIdent, returnIdent);
+    } else if (node.isSetter){
+      if (paramIdents.normalParameterTypes.length == 1){
+        equalConstraint(elementTypeIdent, paramIdents.normalParameterTypes[0]);  
+      } else {
+        engine.errors.addError(new EngineError("A function method was found, but did not have 1 parameter.", node.sourceElement.source, node.identifier.offset, node.identifier.length), true);
+      }
+    } else {
+      types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));  
+    }
+  }
+  
+  visitConstructorElement(ConstructorElement node){
+    super.visitConstructorElement(node); //Visit parameters
+    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
+        
+    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement.library, node.sourceElement);
+    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
+    
+    types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));
+
+    //Class members needs to be bound to the class property as well.
+    equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.name));
+  }
+  
+  visitFunctionParameterElement(FunctionParameterElement node){
+    super.visitFunctionParameterElement(node); //Visit parameters
+    
+    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
+        
+    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement.library, node.sourceElement);
+    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
+    types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));
+  }
+
+  
+  visitFunctionElement(FunctionElement node){
+    super.visitFunctionElement(node); // visit parameters
+
+    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.ast);
+    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement.library, node.sourceElement);
+    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
+    
+    types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));
+  }
+  
+  visitFieldElement(FieldElement node){
+    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
+    
+    AbstractType elementType = resolveType(node.annotatedType, node.sourceElement.library, node.sourceElement);
+    types.create(elementTypeIdent);
+    
+    if (elementType != null)
+      types.add(elementTypeIdent, elementType);
+    
+    //Class members needs to be bound to the class property as well.
+    equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.name));
+  }
+  
+  visitParameterElement(ParameterElement node){
+    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
+        
+    AbstractType elementType = resolveType(node.annotatedType, node.sourceElement.library, node.sourceElement);
+    types.create(elementTypeIdent);
+    
+    if (elementType != null)
+      types.add(elementTypeIdent, elementType);
+  }
+  
+  visitFieldParameterElement(FieldParameterElement node){
+    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
+            
+    AbstractType elementType = resolveType(node.annotatedType, node.sourceElement.library, node.sourceElement);
+    types.create(elementTypeIdent);
+    
+    if (elementType != null)
+      types.add(elementTypeIdent, elementType);
+    
+    //Binds fieldParameters to the fields.
+    TypeIdentifier fieldTypeIdent = new PropertyTypeIdentifier(new NominalType(node.classElement), node.name);
+    equalConstraint(elementTypeIdent, fieldTypeIdent);
+  }
+  
+  visitVariableElement(VariableElement node){
+    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
+            
+    AbstractType elementType = resolveType(node.annotatedType, node.sourceElement.library, node.sourceElement);
+    types.create(elementTypeIdent);
+    
+    if (elementType != null)
+      types.add(elementTypeIdent, elementType);
+  }
+}
+
+
+class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   ElementAnalysis get elementAnalysis => constraintAnalysis.elementAnalysis;
-  Engine get engine => constraintAnalysis.engine;
-  
+  ConstraintAnalysis constraintAnalysis;
+  TypeMap get types => constraintAnalysis.typeMap;
+  SourceElement source;
+  Engine get engine => constraintAnalysis.engine; 
+
   ClassElement _currentClassElement = null;
   
-  ConstraintGeneratorVisitor(SourceElement this.source, ConstraintAnalysis this.constraintAnalysis) {
+  static void Generate(ConstraintAnalysis constraintAnalysis) {
+    constraintAnalysis.elementAnalysis.sources.values.forEach((SourceElement source) {
+      new ConstraintGenerator._internal(source, constraintAnalysis);
+    });
+  }
+  
+  ConstraintGenerator._internal(SourceElement this.source, ConstraintAnalysis this.constraintAnalysis){
     source.ast.accept(this);
   }
   
-  Expression _normalizeIdentifiers(Expression exp){
-    if (exp is SimpleIdentifier && source.resolvedIdentifiers.containsKey(exp)) {
-      return source.resolvedIdentifiers[exp].identifier;
-    } else
-      return exp;
-  }
+  /****************************************/
+  /************ Helper methods ************/
+  /****************************************/
   
-  AbstractType _getAbstractType(Name className, LibraryElement library, SourceElement source){
+  AbstractType getAbstractType(Name className, LibraryElement library, SourceElement source){
     ClassElement classElement = elementAnalysis.resolveClassElement(className, library, source);
     if (classElement != null){
       return new NominalType(classElement);
@@ -270,66 +428,164 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
       else if (className.toString() == 'void')
         return new VoidType();
       else {
-        engine.errors.addError(new EngineError("_getAbstractType was called and the classElement could not be found: ${className}", source.source));
+        engine.errors.addError(new EngineError("getAbstractType was called and the classElement could not be found: ${className}", source.source));
         return null;
       }
     }
   }
   
-  TypeIdentifier _normalizeExpressionToTypeIdentifier(dynamic rightHandSide){
-    if (rightHandSide is TypeIdentifier)
-      return rightHandSide;
-    else if (rightHandSide is Expression)
-      return new ExpressionTypeIdentifier(rightHandSide);
-    else
-      engine.errors.addError(new EngineError("_normalizeRightHandSide in constraint was called with a bad rightHandSide `${rightHandSide.runtimeType}`", source.source), true);
-    return null;
+  functionCall(TypeIdentifier functionIdent, List argumentList, [TypeIdentifier returnIdent = null]){
+    // function(arg_1,...,arg_n) : return
+    List<TypeIdentifier> arguments = <TypeIdentifier>[];
+    Map<Name, TypeIdentifier> namedArguments = <Name, TypeIdentifier>{};
+    
+    if (argumentList != null){
+      for(var arg in argumentList){
+        if (arg is NamedExpression)
+          namedArguments[new Name.FromIdentifier(arg.name.label)] = new ExpressionTypeIdentifier(arg.expression);
+        else if (arg is Expression)
+          arguments.add(new ExpressionTypeIdentifier(arg));
+        else if (arg is TypeIdentifier)
+          arguments.add(arg);
+        else
+          engine.errors.addError(new EngineError("functionCall in constraint.dart was called with a unreal argument: `${arg.runtimeType}`", source.source), true);
+      }
+    }
+    
+    
+    if (isNumberBinaryFunctionCall(functionIdent, arguments, namedArguments, returnIdent))
+      numberBinaryFunctionCall(functionIdent, arguments[0], returnIdent);
+    else {
+      //\forall (\gamma_1 -> ... -> \gamma_n -> \beta) \in [method] =>
+      //  \gamma_i \in [arg_i] &&  \beta \in [method]
+      foreach(functionIdent)
+        /*
+         * Checks if the type is a function and matches the call with respect to arguments.
+         */
+        .where((AbstractType func) {
+            return func is FunctionType && 
+            MapUtil.submap(namedArguments, func.namedParameterTypes) &&
+            func.optionalParameterTypes.length + func.normalParameterTypes.length >= arguments.length; })
+            
+        /*
+         * Binds each of the arguments to the parameter.
+         */          
+        .update((AbstractType func) {
+          if (func is FunctionType) {
+            for (var i = 0; i < arguments.length;i++){
+              if (i < func.normalParameterTypes.length)
+                subsetConstraint(arguments[i], func.normalParameterTypes[i]);              
+              else
+                subsetConstraint(arguments[i], func.optionalParameterTypes[i - func.normalParameterTypes.length]);
+            }
+            for(Name name in namedArguments.keys){
+              subsetConstraint(namedArguments[name], func.namedParameterTypes[name]);
+            }
+            if (returnIdent != null) subsetConstraint(func.returnType, returnIdent);
+          }
+        }); 
+    }
   }
+  
+
+  /*
+   * +, -, *, and % have special status in the Dart type checker - this is replicated here.
+   * Sections 15.26 and 15.27 has more info on this.
+   * This function checks if this is a special case, if not it returns false.  
+   */
+  bool isNumberBinaryFunctionCall(TypeIdentifier functionIdent, List<TypeIdentifier> arguments, Map<Name, TypeIdentifier> namedArguments, TypeIdentifier returnIdent){
+    AbstractType intElem = getAbstractType(new Name("int"), constraintAnalysis.dartCore, source);
+    var numberMethods = [TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.PERCENT].map(
+        (token) => new Name(token.lexeme));
+    
+    return functionIdent is PropertyTypeIdentifier &&
+           functionIdent.propertyIdentifierType == intElem &&
+           numberMethods.contains(functionIdent.propertyIdentifierName) &&
+           arguments.length == 1 && returnIdent != null && namedArguments.isEmpty;
+  }
+  
+  numberBinaryFunctionCall(TypeIdentifier functionIdent, TypeIdentifier argument, TypeIdentifier returnIdent){
+    AbstractType intElem = getAbstractType(new Name("int"), constraintAnalysis.dartCore, source);
+    AbstractType numElem = getAbstractType(new Name("num"), constraintAnalysis.dartCore, source);
+    AbstractType doubleElem = getAbstractType(new Name("double"), constraintAnalysis.dartCore, source);
+    List<AbstractType> numberTypes = [intElem, doubleElem];
+    
+    foreach(argument).update((AbstractType type) {
+      if (numberTypes.contains(type))
+        types.add(returnIdent, type);
+      else
+        types.add(returnIdent, numElem);
+    });
+  }
+
+  /*
+   * Method only keeps track of the _currentClassElement, this is needed because of this and super expressions needs to be resolved.
+   */
+  visitClassDeclaration(ClassDeclaration node){
+    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! ClassElement)
+      engine.errors.addError(new EngineError("A ClassDeclaration was visited, but didn't have a associated ClassElement.", source.source, node.offset, node.length ), true);
+    _currentClassElement = elementAnalysis.elements[node];
+    super.visitClassDeclaration(node);
+    _currentClassElement = null;
+  }
+  
+  /****************************************/
+  /************ Literals       ************/
+  /****************************************/
   
   visitIntegerLiteral(IntegerLiteral n) {
     super.visitIntegerLiteral(n);
     // {int} \in [n]
-    types.put(n, _getAbstractType(new Name("int"), constraintAnalysis.dartCore, source));
+    types.add(n, getAbstractType(new Name("int"), constraintAnalysis.dartCore, source));
   }
   
   visitDoubleLiteral(DoubleLiteral n) {
     super.visitDoubleLiteral(n);
     // {double} \in [n]
-    types.put(n, _getAbstractType(new Name("double"), constraintAnalysis.dartCore, source));
+    types.add(n, getAbstractType(new Name("double"), constraintAnalysis.dartCore, source));
   }
   
   visitStringLiteral(StringLiteral n){
     super.visitStringLiteral(n);
     // {String} \in [n]
-    types.put(n, _getAbstractType(new Name("String"), constraintAnalysis.dartCore, source));
-    
+    types.add(n, getAbstractType(new Name("String"), constraintAnalysis.dartCore, source));    
   }
   
   visitBooleanLiteral(BooleanLiteral n){
     super.visitBooleanLiteral(n);
-    // {String} \in [n]
-    types.put(n, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+    // {bool} \in [n]
+    types.add(n, getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
   }
   
   visitSymbolLiteral(SymbolLiteral n){
     super.visitSymbolLiteral(n);
-    // {String} \in [n]
-    types.put(n, _getAbstractType(new Name("Symbol"), constraintAnalysis.dartCore, source));
+    // {Symbol} \in [n]
+    types.add(n, getAbstractType(new Name("Symbol"), constraintAnalysis.dartCore, source));
   }  
   
   visitListLiteral(ListLiteral n){
     super.visitListLiteral(n);
-    // {String} \in [n]
-    types.put(n, _getAbstractType(new Name("List"), constraintAnalysis.dartCore, source));
+    // {List} \in [n]
+    types.add(n, getAbstractType(new Name("List"), constraintAnalysis.dartCore, source));
   }
   
   visitMapLiteral(MapLiteral n){
     super.visitMapLiteral(n);
-    // {String} \in [n]
-    types.put(n, _getAbstractType(new Name("Map"), constraintAnalysis.dartCore, source));
-    ConstructorInitializer t;
+    // {Map} \in [n]
+    types.add(n, getAbstractType(new Name("Map"), constraintAnalysis.dartCore, source));
   }
   
+  visitExpressionFunctionBody(ExpressionFunctionBody node){
+    super.visitExpressionFunctionBody(node);
+    if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is ReturnElement)
+      engine.errors.addError(new EngineError("A ExpressionFunctionBody was visited, but didn't have a associated ReturnElement.", source.source, node.offset, node.length ), true);
+    ReturnElement returnElement = elementAnalysis.elements[node];
+    subsetConstraint(new ExpressionTypeIdentifier(node.expression), new ReturnTypeIdentifier(returnElement.function));
+  }
+  
+  /****************************************/
+  /************ Calls          ************/
+  /****************************************/
   visitInstanceCreationExpression(InstanceCreationExpression n){
     super.visitInstanceCreationExpression(n);
     // new ClassName(arg_1,..., arg_n);
@@ -338,341 +594,63 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     if (element != null){
       //{ClassName} \in [n]
       TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
-      if (element is ClassElement) { //The constructor called is unnammed.
+      
+      /* 
+       * The constructor call was unnamed.
+       * First we need to check if there is a declared constructor with the same name as the class,
+       * if exist we call it as a function, otherwise the type is added to the node.    
+       */
+      if (element is ClassElement) {
         AbstractType classType = new NominalType(element);
-        if (element.declaredConstructors.isEmpty) {
-          //Class does not contain a constructor, so use the implicit constructor.
-          types.put(nodeIdent, classType);
-        } else {
+        if (element.declaredConstructors.isEmpty)
+          types.add(nodeIdent, classType);
+        else {
           //Call the constructor like a function.
           AbstractType classType = new NominalType(element);
           TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, element.name);
-          _methodCall(constructorIdent, n.argumentList.arguments, nodeIdent);
+          functionCall(constructorIdent, n.argumentList.arguments, nodeIdent);
         }
+      /*
+       * The constructor was named, and we know the constructor so call it.
+       */  
       } else if (element is ConstructorElement){
-        //Call the constructor like a function.
         AbstractType classType = new NominalType(element.classDecl);
         TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, element.name);
-        _methodCall(constructorIdent, n.argumentList.arguments, nodeIdent);
+        functionCall(constructorIdent, n.argumentList.arguments, nodeIdent);
       }
     }
   }
   
-  visitVariableDeclaration(VariableDeclaration vd){
-     // var v;
-     super.visitVariableDeclaration(vd);
-     
-     if (!elementAnalysis.containsElement(vd))
-       engine.errors.addError(new EngineError("A VariableDeclaration was visited, but didnt have a associated elemenet.", source.source, vd.offset, vd.length ), true);
-     
-     Element element = elementAnalysis.elements[vd];
-     if (element is FieldElement){
-       ClassElement classElement = element.classDecl;
-       TypeIdentifier v = new PropertyTypeIdentifier(new NominalType(classElement), element.name);
-       equalConstraint(v, new ExpressionTypeIdentifier(vd.name));
-     }
-     
-     
-     if (vd.initializer != null){
-       // v = exp;
-      _assignmentExpression(vd.name, vd.initializer);
-     }
-  }
-  
-  visitParenthesizedExpression(ParenthesizedExpression node){
-    super.visitParenthesizedExpression(node);
-    //(exp)
-    // [exp] \subseteq [(exp)]
-    
-    TypeIdentifier expIdent = new ExpressionTypeIdentifier(node.expression);
-    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
-    subsetConstraint(expIdent, nodeIdent);
-  }
-  
-  visitAssignmentExpression(AssignmentExpression node){
-    super.visitAssignmentExpression(node);
-    
-    Expression leftHandSide = node.leftHandSide;
-    Expression rightHandSide = node.rightHandSide;
-    
-    if (node.operator.toString() != '='){
-      //Make method invocation for the node.operator.
-      String operator = node.operator.toString();
-      operator = operator.substring(0, operator.length - 1);
-      
-      TypeIdentifier vIdent = new ExpressionTypeIdentifier(leftHandSide);
-      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
-      
-      //Make the operation
-      foreach(vIdent).update((AbstractType alpha) {
-        TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name(operator));
-        TypeIdentifier returnIdent = new SyntheticTypeIdentifier(methodIdent);
-        _methodCall(methodIdent, <Expression>[rightHandSide], returnIdent);
-        
-        //Result of (leftHandSide op RightHandSide) should be the result of the hole node.
-        subsetConstraint(returnIdent, nodeIdent);
-        
-        //Make the assignment from the returnIdent to the leftHandSide.
-        _assignmentExpression(leftHandSide, returnIdent);
-      });
-    } else {
-      // In case of exp_1 = exp_2
-      _assignmentExpression(leftHandSide, rightHandSide);
-      
-      TypeIdentifier exp = new ExpressionTypeIdentifier(rightHandSide);
-      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
-      
-      // [exp] \subseteq [v = exp]
-      subsetConstraint(exp, nodeIdent);
-    }
-  }
-  
-  // v = exp
-  _assignmentExpression(Expression leftHandSide, dynamic rightHandSide){
-    TypeIdentifier expIdent = _normalizeExpressionToTypeIdentifier(rightHandSide);
-    if (leftHandSide is SimpleIdentifier)
-      _assignmentSimpleIdentifier(leftHandSide, expIdent);
-    else if (leftHandSide is PrefixedIdentifier)
-      _assignmentPrefixedIdentifier(leftHandSide, expIdent);
-    else if (leftHandSide is PropertyAccess)
-      _assignmentPropertyAccess(leftHandSide, expIdent);
-    else if (leftHandSide is IndexExpression)
-      _assignmentIndexExpression(leftHandSide, expIdent);
-    else {
-      engine.errors.addError(new EngineError("_assignmentExpression was called with a bad leftHandSide: `${leftHandSide.runtimeType}`", source.source), true);
-      //TODO (jln): assigment to a non identifier on left hand side (example v[i]).
-    }
-  }
-  
-   // v = exp;
-   // [exp] \subseteq [v]
-  _assignmentSimpleIdentifier(SimpleIdentifier leftHandSide, TypeIdentifier expIdent){
-    TypeIdentifier vIdent = new ExpressionTypeIdentifier(leftHandSide);
-    subsetConstraint(expIdent, vIdent);
-  }
-  
-  // v.prop = exp;
-  // \alpha \in [v] => [exp] \subseteq [\alpha.prop]
-  _assignmentPropertyAccess(PropertyAccess leftHandSide, TypeIdentifier expIdent){
-    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(leftHandSide.realTarget);
-    foreach(targetIdent).update((AbstractType alpha){
-      TypeIdentifier alphapropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.propertyName));
-      subsetConstraint(expIdent, alphapropertyIdent);
-    });
-  }
-
-  // v.prop = exp;
-  // \alpha \in [v] => [exp] \subseteq [\alpha.prop]
-  _assignmentPrefixedIdentifier(PrefixedIdentifier leftHandSide, TypeIdentifier expIdent){
-    TypeIdentifier prefixIdent = new ExpressionTypeIdentifier(leftHandSide.prefix);
-    
-    foreach(prefixIdent).update((AbstractType alpha){
-      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.identifier));
-      subsetConstraint(expIdent, alphaPropertyIdent);
-    });
-
-  }
-  
-  // v[i] = exp;
-  // \alpha \in [v] => (\beta => \gamma => void) \in [v.[]=] => [i] \subseteq [\beta] && [exp] \subseteq [\gamma]
-  _assignmentIndexExpression(IndexExpression leftHandSide, TypeIdentifier expIdent){
-    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(leftHandSide.realTarget);
-    foreach(targetIdent).update((AbstractType alpha) {
-      TypeIdentifier indexEqualMethodIdent = new PropertyTypeIdentifier(alpha, new Name("[]="));
-      _methodCall(indexEqualMethodIdent, [leftHandSide.index, expIdent], null);
-    });
-  }
-  
-  visitSimpleIdentifier(SimpleIdentifier n){
-    super.visitSimpleIdentifier(n);
-    SimpleIdentifier ident = _normalizeIdentifiers(n);
-    
-    if (ident != n){
-      //TODO (jln): A possible speedup would be changing the simpleidentifiers to the identifier used in the variable decl.
-      // This can be done in a previous AST-gothrough
-      equalConstraint(new ExpressionTypeIdentifier(ident), new ExpressionTypeIdentifier(n));
-    }
-  }
-  
-  visitPrefixedIdentifier(PrefixedIdentifier n){
-    super.visitPrefixedIdentifier(n);
-    SimpleIdentifier prefix = n.prefix;
-    
-    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
-    
-    TypeIdentifier prefixIdent = new ExpressionTypeIdentifier(prefix);
-    //TODO (jln): This does not take library prefix into account.
-    foreach(prefixIdent).update((AbstractType alpha) {
-      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.identifier));
-      subsetConstraint(alphaPropertyIdent, nodeIdent);
-    });
-  }
-  
-  visitPropertyAccess(PropertyAccess n){
-    super.visitPropertyAccess(n);
-    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
-    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(n.realTarget);
-    
-    //TODO (jln): This does not take library prefix into account.
-    foreach(targetIdent).update((AbstractType alpha) {
-      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.propertyName));
-      subsetConstraint(alphaPropertyIdent, nodeIdent);
-    });
-  }
-  
-  visitIndexExpression(IndexExpression n){
-    super.visitIndexExpression(n);
-    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
-    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(n.realTarget);
-        
-    //TODO (jln): This does not take library prefix into account.
-    foreach(targetIdent).update((AbstractType alpha) {
-      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name("[]"));
-      _methodCall(methodIdent, <Expression>[n.index], nodeIdent);
-    });
-  }
-
-  visitThisExpression(ThisExpression n) {
-    // this
-    super.visitThisExpression(n);
-    if (_currentClassElement == null)
-          engine.errors.addError(new EngineError("thisExpression was visited but the CurrentClassElement was null.", source.source, n.offset, n.length), true);
-    else
-      types.put(n, new NominalType(_currentClassElement));
-  }
-  
-  visitSuperExpression(SuperExpression n){
-    // super
-    super.visitSuperExpression(n);
-    if (_currentClassElement == null || _currentClassElement.extendsElement == null)
-      engine.errors.addError(new EngineError("superExpression was visited but the parent _currentClassElement parnet was null.", source.source, n.offset, n.length), true);
-    else
-      types.put(n, new NominalType(_currentClassElement.extendsElement));
-  }  
   
   visitFunctionExpressionInvocation(FunctionExpressionInvocation node){
     super.visitFunctionExpressionInvocation(node);
     
     TypeIdentifier returnIdent = new ExpressionTypeIdentifier(node);
     TypeIdentifier functionIdent = new ExpressionTypeIdentifier(node.function);
-    _methodCall(functionIdent, node.argumentList.arguments, returnIdent);
+    functionCall(functionIdent, node.argumentList.arguments, returnIdent);
   }
 
   visitMethodInvocation(MethodInvocation node){
     super.visitMethodInvocation(node);
 
     TypeIdentifier returnIdent = new ExpressionTypeIdentifier(node);
+    /*
+     * Determins the the functionIdentifier depending on the realTarget.
+     * If none, this is just a normal function call.
+     */
     if (node.realTarget == null){
-      //Call without any prefix
-      TypeIdentifier methodIdent = new ExpressionTypeIdentifier(node.methodName);
-      _methodCall(methodIdent, node.argumentList.arguments, returnIdent);
+      TypeIdentifier functionIdent = new ExpressionTypeIdentifier(node.methodName);
+      functionCall(functionIdent, node.argumentList.arguments, returnIdent);
     } else {
-      //Called with a prefix
-      //TODO (jln): This does not take library prefix into account.
+      //TODO (jln): Does this take library prefix into account?
       TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.realTarget);
       foreach(targetIdent).update((AbstractType type) { 
-        TypeIdentifier methodIdent = new PropertyTypeIdentifier(type, new Name.FromIdentifier(node.methodName));
-        _methodCall(methodIdent, node.argumentList.arguments, returnIdent);
+        TypeIdentifier functionIdent = new PropertyTypeIdentifier(type, new Name.FromIdentifier(node.methodName));
+        functionCall(functionIdent, node.argumentList.arguments, returnIdent);
       });
     }
   }
-
-  //  TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(be.operator));
-  //  _methodCall(methodIdent, <Expression>[be.rightOperand], nodeIdent);
-
-  _methodCall(TypeIdentifier method, List argumentList, [TypeIdentifier returnIdent = null]){
-    // method(arg_1,...,arg_n) : return
-    List<TypeIdentifier> parameters = <TypeIdentifier>[];
-    Map<Name, TypeIdentifier> namedParameters = <Name, TypeIdentifier>{};
-    
-    if (argumentList != null){
-      for(var arg in argumentList){
-        if (arg is NamedExpression)
-          namedParameters[new Name.FromIdentifier(arg.name.label)] = new ExpressionTypeIdentifier(arg.expression);
-        else if (arg is Expression)
-          parameters.add(new ExpressionTypeIdentifier(arg));
-        else if (arg is TypeIdentifier)
-          parameters.add(arg);
-        else
-          engine.errors.addError(new EngineError("_methodCall in constraint.dart was called with a unreal argument: `${arg.runtimeType}`", source.source), true);
-      }
-    }
-
-    AbstractType intElem = _getAbstractType(new Name("int"), constraintAnalysis.dartCore, source);
-    AbstractType numElem = _getAbstractType(new Name("num"), constraintAnalysis.dartCore, source);
-    AbstractType doubleElem = _getAbstractType(new Name("double"), constraintAnalysis.dartCore, source);
-    List specialMethods = [TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.TILDE_SLASH, TokenType.PERCENT].map((token) {
-      return new Name(token.lexeme);
-    });
-
-    if (method is PropertyTypeIdentifier &&
-        method.propertyIdentifierType == intElem &&
-        specialMethods.contains(method.propertyIdentifierName) &&
-        parameters.length == 1 &&
-        returnIdent != null) {
-      
-      bool hadSpecificNumericType = false;
-      
-      [intElem, doubleElem].forEach((numericType) {
-        if ((types[returnIdent] != null && types[returnIdent].types.contains(numericType)) ||
-            (types[parameters[0]] != null && types[parameters[0]].types.contains(numericType))) {
-          types.put(returnIdent, numericType);
-          types.put(parameters[0], numericType);
-          hadSpecificNumericType = true;
-        }
-      });
-      
-      if (!hadSpecificNumericType) {
-        types.put(returnIdent, numElem);
-        types.put(parameters[0], numElem);
-      }
-    } else {
-
-      //\forall (\gamma_1 -> ... -> \gamma_n -> \beta) \in [method] =>
-      //  \gamma_i \in [arg_i] &&  \beta \in [method]
-      foreach(method)
-        .where((AbstractType func) {
-          return func is FunctionType && 
-            MapUtil.submap(namedParameters, func.namedParameterTypes) &&
-            func.optionalParameterTypes.length + func.normalParameterTypes.length >= parameters.length; })
-        .update((AbstractType func) {
-          if (func is FunctionType) {
-            for (var i = 0; i < parameters.length;i++){
-              if (i < func.normalParameterTypes.length)
-                subsetConstraint(parameters[i], func.normalParameterTypes[i]);              
-              else
-                subsetConstraint(parameters[i], func.optionalParameterTypes[i - func.normalParameterTypes.length]);
-            }
-            for(Name name in namedParameters.keys){
-            subsetConstraint(namedParameters[name], func.namedParameterTypes[name]);
-            }
-            if (returnIdent != null) subsetConstraint(func.returnType, returnIdent);
-          }
-        }); 
-    }
-  }
   
-  visitIfStatement(IfStatement node) {
-    super.visitIfStatement(node);
-    types.put(node.condition, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
-  }
-
-  visitForStatement(ForStatement node) {
-    super.visitForStatement(node);
-    types.put(node.condition, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
-  }
-
-  visitDoStatement(DoStatement node) {
-    super.visitDoStatement(node);
-    types.put(node.condition, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
-  }
-  
-  visitWhileStatement(WhileStatement node) {
-    super.visitWhileStatement(node);
-    types.put(node.condition, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
-  }
-
-
   visitReturnStatement(ReturnStatement node){
     super.visitReturnStatement(node);
     if (node.expression != null){
@@ -684,147 +662,10 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     }
   }
   
-  visitExpressionFunctionBody(ExpressionFunctionBody node){
-    super.visitExpressionFunctionBody(node);
-    if (!elementAnalysis.containsElement(node) && elementAnalysis.elements[node] is ReturnElement)
-      engine.errors.addError(new EngineError("A ExpressionFunctionBody was visited, but didn't have a associated ReturnElement.", source.source, node.offset, node.length ), true);
-    ReturnElement returnElement = elementAnalysis.elements[node];
-    subsetConstraint(new ExpressionTypeIdentifier(node.expression), new ReturnTypeIdentifier(returnElement.function));
-  }
-  
-  
-  bool _returnsVoid(CallableElement node) {
-    if (node.isExternal)
-      return false;
-    else if (node is MethodElement && (node.isAbstract || node.isGetter))
-      return false;
-    else if (node is NamedFunctionElement && node.isGetter)
-      return false;
-    else
-      return node.returns.fold(true, (bool res, ReturnElement r) => res && r.ast.expression == null);
-  }
-  
-  visitFunctionExpression(FunctionExpression node){
-    super.visitFunctionExpression(node);
-    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! CallableElement)
-      engine.errors.addError(new EngineError("A FunctionExpression was visited, but didn't have a associated CallableElement.", source.source, node.offset, node.length ), true);
-      
-    CallableElement callableElement = elementAnalysis.elements[node];
-    types.put(new ExpressionTypeIdentifier(node), new FunctionType.FromCallableElement(callableElement, source.library, elementTyper));
-    
-    if (_returnsVoid(callableElement)) {
-      types.put(new ReturnTypeIdentifier(callableElement), new VoidType());
-    }
-  }
-  
-  visitMethodDeclaration(MethodDeclaration node){
-    super.visitMethodDeclaration(node);
-    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! MethodElement)
-      engine.errors.addError(new EngineError("A MethodDeclaration was visited, but didn't have a associated MethodElement.", source.source, node.offset, node.length ), true);
-        
-    MethodElement methodElement = elementAnalysis.elements[node];
-    
-    if (methodElement.isSetter){
-      TypeIdentifier methodIdent = elementTyper.typeMethodElement(methodElement, source.library, this);
-      equalConstraint(new PropertyTypeIdentifier(new NominalType(_currentClassElement), methodElement.getterName), methodIdent);
-    }
-    
-    if (_returnsVoid(methodElement)) {
-      types.put(new ReturnTypeIdentifier(methodElement), new VoidType());
-    }
-  }
-
-  
-  visitFunctionDeclaration(FunctionDeclaration node){
-    super.visitFunctionDeclaration(node);
-    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! NamedFunctionElement)
-      engine.errors.addError(new EngineError("A FunctionDeclaration was visited, but didn't have a associated NamedFunctionElement.", source.source, node.offset, node.length ), true);
-        
-    NamedFunctionElement functionElement = elementAnalysis.elements[node];
-    if (functionElement.isSetter){
-      TypeIdentifier methodIdent = elementTyper.typeNamedFunctionElement(functionElement, source.library, this);
-      NamedElement element = source.resolvedIdentifiers[functionElement.identifier];
-      //Link the setter and getter together.
-      if (element != functionElement)
-        equalConstraint(new ExpressionTypeIdentifier(element.identifier), new ExpressionTypeIdentifier(functionElement.identifier));
-    }
-    
-    if (_returnsVoid(functionElement)) {
-      types.put(new ReturnTypeIdentifier(functionElement), new VoidType());
-    }
-  }
-  
-  visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node){
-    super.visitFunctionTypedFormalParameter(node);
-    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! CallableElement)
-      engine.errors.addError(new EngineError("A FunctionTypedFormalParameter was visited, but didn't have a associated Callablelement.", source.source, node.offset, node.length ), true);
-    CallableElement callableElement = elementAnalysis.elements[node];
-    
-    TypeIdentifier funcIdent = new ExpressionTypeIdentifier(node.identifier);
-    TypeIdentifier returnIdent = elementTyper.typeReturn(callableElement, source.library, source);
-    ParameterTypes paramIdents = elementTyper.typeParameters(callableElement, source.library, source);
-    foreach(funcIdent)
-      .where((AbstractType func) {
-          return func is FunctionType && 
-          MapUtil.submap(func.namedParameterTypes, paramIdents.namedParameterTypes) &&
-          paramIdents.optionalParameterTypes.length >= func.optionalParameterTypes.length &&
-          paramIdents.normalParameterTypes.length == func.normalParameterTypes.length; })
-      .update((AbstractType func) {
-        if (func is FunctionType) {
-          for (var i = 0; i < paramIdents.normalParameterTypes.length;i++)
-            subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
-          for (var i = 0; i < func.optionalParameterTypes.length;i++)
-            subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
-          
-          for(Name name in func.namedParameterTypes.keys){
-            subsetConstraint(func.namedParameterTypes[name], paramIdents.namedParameterTypes[name]);
-          }
-          subsetConstraint(func.returnType, returnIdent);
-        }
-     });
-  }
-  
-  visitFieldFormalParameter(FieldFormalParameter node){
-    super.visitFieldFormalParameter(node);
-    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! FieldParameterElement)
-      engine.errors.addError(new EngineError("A FieldFormalParameter was visited, but didn't have a associated FieldParameterElement.", source.source, node.offset, node.length ), true);
-    FieldParameterElement fieldParameter = elementAnalysis.elements[node];
-    
-    TypeIdentifier paramIdent = new ExpressionTypeIdentifier(node.identifier);
-    TypeIdentifier fieldIdent = new PropertyTypeIdentifier(new NominalType(fieldParameter.classElement), new Name.FromIdentifier(node.identifier));
-    equalConstraint(paramIdent, fieldIdent);
-  }
-  
-  visitConditionalExpression(ConditionalExpression node){
-    super.visitConditionalExpression(node);
-    
-    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node); 
-    
-    // exp1 ? exp2 : exp3
-    // [exp2] \union [exp3] \subseteq [exp1 ? exp2 : exp3]
-    subsetConstraint(new ExpressionTypeIdentifier(node.thenExpression), nodeIdent);
-    subsetConstraint(new ExpressionTypeIdentifier(node.elseExpression), nodeIdent);
-
-    types.put(node.condition, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
-  }
-  
-  visitClassDeclaration(ClassDeclaration node){
-    if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! ClassElement)
-      engine.errors.addError(new EngineError("A ClassDeclaration was visited, but didn't have a associated ClassElement.", source.source, node.offset, node.length ), true);
-    _currentClassElement = elementAnalysis.elements[node];
-    super.visitClassDeclaration(node);
-    _currentClassElement = null;
-  }
-  
-  visitConstructorFieldInitializer(ConstructorFieldInitializer node){
-    super.visitConstructorFieldInitializer(node);
-    _assignmentExpression(node.fieldName, node.expression);
-  }
-  
   visitSuperConstructorInvocation(SuperConstructorInvocation node){
     super.visitSuperConstructorInvocation(node);
     if (_currentClassElement == null || _currentClassElement.extendsElement == null)
-      engine.errors.addError(new EngineError("A SuperConstructorInvocation was visited, but currentClassElement exntedsElement was null.", source.source, node.offset, node.length ), true);
+      engine.errors.addError(new EngineError("A SuperConstructorInvocation was visited, but _currentClassElement extendsElement was null.", source.source, node.offset, node.length ), true);
     
     ClassElement element = _currentClassElement.extendsElement;
     TypeIdentifier constructorIdent;
@@ -833,14 +674,14 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
         constructorIdent = new PropertyTypeIdentifier(new NominalType(element), element.name);
       else
         constructorIdent = new PropertyTypeIdentifier(new NominalType(element), new PrefixedName(element.name, new Name.FromIdentifier(node.constructorName)));
-      _methodCall(constructorIdent, node.argumentList.arguments);
+      functionCall(constructorIdent, node.argumentList.arguments);
     }
   }
   
   visitRedirectingConstructorInvocation(RedirectingConstructorInvocation node){
     super.visitRedirectingConstructorInvocation(node);
     if (_currentClassElement == null)
-      engine.errors.addError(new EngineError("A RedirectingConstructorInvocation was visited, but currentClassElement was null.", source.source, node.offset, node.length ), true);
+      engine.errors.addError(new EngineError("A RedirectingConstructorInvocation was visited, but _currentClassElement was null.", source.source, node.offset, node.length ), true);
     
     ClassElement element = _currentClassElement;
     TypeIdentifier constructorIdent;
@@ -849,11 +690,282 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
         constructorIdent = new PropertyTypeIdentifier(new NominalType(element), element.name);
       else
         constructorIdent = new PropertyTypeIdentifier(new NominalType(element), new PrefixedName(element.name, new Name.FromIdentifier(node.constructorName)));
-      _methodCall(constructorIdent, node.argumentList.arguments);
+      functionCall(constructorIdent, node.argumentList.arguments);
     }
   }
   
-  bool _isIncrementOperator(String operator) => operator == '--' || operator == '++';
+  /*
+   * When a functionTypedFormalParameter gets a abstractType, it needs to check if it matches a functionType with the same number of parameters.
+   * If so bind these function parameters to the arguments and bind the return type.
+   */
+  visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node){
+      super.visitFunctionTypedFormalParameter(node);
+      if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! CallableElement)
+        engine.errors.addError(new EngineError("A FunctionTypedFormalParameter was visited, but didn't have a associated Callablelement.", source.source, node.offset, node.length ), true);
+      CallableElement callableElement = elementAnalysis.elements[node];
+      
+      TypeIdentifier funcIdent = new ExpressionTypeIdentifier(node.identifier);
+      TypeIdentifier returnIdent = new ReturnTypeIdentifier(callableElement);
+      ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(callableElement, source.library, source);
+      foreach(funcIdent)
+        .where((AbstractType func) {
+            return func is FunctionType && 
+            MapUtil.submap(func.namedParameterTypes, paramIdents.namedParameterTypes) &&
+            paramIdents.optionalParameterTypes.length >= func.optionalParameterTypes.length &&
+            paramIdents.normalParameterTypes.length == func.normalParameterTypes.length; })
+        .update((AbstractType func) {
+          if (func is FunctionType) {
+            for (var i = 0; i < paramIdents.normalParameterTypes.length;i++)
+              subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
+            for (var i = 0; i < func.optionalParameterTypes.length;i++)
+              subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
+            
+            for(Name name in func.namedParameterTypes.keys){
+              subsetConstraint(func.namedParameterTypes[name], paramIdents.namedParameterTypes[name]);
+            }
+            subsetConstraint(func.returnType, returnIdent);
+          }
+       });
+    }
+  
+  visitDefaultFormalParameter(DefaultFormalParameter node){
+    super.visitDefaultFormalParameter(node);
+    
+    if (node.defaultValue != null)
+      assignmentExpression(node.identifier, node.defaultValue);
+  }
+  
+  
+  /****************************************/
+  /************ Assignments    ************/
+  /****************************************/
+  visitAssignmentExpression(AssignmentExpression node){
+    super.visitAssignmentExpression(node);
+    
+    Expression leftHandSide = node.leftHandSide;
+    Expression rightHandSide = node.rightHandSide;
+    
+    /*
+     * Determins if the assignment is a simple assignment,
+     * If not the desugaring of the assignment is made
+     */
+    if (node.operator.type == TokenType.EQ){
+      // Case: v = exp
+      assignmentExpression(leftHandSide, rightHandSide);
+      
+      TypeIdentifier exp = new ExpressionTypeIdentifier(rightHandSide);
+      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+      
+      // [exp] \subseteq [v = exp]
+      subsetConstraint(exp, nodeIdent);
+    } else {
+      // Case: v op= exp
+      /*
+       * Desugaring is needed, first we find the function that is used, 
+       * call it and then makes a normal assignments.
+       */
+      String operator = node.operator.toString();
+      operator = operator.substring(0, operator.length - 1);
+    
+      TypeIdentifier vIdent = new ExpressionTypeIdentifier(leftHandSide);
+      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+    
+      foreach(vIdent).update((AbstractType alpha) {
+        TypeIdentifier functionIdent = new PropertyTypeIdentifier(alpha, new Name(operator));
+        TypeIdentifier returnIdent = new SyntheticTypeIdentifier(functionIdent);
+        functionCall(functionIdent, <Expression>[rightHandSide], returnIdent);
+      
+      //Result of (leftHandSide op RightHandSide) should be the result of the hole node.
+      subsetConstraint(returnIdent, nodeIdent);
+      
+      //Make the assignment from the returnIdent to the leftHandSide.
+      assignmentExpression(leftHandSide, returnIdent);
+    });
+    }
+  }
+
+  visitVariableDeclaration(VariableDeclaration node){
+    super.visitVariableDeclaration(node);
+    /*
+     * The variable is already created from the previous step,
+     * so the only thing to do is make the assignment if a initial value is used.
+     */
+     if (node.initializer != null)
+      // v = exp;
+      assignmentExpression(node.name, node.initializer);
+  }
+  
+  visitConstructorFieldInitializer(ConstructorFieldInitializer node){
+    super.visitConstructorFieldInitializer(node);
+    assignmentExpression(node.fieldName, node.expression);
+  }
+  
+  // v = exp
+  assignmentExpression(Expression leftHandSide, dynamic rightHandSide){
+    TypeIdentifier expIdent = null;
+    if (rightHandSide is Expression)
+      expIdent = new ExpressionTypeIdentifier(rightHandSide);
+    else if (rightHandSide is TypeIdentifier)
+      expIdent = rightHandSide;
+    
+    if (expIdent == null)
+      engine.errors.addError(new EngineError("assignmentExpression in constraint was called with a bad rightHandSide `${rightHandSide.runtimeType}`", source.source), true);
+      
+    if (leftHandSide is SimpleIdentifier)
+      assignmentSimpleIdentifier(leftHandSide, expIdent);
+    else if (leftHandSide is PrefixedIdentifier)
+      assignmentPrefixedIdentifier(leftHandSide, expIdent);
+    else if (leftHandSide is PropertyAccess)
+      assignmentPropertyAccess(leftHandSide, expIdent);
+    else if (leftHandSide is IndexExpression)
+      assignmentIndexExpression(leftHandSide, expIdent);
+    else 
+      engine.errors.addError(new EngineError("assignmentExpression was called with a bad leftHandSide: `${leftHandSide.runtimeType}`", source.source), true);
+  }
+  
+   // v = exp;
+   // [exp] \subseteq [v]
+  assignmentSimpleIdentifier(SimpleIdentifier leftHandSide, TypeIdentifier expIdent){
+    TypeIdentifier vIdent = new ExpressionTypeIdentifier(leftHandSide);
+    subsetConstraint(expIdent, vIdent);
+  }
+  
+  // v.prop = exp;
+  // \alpha \in [v] => [exp] \subseteq [\alpha.prop]
+  assignmentPropertyAccess(PropertyAccess leftHandSide, TypeIdentifier expIdent){
+    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(leftHandSide.realTarget);
+    foreach(targetIdent).update((AbstractType alpha){
+      TypeIdentifier alphapropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.propertyName));
+      subsetConstraint(expIdent, alphapropertyIdent);
+    });
+  }
+
+  // v.prop = exp;
+  // \alpha \in [v] => [exp] \subseteq [\alpha.prop]
+  assignmentPrefixedIdentifier(PrefixedIdentifier leftHandSide, TypeIdentifier expIdent){
+    TypeIdentifier prefixIdent = new ExpressionTypeIdentifier(leftHandSide.prefix);
+    
+    foreach(prefixIdent).update((AbstractType alpha){
+      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.identifier));
+      subsetConstraint(expIdent, alphaPropertyIdent);
+    });
+
+  }
+  
+  // v[i] = exp;
+  // \alpha \in [v] => (\beta => \gamma => void) \in [v.[]=] => [i] \subseteq [\beta] && [exp] \subseteq [\gamma]
+  assignmentIndexExpression(IndexExpression leftHandSide, TypeIdentifier expIdent){
+    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(leftHandSide.realTarget);
+    foreach(targetIdent).update((AbstractType alpha) {
+      TypeIdentifier indexEqualMethodIdent = new PropertyTypeIdentifier(alpha, new Name("[]="));
+      functionCall(indexEqualMethodIdent, [leftHandSide.index, expIdent], null);
+    });
+  }
+
+  /********************************************/
+  /************ Simple expressions ************/
+  /********************************************/
+  visitParenthesizedExpression(ParenthesizedExpression node){
+    super.visitParenthesizedExpression(node);
+    //(exp)
+    // [exp] \subseteq [(exp)]
+    
+    TypeIdentifier expIdent = new ExpressionTypeIdentifier(node.expression);
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+    subsetConstraint(expIdent, nodeIdent);
+  }
+  
+  visitSimpleIdentifier(SimpleIdentifier n){
+    super.visitSimpleIdentifier(n);
+    
+    /*
+     * Make relation between this simpleIdentifier and the simple identifier it is resolved to. 
+     */
+    if (source.resolvedIdentifiers.containsKey(n)){
+      Identifier ident = source.resolvedIdentifiers[n].identifier;
+      if (ident != n)
+        /*
+         * TODO (jln): A possible speedup would be changing the simpleidentifiers to the identifier used in the variable decl.
+         * This can be done in a previous AST-gothrough
+         */
+        equalConstraint(new ExpressionTypeIdentifier(ident), new ExpressionTypeIdentifier(n));
+    }
+  }
+  
+  visitPrefixedIdentifier(PrefixedIdentifier n){
+    super.visitPrefixedIdentifier(n);
+    
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
+    TypeIdentifier prefixIdent = new ExpressionTypeIdentifier(n.prefix);
+    
+    //TODO (jln): Does this take library prefix into account?
+    foreach(prefixIdent).update((AbstractType alpha) {
+      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.identifier));
+      subsetConstraint(alphaPropertyIdent, nodeIdent);
+    });
+  }
+  
+  visitPropertyAccess(PropertyAccess n){
+    super.visitPropertyAccess(n);
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
+    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(n.realTarget);
+    
+    //TODO (jln): Does this take library prefix into account?
+    foreach(targetIdent).update((AbstractType alpha) {
+      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.propertyName));
+      subsetConstraint(alphaPropertyIdent, nodeIdent);
+    });
+  }
+  
+  visitIndexExpression(IndexExpression n){
+    super.visitIndexExpression(n);
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
+    TypeIdentifier targetIdent = new ExpressionTypeIdentifier(n.realTarget);
+        
+    //TODO (jln): Does this take library prefix into account?
+    foreach(targetIdent).update((AbstractType alpha) {
+      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name("[]"));
+      functionCall(methodIdent, <Expression>[n.index], nodeIdent);
+    });
+  }
+
+  visitThisExpression(ThisExpression n) {
+    // this
+    super.visitThisExpression(n);
+    if (_currentClassElement == null)
+          engine.errors.addError(new EngineError("thisExpression was visited but the CurrentClassElement was null.", source.source, n.offset, n.length), true);
+    else
+      types.add(n, new NominalType(_currentClassElement));
+  }
+  
+  visitSuperExpression(SuperExpression n){
+    // super
+    super.visitSuperExpression(n);
+    if (_currentClassElement == null || _currentClassElement.extendsElement == null)
+      engine.errors.addError(new EngineError("superExpression was visited but the parent _currentClassElement parnet was null.", source.source, n.offset, n.length), true);
+    else
+      types.add(n, new NominalType(_currentClassElement.extendsElement));
+  }
+  
+  visitIfStatement(IfStatement node) {
+    super.visitIfStatement(node);
+    types.add(node.condition, getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+  }
+
+  visitForStatement(ForStatement node) {
+    super.visitForStatement(node);
+    types.add(node.condition, getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+  }
+
+  visitDoStatement(DoStatement node) {
+    super.visitDoStatement(node);
+    types.add(node.condition, getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+  }
+  
+  visitWhileStatement(WhileStatement node) {
+    super.visitWhileStatement(node);
+    types.add(node.condition, getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+  }  
   
   visitPostfixExpression(PostfixExpression node){
     super.visitPostfixExpression(node);
@@ -866,128 +978,42 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     subsetConstraint(expIdent, nodeIdent);
   }
   
-  // op v
-  visitPrefixExpression(PrefixExpression node){
-    super.visitPrefixExpression(node);
+  visitConditionalExpression(ConditionalExpression node){
+    super.visitConditionalExpression(node);
     
-    // If increment operator (-- or ++)
-    if (_isIncrementOperator(node.operator.toString())) {
-      String operator = node.operator.toString();
-      operator = operator.substring(0, operator.length - 1);
-      
-      TypeIdentifier vIdent = new ExpressionTypeIdentifier(node.operand);
-      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
-      
-      //Make the operation
-      foreach(vIdent).update((AbstractType alpha) {
-        TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name(operator));
-        TypeIdentifier returnIdent = new SyntheticTypeIdentifier(methodIdent);
-        _methodCall(methodIdent, <Expression>[new IntegerLiteral(new StringToken(TokenType.INT, "1", 0), 1)], returnIdent);
-        //Result of (leftHandSide op RightHandSide) should be the result of the hole node.
-        subsetConstraint(returnIdent, nodeIdent);
-        
-        //Make the assignment from the returnIdent to the leftHandSide.
-        _assignmentExpression(node.operand, returnIdent);
-      });
-      
-    } else if (node.operator.toString() == '!'){
-      //If the is a negate it is the same as writing (e ? false : true), the result will always be a bool.
-      types.put(node, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source)); 
-    } else {
-      Name operator;
-      if (node.operator.toString() == '-') operator = Name.UnaryMinusName();
-      else operator = new Name.FromToken(node.operator);
-      
-      TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.operand);
-      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
-      foreach(targetIdent).update((AbstractType type) { 
-        TypeIdentifier methodIdent = new PropertyTypeIdentifier(type, operator); 
-        _methodCall(methodIdent, [], nodeIdent);
-      });
-    }
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node); 
+    
+    // exp1 ? exp2 : exp3
+    // [exp2] \union [exp3] \subseteq [exp1 ? exp2 : exp3]
+    subsetConstraint(new ExpressionTypeIdentifier(node.thenExpression), nodeIdent);
+    subsetConstraint(new ExpressionTypeIdentifier(node.elseExpression), nodeIdent);
+
+    types.add(node.condition, getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
   }
   
-  visitBinaryExpression(BinaryExpression be) {
-    super.visitBinaryExpression(be);
-    
-    // exp1 op exp2
-    TypeIdentifier leftIdent = new ExpressionTypeIdentifier(be.leftOperand);
-    TypeIdentifier rightIdent = new ExpressionTypeIdentifier(be.rightOperand);
-    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(be);
-    
-    // Binop only implemented for bools
-    if (be.operator.type == TokenType.AMPERSAND_AMPERSAND ||
-        be.operator.type == TokenType.BAR_BAR) {
-      types.put(leftIdent, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
-      types.put(rightIdent, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
-      types.put(nodeIdent, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
-      return;
-    }
-
-    // +, -, *, ~/, and % have special status in the Dart type checker - this is replicated here.
-    // Sections 15.26 and 15.27 has more info on this.
-    if ([TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.TILDE_SLASH, TokenType.PERCENT].contains(be.operator.type)) {
-      AbstractType intElem = _getAbstractType(new Name("int"), constraintAnalysis.dartCore, source);
-      AbstractType numElem = _getAbstractType(new Name("num"), constraintAnalysis.dartCore, source);
-      AbstractType doubleElem = _getAbstractType(new Name("double"), constraintAnalysis.dartCore, source);
-
-      foreach(leftIdent).update((AbstractType gamma) {
-        if (gamma == intElem) {
-          
-          bool hadSpecificNumericType = false;
-          
-          [intElem, doubleElem].forEach((numericType) {
-            if ((types[rightIdent] != null && types[rightIdent].types.contains(numericType)) ||
-                (types[nodeIdent] != null && types[nodeIdent].types.contains(numericType))) {
-              types.put(nodeIdent, numericType);
-              types.put(rightIdent, numericType);
-              hadSpecificNumericType = true;
-            }
-          });
-          
-          if (!hadSpecificNumericType) {
-            types.put(nodeIdent, numElem);
-            types.put(rightIdent, numElem);
-          }
-        } else {
-          TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(be.operator));
-          _methodCall(methodIdent, <Expression>[be.rightOperand], nodeIdent);
-        }
-      });
-      return;
-    }
-    
-    //  Fallback - Binop handled as method call
-    //  \forall \gamma \in [exp1], 
-    //  \forall (\alpha -> \beta) \in [ \gamma .op ] => 
-    //      \alpha \in [exp2] && \beta \in [exp1 op exp2].
-    foreach(leftIdent).update((AbstractType gamma) {
-      TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(be.operator));
-      _methodCall(methodIdent, <Expression>[be.rightOperand], nodeIdent);
-    });
-  }
-  
-  visitIsExpression(IsExpression n){
-    super.visitIsExpression(n);
+  visitIsExpression(IsExpression node){
+    super.visitIsExpression(node);
 
     // {bool} \in [e is T]
-    types.put(n, _getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+    types.add(node, getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
   }
   
-  visitAsExpression(AsExpression n){
-    super.visitAsExpression(n);
+  visitAsExpression(AsExpression node){
+    super.visitAsExpression(node);
 
-    AbstractType castType = _getAbstractType(new Name.FromIdentifier(n.type.name), source.library, source);
+    AbstractType castType = getAbstractType(new Name.FromIdentifier(node.type.name), source.library, source);
 
-    
-    if (n.type.name.toString() == 'dynamic' || castType == null) {
-      //as dynamic doesn't give you any info, so just make them equal.
-      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
-      TypeIdentifier expIdent = new ExpressionTypeIdentifier(n.expression);
+    /*
+     * If the cast was for dynamic, or the castType could not be resolved,
+     * we just make a subset constraint. Otherwise the type is the more specific type. 
+     */
+    if (node.type.name.toString() == 'dynamic' || castType == null) {
+      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+      TypeIdentifier expIdent = new ExpressionTypeIdentifier(node.expression);
       subsetConstraint(expIdent, nodeIdent);
     } else {
       // {T} \in [e as T]
-      types.put(n, castType);
+      types.add(node, castType);
     }
   } 
   
@@ -999,5 +1025,110 @@ class ConstraintGeneratorVisitor extends GeneralizingAstVisitor with ConstraintH
     
     subsetConstraint(targetIdent, nodeIdent);
   }
-}
+  
 
+  /*
+   * Binary expressions in dart is in most cases handled as method calls,
+   * The desugaring is made here.
+   */
+  visitBinaryExpression(BinaryExpression node) {
+    super.visitBinaryExpression(node);
+    
+    if (node.operator.type == TokenType.AMPERSAND_AMPERSAND ||
+        node.operator.type == TokenType.BAR_BAR)
+      logicalBinaryExpression(node);
+    else {
+      
+      /*
+       * Desugaring is made
+       */
+      TypeIdentifier leftIdent = new ExpressionTypeIdentifier(node.leftOperand);
+      TypeIdentifier rightIdent = new ExpressionTypeIdentifier(node.rightOperand);
+      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+      
+      
+      //  Binop handled as method call
+      //  \forall \gamma \in [exp1], 
+      //  \forall (\alpha -> \beta) \in [ \gamma .op ] => 
+      //      \alpha \in [exp2] && \beta \in [exp1 op exp2].
+      foreach(leftIdent).update((AbstractType gamma) {
+        TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(node.operator));
+        functionCall(methodIdent, [rightIdent], nodeIdent);
+      });
+    }
+  }
+  
+  /*
+   * If the operator was && or ||. 
+   */
+  logicalBinaryExpression(BinaryExpression node){
+    TypeIdentifier leftIdent = new ExpressionTypeIdentifier(node.leftOperand);
+    TypeIdentifier rightIdent = new ExpressionTypeIdentifier(node.rightOperand);
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+    
+    types.add(leftIdent, getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+    types.add(rightIdent, getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source));
+    types.add(nodeIdent, getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source)); 
+  }
+  
+  /*
+   * Prefix expressions needs to be desugared
+   */
+  visitPrefixExpression(PrefixExpression node){
+    super.visitPrefixExpression(node);
+    
+    if (node.operator.type == TokenType.MINUS_MINUS || node.operator.type == TokenType.PLUS_PLUS){
+      incrementDecrementPrefixExpression(node);
+    } else if (node.operator.type == TokenType.BANG){
+      /*
+       * In cases where the negate(!) operator was used, the result will be a bool for surtain. 
+       */
+      AbstractType bool = getAbstractType(new Name("bool"), constraintAnalysis.dartCore, source);
+      types.add(node, bool);
+      types.add(node.operand, bool);
+    } else {
+      /* 
+       * In other cases the desugaring is like calling the method on the element and then assign the result into the node.
+       */
+      Name operator;
+      if (node.operator.toString() == '-') operator = Name.UnaryMinusName();
+      else operator = new Name.FromToken(node.operator);
+      
+      TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.operand);
+      TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+      foreach(targetIdent).update((AbstractType type) { 
+        TypeIdentifier methodIdent = new PropertyTypeIdentifier(type, operator); 
+        functionCall(methodIdent, [], nodeIdent);
+      });
+    }
+  }
+  
+  /*
+   * Desugaring for prefix expressions using ++ or --.
+   */
+  incrementDecrementPrefixExpression(PrefixExpression node){
+    String operator = null;
+    if (node.operator.type == TokenType.MINUS_MINUS)
+      operator = '-';
+    else if (node.operator.type == TokenType.PLUS_PLUS)
+      operator = '+';
+    
+    if (operator == null)
+      engine.errors.addError(new EngineError("incrementDecrementPrefixExpression was called but the operator was neither MINUS_MINUS or PLUS_PLUS.", source.source, node.offset, node.length), true);
+        
+    TypeIdentifier vIdent = new ExpressionTypeIdentifier(node.operand);
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+    
+    //Make the operation
+    foreach(vIdent).update((AbstractType alpha) {
+      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name(operator));
+      TypeIdentifier returnIdent = new SyntheticTypeIdentifier(methodIdent);
+      functionCall(methodIdent, <Expression>[new IntegerLiteral(new StringToken(TokenType.INT, "1", 0), 1)], returnIdent);
+      //Result of (leftHandSide op RightHandSide) should be the result of the hole node.
+      subsetConstraint(returnIdent, nodeIdent);
+      
+      //Make the assignment from the returnIdent to the leftHandSide.
+      assignmentExpression(node.operand, returnIdent);
+    });
+  }
+}

@@ -14,7 +14,6 @@ import 'assign_or_int.dart';
 import 'binop_xor_int.dart';
 import 'assign_plus_num.dart';
 import 'assign_sleft_num.dart';
-import 'conditional_dynamic.dart';
 import 'assign_sright_num.dart';
 import 'conditional_int.dart';
 import 'assign_xor_int.dart';
@@ -86,5 +85,11 @@ import 'generic.dart';
 import 'casq_ctor.dart';
 import 'logic_and.dart';
 import 'logic_or.dart';
-
+import 'logic_not.dart';
+import 'functype_var.dart';
+import 'functype_merg.dart';
+import 'default_optparameter.dart';
+import 'default_namedparameter.dart';
+import 'default_fieldparameter.dart';
+import 'func_arg_var.dart';
 void main() {}

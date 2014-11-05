@@ -6,7 +6,6 @@ import 'package:analyzer/src/generated/ast.dart' as astElement show Block;
 import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/scanner.dart';
 import 'engine.dart';
-import 'resolver.dart';
 import 'util.dart';
 import 'printer.dart';
 
@@ -93,6 +92,8 @@ class Name {
   }
   
   factory Name.FromToken(Token name) => new Name(name.toString());
+  
+  factory Name.FromTokenType(TokenType name) => new Name(name.lexeme);
   
   bool get isPrivate => Identifier.isPrivateName(_name);
   String get name => _name;
@@ -240,6 +241,83 @@ class SourceElement extends Block {
   }
 }
 
+/**
+ * Instances of the class `LibraryElement` represents a source files scope and the current imports exports.
+ **/
+//TODO (tlj): private names should be shared within a library element
+class LibraryElement {
+  Map<Name, List<NamedElement>> scope = <Name, List<NamedElement>>{};
+  Map<Name, NamedElement> exports = <Name, NamedElement>{};
+  Map<NamedElement, Name> names = <NamedElement, Name>{}; 
+  
+  List<Name> imports = <Name>[];
+  List<Name> defined = <Name>[];
+  
+  SourceElement source;
+  Engine engine;
+  
+  //This list of library elements is all elements that is dependend on what the current library exports.
+  List<LibraryElement> depended_exports = <LibraryElement>[];
+  
+  LibraryElement(SourceElement this.source, Engine this.engine);
+ 
+  NamedElement addExport(Name name, NamedElement element) => exports[name] = element;
+  bool containsExport(Name name) => exports.containsKey(name);
+  
+  void addImport(Name name) => imports.add(name);
+  bool containsImport(Name name) => imports.contains(name);
+  
+  void addDefined(Name name) => defined.add(name);
+  bool containsDefined(Name name) => defined.contains(name);
+  
+  bool containsElement(Name name) => scope.containsKey(name);
+  void addElement(Name name, NamedElement element) {
+    names[element] = name;
+    scope.containsKey(name) ? scope[name].add(element) : scope[name] = <NamedElement>[element]; 
+  }
+  void addElements(Name name, List<NamedElement> elements) => elements.forEach((NamedElement e) => addElement(name,e));
+  void addElementMap(Map<Name, NamedElement> pairs) => scope.forEach(addElements);
+  void containsElements(List<Name> names) => names.fold(false, (prev, name) => prev || scope.containsKey(name));
+  
+  void addDependedExport(LibraryElement library) => depended_exports.add(library);
+  bool containsDependedExport(LibraryElement library) => depended_exports.contains(library);
+  
+  //Lookup method used for making proper lookup in the scope.
+  NamedElement lookup(Name name, [bool noFatalError = true]) {
+    if (!scope.containsKey(name)){
+      if (noFatalError) engine.errors.addError(new EngineError("An element with name: '${name}' didn't exists in the scope", source.source), true);
+      return null;
+    }
+    
+    if (scope[name].length > 1){
+      if (noFatalError) engine.errors.addError(new EngineError("Multiple elements with name: '${name}' existed in scope", source.source), true);
+      return null;
+    }
+    
+    NamedElement element = scope[name][0];
+    if (element is NamedFunctionElement && (element.isGetter || element.isSetter)){
+      if ((element.isGetter && (!containsElement(element.setterName) || 
+                               (scope[element.setterName].length == 1 && scope[element.setterName][0].librarySource == element.librarySource))) ||
+          (element.isSetter && (!containsElement(element.getterName) || 
+                               (scope[element.getterName].length == 1 && scope[element.getterName][0].librarySource == element.librarySource)))) {
+        return element;
+      } else {
+        if (noFatalError) engine.errors.addError(new EngineError("The element: '${name}' did exist but its coresponding getter/setter was from another library.", source.source), true);
+        return null;
+      }
+    } else if (element is VariableElement) {
+      if (scope.containsKey(element.name) && scope[element.name].length == 1 && scope.containsKey(Name.SetterName(element.name)) && scope[Name.SetterName(element.name)].length == 1){
+        return element;
+      } else {
+        if (noFatalError) engine.errors.addError(new EngineError("The variable element: '${name}' did exist but the coresponding getter/setter was not unique represented.", source.source), true);
+        return null;
+      }
+    }else {
+      return element;
+    }
+  }
+}
+
 /** 
  * Instance of a `ClassElement` is our abstract representation of the class.
  **/
@@ -253,6 +331,10 @@ class ClassElement extends Block implements NamedElement {
   ClassDeclaration _decl;
   
   SourceElement sourceElement;
+  
+  Map<Name, NamedElement> get classElements => (extendsElement == null ? 
+                                                declaredElements : 
+                                                MapUtil.union(declaredElements, extendsElement.classElements));
   
   Name name;
   bool get isPrivate => name.isPrivate;
@@ -414,7 +496,9 @@ class ParameterElement extends VariableElement {
 class FieldParameterElement extends ParameterElement {
   ClassElement classElement;
   
-  FieldParameterElement(FormalParameter parameterAst, Block enclosingBlock, TypeName annotatedType, ClassElement this.classElement, SourceElement sourceElement) : super(parameterAst, enclosingBlock, annotatedType, sourceElement);
+  dynamic accept(ElementVisitor visitor) => visitor.visitFieldParameterElement(this);
+  
+  FieldParameterElement(FieldFormalParameter parameterAst, Block enclosingBlock, TypeName annotatedType, ClassElement this.classElement, SourceElement sourceElement) : super(parameterAst, enclosingBlock, annotatedType, sourceElement);
 }
 
 /**
@@ -432,10 +516,12 @@ abstract class ClassMember {
 abstract class CallableElement extends Element {
   TypeName get returnType;
   FormalParameterList get parameters;
+  List<ParameterElement> get parameterElements;
   List<ReturnElement> get returns;
   bool get isSynthetic;
   bool get isExternal;
   void addReturn(ReturnElement);
+  void addParameterElement(ParameterElement);
 }
 
 
@@ -498,6 +584,10 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
   List<ReturnElement> _returns = <ReturnElement>[];
   List<ReturnElement> get returns => _returns;
   void addReturn(ReturnElement r) => _returns.add(r);
+  
+  List<ParameterElement> _parameters = <ParameterElement>[];
+  List<ParameterElement> get parameterElements => _parameters;
+  void addParameterElement(ParameterElement p) => _parameters.add(p);
     
   dynamic accept(ElementVisitor visitor) => visitor.visitMethodElement(this);
   
@@ -541,9 +631,14 @@ class ConstructorElement extends Block with ClassMember implements NamedElement,
   TypeName _returnType;
   TypeName get returnType => _returnType;
   FormalParameterList get parameters => ast.parameters;
+  
   List<ReturnElement> _returns = <ReturnElement>[];
   List<ReturnElement> get returns => _returns;
   void addReturn(ReturnElement r) => _returns.add(r);
+
+  List<ParameterElement> _parameters = <ParameterElement>[];
+  List<ParameterElement> get parameterElements => _parameters;
+  void addParameterElement(ParameterElement p) => _parameters.add(p);
     
   dynamic accept(ElementVisitor visitor) => visitor.visitConstructorElement(this);
 
@@ -576,6 +671,11 @@ class FunctionElement extends Block with Element implements CallableElement {
   List<ReturnElement> _returns = <ReturnElement>[];
   List<ReturnElement> get returns => _returns;
   void addReturn(ReturnElement r) => _returns.add(r);
+
+  List<ParameterElement> _parameters = <ParameterElement>[];
+  List<ParameterElement> get parameterElements => _parameters;
+  void addParameterElement(ParameterElement p) => _parameters.add(p);
+  
   bool get isSynthetic => ast.isSynthetic;
   bool get isExternal => false;
 
@@ -591,6 +691,13 @@ class FunctionParameterElement extends ParameterElement implements CallableEleme
   FormalParameterList get parameters => formalParamAst.parameters;
   List<ReturnElement> get returns => [];
   void addReturn(ReturnElement r) => null;
+  
+  dynamic accept(ElementVisitor visitor) => visitor.visitFunctionParameterElement(this);
+
+  List<ParameterElement> _parameters = <ParameterElement>[];
+  List<ParameterElement> get parameterElements => _parameters;
+  void addParameterElement(ParameterElement p) => _parameters.add(p);
+  
   TypeName get returnType => formalParamAst.returnType;
   bool get isExternal => false;
   
@@ -610,6 +717,11 @@ class FunctionAliasElement extends Block implements CallableElement, NamedElemen
   FormalParameterList get parameters => ast.parameters;
   List<ReturnElement> get returns => [];
   void addReturn(ReturnElement r) => null;
+
+  List<ParameterElement> _parameters = <ParameterElement>[];
+  List<ParameterElement> get parameterElements => _parameters;
+  void addParameterElement(ParameterElement p) => _parameters.add(p);
+  
   TypeName get returnType => ast.returnType;
   bool get isExternal => false;
   bool get isSynthetic => ast.isSynthetic;
@@ -679,6 +791,7 @@ abstract class ElementVisitor<R> {
   R visitNamedFunctionElement(NamedFunctionElement node);
   R visitVariableElement(VariableElement node);
   R visitParameterElement(ParameterElement node);
+  R visitFieldParameterElement(FieldParameterElement node);
   R visitFunctionParameterElement(FunctionParameterElement node);
   
   R visitClassMember(ClassMember node);
@@ -693,14 +806,20 @@ abstract class ElementVisitor<R> {
 
 class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   A visitElementAnalysis(ElementAnalysis node) {
-    node.librarySources.values.forEach(visit);
+    node.sources.values.forEach(visit);
+    
+    //Visit detached elements
+    node.elements.values.forEach((Element e) {
+      if (e is FunctionElement && e is! NamedFunctionElement)
+        visit(e);
+    });
     return null;
   }
   
   A visitSourceElement(SourceElement node) {
     if (node.library != null) this.visitLibraryElement(node.library);
     visitBlock(node);
-    node.declaredClasses.values.forEach(visit);    
+    node.declaredClasses.values.forEach(visit);  
     return null;
   }
   
@@ -713,6 +832,7 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
     visitBlock(node);
     node.declaredFields.values.forEach(visit);
     node.declaredMethods.values.forEach(visit);
+    node.declaredConstructors.values.forEach(visit);
     return null;
   }
   
@@ -735,6 +855,11 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
     return null;
   }
   
+  A visitFieldParameterElement(FieldParameterElement node){
+    visitAnnotatedElement(node);
+    return null;
+  }
+  
   A visitFunctionParameterElement(FunctionParameterElement node){
     visitAnnotatedElement(node);
     visitCallableElement(node);
@@ -743,6 +868,7 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   
   A visitCallableElement(CallableElement node) {
     node.returns.forEach(visit);
+    node.parameterElements.forEach(visit);
     return null;
   }
   
@@ -1141,21 +1267,23 @@ class ElementGenerator extends GeneralizingAstVisitor {
     if (_currentBlock == null) {
       engine.errors.addError(new EngineError("The current block is not set, so the variable cannot be associated with any.", source, node.offset, node.length), true);
     }
-    VariableElement variable;
+    ParameterElement parameter;
     if (node is FunctionTypedFormalParameter){
-      variable = new FunctionParameterElement(node, _currentBlock, _currentVariableType, element);
+      parameter = new FunctionParameterElement(node, _currentBlock, _currentVariableType, element);
     } else if (node is FieldFormalParameter) {
       if (_currentClassElement == null) {
         engine.errors.addError(new EngineError("The current classis not set, so the fieldFormalParamter cannot be associated.", source, node.offset, node.length), true);
       }
-      variable = new FieldParameterElement(node, _currentBlock, _currentVariableType, _currentClassElement, element);
+      parameter = new FieldParameterElement(node, _currentBlock, _currentVariableType, _currentClassElement, element);
     } else {
-      variable = new ParameterElement(node, _currentBlock, _currentVariableType, element);
+      parameter = new ParameterElement(node, _currentBlock, _currentVariableType, element);
     }
+    
+    _currentCallableElement.addParameterElement(parameter);
 
-    analysis.addElement(node, variable);
+    analysis.addElement(node, parameter);
 
-    _currentBlock.addVariable(variable);
+    _currentBlock.addVariable(parameter);
     super.visitFormalParameter(node);  
   }
 }

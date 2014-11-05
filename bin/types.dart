@@ -1,11 +1,10 @@
 library typeanalysis.types;
 
 import 'package:analyzer/src/generated/ast.dart' hide ClassMember;
-import 'engine.dart';
 import 'package:analyzer/src/generated/utilities_dart.dart';
 import 'element.dart';
-import 'constraint.dart';
 import 'util.dart';
+import 'engine.dart';
 
 abstract class AbstractType {
   
@@ -14,7 +13,7 @@ abstract class AbstractType {
    * least upper bound.
    *
    */
-   AbstractType getLeastUpperBound(AbstractType type);
+   AbstractType getLeastUpperBound(AbstractType type, Engine engine);
   
   /**
    * Return `true` if this type is assignable to the given type. A type <i>T</i> may be
@@ -64,17 +63,9 @@ class FunctionType extends AbstractType {
                 this.optionalParameterTypes = (optionalParameterTypes == null ? <TypeIdentifier>[] : optionalParameterTypes),
                 this.namedParameterTypes = (namedParameterTypes == null ? <Name, TypeIdentifier>{} : namedParameterTypes);
   
+  factory FunctionType.FromIdentifiers(TypeIdentifier returnIdent, ParameterTypeIdentifiers paramIdents) =>
+    new FunctionType(paramIdents.normalParameterTypes, returnIdent, paramIdents.optionalParameterTypes, paramIdents.namedParameterTypes);
   
-  factory FunctionType.FromCallableElement(CallableElement element, LibraryElement library, ElementTyper typer){
-    TypeIdentifier returnIdentifier = typer.typeReturn(element, library, element.sourceElement);
-
-    if (element.parameters == null)
-      return new FunctionType(<TypeIdentifier>[], returnIdentifier);
-    
-    ParameterTypes params = typer.typeParameters(element, library, element.sourceElement);
-    return new FunctionType(params.normalParameterTypes, returnIdentifier, params.optionalParameterTypes, params.namedParameterTypes); 
-  }
-
   String toString() {
     StringBuffer sb = new StringBuffer();
     sb.write("(${ListUtil.join(normalParameterTypes, " -> ")}");
@@ -107,9 +98,13 @@ class FunctionType extends AbstractType {
     return false;
   }
   
-  AbstractType getLeastUpperBound(AbstractType t) {
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine) {
     if (t is DynamicType || t is VoidType)
           return t;
+    
+    ClassElement funcElement = engine.elementAnalysis.resolveClassElement(new Name('Function'), engine.elementAnalysis.dartCore, engine.elementAnalysis.dartCore.source);
+    if (funcElement == null)
+      engine.errors.addError(new EngineError("Function could not be found in dart core library. Called from functionType getLeastUpperBound."), true);
     
     if (t is FunctionType){
       if (t.normalParameterTypes.length == optionalParameterTypes.length && 
@@ -117,17 +112,19 @@ class FunctionType extends AbstractType {
           t.namedParameterTypes.length == namedParameterTypes.length && 
           ListUtil.union(namedParameterTypes.keys, t.namedParameterTypes.keys).length == namedParameterTypes.length) {
         
-        //TODO (jln): Since elements in the function is typeIdentifiers we need to have a link to the types.
         
-      } else {
-        //TODO (jln): Both was functions so just return functions instead.
-        return new DynamicType();
-      }
-      
+        //TODO (jln): Since elements in the function is typeIdentifiers we need to have a link to the types.
+        //            This is only if typedefs are used, in functionTypedParameters, this is handled by constraints.
+        return new NominalType(funcElement);
+        
+      } else
+        return new NominalType(funcElement);
     }
     
-    //TODO (jln): Implement this, a simple implementation could be if t is a FunctionType then return the nominalType Function.
-    return new DynamicType();
+    if (t is NominalType && t.element == funcElement)
+      return t;
+    else
+      return new DynamicType();
   }
   
   bool operator ==(Object other) => 
@@ -157,7 +154,7 @@ class NominalType extends AbstractType {
       return false;
   }
   
-  AbstractType getLeastUpperBound(AbstractType t){
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine){
     if (t is NominalType) {
       ClassElement leastUpperBound = element.getLeastUpperBound(t.element);
       if (leastUpperBound == null)
@@ -169,8 +166,14 @@ class NominalType extends AbstractType {
     
     if (t is DynamicType || t is VoidType)
       return t;
-
-    //TODO (jln): If t is FunctionType the only possible case would be if this nominalType is FunctionType.
+   
+    //If this type is Function and t is FunctionType, return Function.
+    ClassElement funcElement = engine.elementAnalysis.resolveClassElement(new Name('Function'), engine.elementAnalysis.dartCore, engine.elementAnalysis.dartCore.source);
+    if (funcElement == null)
+      engine.errors.addError(new EngineError("Function could not be found in dart core library. Called from functionType getLeastUpperBound."), true);
+    if (t is FunctionType && this.element == funcElement)
+      return this;
+    
     return new DynamicType();
   }
   
@@ -185,7 +188,7 @@ class DynamicType extends AbstractType {
   
   bool isSubtypeOf(DynamicType t) => true;
   
-  AbstractType getLeastUpperBound(AbstractType t) => this;
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine) => this;
   
   String toString() => "dynamic";
   bool operator ==(Object other) => other is VoidType;
@@ -217,7 +220,7 @@ class VoidType extends AbstractType {
   
   bool isSubtypeOf(AbstractType t) => t is VoidType;
   
-  AbstractType getLeastUpperBound(AbstractType t) => (t is DynamicType ? t : this);
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine) => (t is DynamicType ? t : this);
   
   String toString() => "void";
   bool operator ==(Object other) => other is VoidType;
@@ -290,164 +293,20 @@ class ReturnTypeIdentifier extends TypeIdentifier {
   String toString() => "#ret.[${_element}]";
 }
 
-class ParameterTypes { 
+class ParameterTypeIdentifiers { 
   List<TypeIdentifier> normalParameterTypes = <TypeIdentifier>[];
   List<TypeIdentifier> optionalParameterTypes = <TypeIdentifier>[];
   Map<Name, TypeIdentifier> namedParameterTypes = <Name, TypeIdentifier>{};
-}
-
-class ElementTyper {
-  Map<AstNode, TypeIdentifier> types = <AstNode, TypeIdentifier>{};
-  Map<CallableElement, ReturnTypeIdentifier> returns = <CallableElement, ReturnTypeIdentifier>{};
-  Map<CallableElement, ParameterTypes> parameters = <CallableElement, ParameterTypes>{};
   
+  ParameterTypeIdentifiers();
   
-  ConstraintAnalysis constraintAnalysis;
-  Engine get engine => constraintAnalysis.engine;
-  ElementAnalysis get elementAnalysis => constraintAnalysis.elementAnalysis;
-  TypeMap get typeMap => constraintAnalysis.typeMap; 
-  
-  ElementTyper(ConstraintAnalysis this.constraintAnalysis);
-  
-  TypeIdentifier typeNamedElement(NamedElement element, LibraryElement library, ConstraintHelper helper){
-    if (element is ClassElement)
-      return typeClassElement(element);
-    else if (element is MethodElement)
-      return typeMethodElement(element, library, helper);
-    if (element is AnnotatedElement)
-      return typeAnnotatedElement(element, library);
-    if (element is ConstructorElement)
-      return typeConstructorElement(element, library);
-    if (element is NamedFunctionElement)
-      return typeNamedFunctionElement(element, library, helper);
-    engine.errors.addError(new EngineError("The typeNamedElement method was called with a illigal classMember.", element.sourceElement.source), true);
-    return null;
-  }
-  
-  TypeIdentifier typeClassMember(ClassMember element, LibraryElement library, ConstraintHelper helper){
-    if (element is MethodElement)
-      return typeMethodElement(element, library, helper);
-    if (element is FieldElement)
-      return typeAnnotatedElement(element, library);
-    if (element is ConstructorElement)
-      return typeConstructorElement(element, library);
-    engine.errors.addError(new EngineError("The typeClassMember method was called with a illigal classMember.", element.sourceElement.source), true);
-    return null;
-  }
-  
-  TypeIdentifier typeMethodElement(MethodElement element,LibraryElement library, ConstraintHelper helper){
-    if (types.containsKey(element.ast))
-      return types[element.ast];
-    
-    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(element.identifier);
-    FunctionType functionType = new FunctionType.FromCallableElement(element, library, this);
-    if (!typeMap.containsKey(elementTypeIdent))
-      typeMap.replace(elementTypeIdent, new TypeVariable());
-    
-    if (element.isGetter)
-      helper.equalConstraint(elementTypeIdent, functionType.returnType);
-    else if (element.isSetter){
-      if (functionType.normalParameterTypes.length == 1)
-        helper.equalConstraint(elementTypeIdent, functionType.normalParameterTypes[0]);
-      else
-        engine.errors.addError(new EngineError("The MethodElement was a setter but the method did not only have 1 normal parameter.", element.sourceElement.source), true);
-    } else
-      typeMap.put(elementTypeIdent,functionType);
-    
-    return types[element.ast] = elementTypeIdent;
-  }
-  
-  TypeIdentifier typeNamedFunctionElement(NamedFunctionElement element, LibraryElement library, ConstraintHelper helper) {
-    if (types.containsKey(element.ast))
-      return types[element.ast];
-    
-    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(element.identifier);
-    FunctionType functionType = new FunctionType.FromCallableElement(element, library, this);
-    if (!typeMap.containsKey(elementTypeIdent))
-      typeMap.replace(elementTypeIdent, new TypeVariable());
-    
-    if (element.isGetter)
-      helper.equalConstraint(elementTypeIdent, functionType.returnType);
-    else if (element.isSetter){
-      if (functionType.normalParameterTypes.length == 1)
-        helper.equalConstraint(elementTypeIdent, functionType.normalParameterTypes[0]);
-      else
-        engine.errors.addError(new EngineError("The NamedFunctionElement was a setter but the method did not only have 1 normal parameter.", element.sourceElement.source), true);
-    } else
-      typeMap.put(elementTypeIdent,functionType);
-    
-    return types[element.ast] = elementTypeIdent;
-  }
-  
-  TypeIdentifier typeAnnotatedElement(AnnotatedElement element,LibraryElement library){
-    if (types.containsKey(element.ast))
-      return types[element.ast];
-    
-    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(element.identifier);
-    AbstractType elementType = resolveType(element.annotatedType, library, element.sourceElement);
-    if (!typeMap.containsKey(elementTypeIdent))
-      typeMap.replace(elementTypeIdent, new TypeVariable());
-    
-    if (elementType != null)
-      typeMap.put(elementTypeIdent, elementType);
-    
-    return types[element.ast] = elementTypeIdent;
-  }
-  
-  TypeIdentifier typeConstructorElement(ConstructorElement element,LibraryElement library){
-    if (types.containsKey(element.ast))
-      return types[element.ast];
-    
-    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(element.identifier);
-    AbstractType elementType = new FunctionType.FromCallableElement(element, library, this);
-    if (!typeMap.containsKey(elementTypeIdent))
-      typeMap.replace(elementTypeIdent, new TypeVariable());
-    
-    typeMap.put(elementTypeIdent, elementType);
-      
-    return types[element.ast] = elementTypeIdent;
-    
-  }
-  
-  TypeIdentifier typeClassElement(ClassElement element){
-    if (types.containsKey(element.ast))
-      return types[element.ast];
-
-    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(element.identifier);
-    AbstractType elementType = new NominalType(element);
-    if (!typeMap.containsKey(elementTypeIdent))
-      typeMap.replace(elementTypeIdent, new TypeVariable());
-    
-    typeMap.put(elementTypeIdent, elementType);
-    
-    return types[element.ast] = elementTypeIdent;
-  }
-  
-  TypeIdentifier typeReturn(CallableElement element, LibraryElement library, SourceElement source){
-    if (returns.containsKey(element))
-          return returns[element];
-    
-    TypeIdentifier ident = new ReturnTypeIdentifier(element);
-    AbstractType type;
-    if (!typeMap.containsKey(ident))
-        typeMap.replace(ident, new TypeVariable());
-    
-    type = resolveType(element.returnType, library, source);
-    if (type != null)
-      typeMap.put(ident, type);
-    
-    return returns[element] = ident;
-  }
-  
-  ParameterTypes typeParameters(CallableElement element, LibraryElement library, SourceElement source){
-    if (parameters.containsKey(element))
-      return parameters[element];
+  factory ParameterTypeIdentifiers.FromCallableElement(CallableElement element, LibraryElement library, SourceElement source){
     
     FormalParameterList paramList = element.parameters;
-    ParameterTypes types = new ParameterTypes();
+    ParameterTypeIdentifiers types = new ParameterTypeIdentifiers();
     
-    if (paramList.parameters == null || paramList.length == 0) 
-      return parameters[element] = types;
+    if (paramList == null || paramList.parameters == null || paramList.length == 0) 
+      return types;
     
     NodeList<FormalParameter> params = paramList.parameters;
     
@@ -456,37 +315,7 @@ class ElementTyper {
       if (param is NormalFormalParameter) normalParam = param;
       else if (param is DefaultFormalParameter) normalParam = param.parameter;
       
-      TypeIdentifier paramTypeIdent;
-      if (this.types.containsKey(normalParam))
-        paramTypeIdent = this.types[normalParam];  
-      else {
-        paramTypeIdent = new ExpressionTypeIdentifier(param.identifier);
-        
-        
-        AbstractType type; 
-        if (normalParam is SimpleFormalParameter || normalParam is FieldFormalParameter) {
-          if (normalParam.type != null)
-            type = this.resolveType(normalParam.type, library, source);
-            
-        } else if (normalParam is FunctionTypedFormalParameter){
-          if (elementAnalysis.containsElement(normalParam) && elementAnalysis.elements[normalParam] is CallableElement){
-            CallableElement callElement = elementAnalysis.elements[normalParam];
-            type = new FunctionType.FromCallableElement(callElement, library, this);
-          } else {
-            //The element should be in the elementAnalysis.
-            engine.errors.addError(new EngineError("A FunctionTypedFormaParameter was found in the typing step, but didn't have a associated elemenet.", source.source, normalParam.offset, normalParam.length ), true);
-            type = null;
-          }
-        }
-        
-        if (!typeMap.containsKey(paramTypeIdent))
-          typeMap.replace(paramTypeIdent, new TypeVariable());
-        
-        if (type != null)
-          typeMap.put(paramTypeIdent, type);
-        
-        this.types[normalParam] = paramTypeIdent; 
-      }
+      TypeIdentifier paramTypeIdent = new ExpressionTypeIdentifier(param.identifier);
       
       if (normalParam.kind == ParameterKind.REQUIRED)
         types.normalParameterTypes.add(paramTypeIdent);
@@ -496,18 +325,6 @@ class ElementTyper {
         types.namedParameterTypes[new Name.FromIdentifier(normalParam.identifier)] = paramTypeIdent;
     }
     
-    return parameters[element] = types;
-  }
-  
-  AbstractType resolveType(TypeName type, LibraryElement library, SourceElement source){
-    if (type == null)
-      return null;
-    else {
-      ClassElement classElement = elementAnalysis.resolveClassElement(new Name.FromIdentifier(type.name), library, source);
-      if (classElement != null)
-        return new NominalType(elementAnalysis.resolveClassElement(new Name.FromIdentifier(type.name), library, source));
-      else 
-        return null;
-    }
+    return types;
   }
 }
