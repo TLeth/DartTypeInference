@@ -691,6 +691,8 @@ class FunctionParameterElement extends ParameterElement implements CallableEleme
   FormalParameterList get parameters => formalParamAst.parameters;
   List<ReturnElement> get returns => [];
   void addReturn(ReturnElement r) => null;
+  
+  dynamic accept(ElementVisitor visitor) => visitor.visitFunctionParameterElement(this);
 
   List<ParameterElement> _parameters = <ParameterElement>[];
   List<ParameterElement> get parameterElements => _parameters;

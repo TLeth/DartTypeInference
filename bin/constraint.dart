@@ -332,7 +332,6 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
         
     TypeIdentifier returnIdent = typeReturn(node, node.sourceElement.library, node.sourceElement);
     ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
-    
     types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));
   }
 
