@@ -34,3 +34,15 @@
 [submodule "benchmarks/play_pixi"]
 	path = benchmarks/play_pixi
 	url = git@github.com:TLeth/play_pixi.git
+[submodule "benchmarks/dgrep"]
+	path = benchmarks/dgrep
+	url = git@github.com:TLeth/dgrep.git
+[submodule "benchmarks/dcat"]
+	path = benchmarks/dcat
+	url = git@github.com:TLeth/dcat.git
+[submodule "benchmarks/dart2js"]
+	path = benchmarks/dart2js
+	url = git@github.com:TLeth/dart2js.git
+[submodule "benchmarks/pop_pop_win_package"]
+	path = benchmarks/pop_pop_win_package
+	url = git@github.com:TLeth/pop_pop_win_package.git
