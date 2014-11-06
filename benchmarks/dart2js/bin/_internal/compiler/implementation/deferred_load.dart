@@ -5,59 +5,30 @@
 library deferred_load;
 
 import 'constants/expressions.dart';
-import 'constants/values.dart' show
-    ConstantValue,
-    ConstructedConstantValue,
-    DeferredConstantValue,
-    StringConstantValue;
+import 'constants/values.dart' show ConstantValue, ConstructedConstantValue,
+    DeferredConstantValue, StringConstantValue;
 
-import 'dart2jslib.dart' show
-    Backend,
-    Compiler,
-    CompilerTask,
-    invariant,
+import 'dart2jslib.dart' show Backend, Compiler, CompilerTask, invariant,
     MessageKind;
 
-import 'dart_backend/dart_backend.dart' show
-    DartBackend;
+import 'dart_backend/dart_backend.dart' show DartBackend;
 
-import 'js_backend/js_backend.dart' show
-    JavaScriptBackend;
+import 'js_backend/js_backend.dart' show JavaScriptBackend;
 
-import 'elements/elements.dart' show
-    AstElement,
-    ClassElement,
-    Element,
-    ElementKind,
-    Elements,
-    FunctionElement,
-    LibraryElement,
-    MetadataAnnotation,
-    PrefixElement,
-    ScopeContainerElement,
-    TypedefElement,
-    VoidElement;
+import 'elements/elements.dart' show AstElement, ClassElement, Element,
+    ElementKind, Elements, FunctionElement, LibraryElement, MetadataAnnotation,
+    PrefixElement, ScopeContainerElement, TypedefElement, VoidElement;
 
-import 'util/util.dart' show
-    Link, makeUnique;
+import 'util/util.dart' show Link, makeUnique;
 
-import 'util/setlet.dart' show
-    Setlet;
+import 'util/setlet.dart' show Setlet;
 
-import 'tree/tree.dart' show
-    Import,
-    LibraryTag,
-    LibraryDependency,
-    LiteralDartString,
-    LiteralString,
-    NewExpression,
-    Node;
+import 'tree/tree.dart' show Import, LibraryTag, LibraryDependency,
+    LiteralDartString, LiteralString, NewExpression, Node;
 
 import 'tree/tree.dart' as ast;
 
-import 'resolution/resolution.dart' show
-    AnalyzableElementX,
-    TreeElements;
+import 'resolution/resolution.dart' show AnalyzableElementX, TreeElements;
 
 /// A "hunk" of the program that will be loaded whenever one of its [imports]
 /// are loaded.
@@ -80,7 +51,7 @@ class OutputUnit {
 
   String toString() => "OutputUnit($name)";
 
-  bool operator==(OutputUnit other) {
+  bool operator ==(OutputUnit other) {
     return imports.length == other.imports.length &&
         imports.containsAll(other.imports);
   }
@@ -88,7 +59,7 @@ class OutputUnit {
   int get hashCode {
     int sum = 0;
     for (Import import in imports) {
-      sum = (sum + import.hashCode) & 0x3FFFFFFF;  // Stay in 30 bit range.
+      sum = (sum + import.hashCode) & 0x3FFFFFFF; // Stay in 30 bit range.
     }
     return sum;
   }
@@ -106,8 +77,12 @@ class DeferredLoadTask extends CompilerTask {
 
   /// A synthetic [Import] representing the loading of the main
   /// program.
-  final Import _fakeMainImport = new Import(null, new LiteralString(null,
-      new LiteralDartString("main")), null, null, null);
+  final Import _fakeMainImport = new Import(
+      null,
+      new LiteralString(null, new LiteralDartString("main")),
+      null,
+      null,
+      null);
 
   /// The OutputUnit that will be loaded when the program starts.
   final OutputUnit mainOutputUnit = new OutputUnit();
@@ -196,7 +171,7 @@ class DeferredLoadTask extends CompilerTask {
   }
 
   void registerConstantDeferredUse(DeferredConstantValue constant,
-                                   PrefixElement prefix) {
+      PrefixElement prefix) {
     OutputUnit outputUnit = new OutputUnit();
     outputUnit.imports.add(prefix.deferredImport);
     _constantToOutputUnit[constant] = outputUnit;
@@ -231,11 +206,8 @@ class DeferredLoadTask extends CompilerTask {
   /// (not the transitive closure.)
   ///
   /// Adds the results to [elements] and [constants].
-  void _collectAllElementsAndConstantsResolvedFrom(
-      Element element,
-      Set<Element> elements,
-      Set<ConstantValue> constants,
-      isMirrorUsage) {
+  void _collectAllElementsAndConstantsResolvedFrom(Element element,
+      Set<Element> elements, Set<ConstantValue> constants, isMirrorUsage) {
 
     /// Recursively add the constant and its dependencies to [constants].
     void addConstants(ConstantValue constant) {
@@ -310,18 +282,19 @@ class DeferredLoadTask extends CompilerTask {
         elements.add(type.element.implementation);
       }
       elements.add(cls.implementation);
-    } else if (Elements.isStaticOrTopLevel(element) ||
-               element.isConstructor) {
+    } else if (Elements.isStaticOrTopLevel(element) || element.isConstructor) {
       collectDependencies(element);
     }
     if (element.isGenerativeConstructor) {
       // When instantiating a class, we record a reference to the
       // constructor, not the class itself.  We must add all the
       // instance members of the constructor's class.
-      ClassElement implementation =
-          element.enclosingClass.implementation;
+      ClassElement implementation = element.enclosingClass.implementation;
       _collectAllElementsAndConstantsResolvedFrom(
-          implementation, elements, constants, isMirrorUsage);
+          implementation,
+          elements,
+          constants,
+          isMirrorUsage);
     }
 
     // Other elements, in particular instance members, are ignored as
@@ -363,12 +336,12 @@ class DeferredLoadTask extends CompilerTask {
   /// Recursively traverses the graph of dependencies from [element], mapping
   /// deferred imports to each dependency it needs in the sets
   /// [_importedDeferredBy] and [_constantsDeferredBy].
-  void _mapDependencies(Element element, Import import,
-                        {isMirrorUsage: false}) {
-    Set<Element> elements = _importedDeferredBy.putIfAbsent(import,
-        () => new Set<Element>());
-    Set<ConstantValue> constants = _constantsDeferredBy.putIfAbsent(import,
-        () => new Set<ConstantValue>());
+  void _mapDependencies(Element element, Import import, {isMirrorUsage:
+      false}) {
+    Set<Element> elements =
+        _importedDeferredBy.putIfAbsent(import, () => new Set<Element>());
+    Set<ConstantValue> constants =
+        _constantsDeferredBy.putIfAbsent(import, () => new Set<ConstantValue>());
 
     // Only process elements once, unless we are doing dependencies due to
     // mirrors, which are added in additional traversals.
@@ -384,14 +357,18 @@ class DeferredLoadTask extends CompilerTask {
 
     // This call can modify [_importedDeferredBy] and [_constantsDeferredBy].
     _collectAllElementsAndConstantsResolvedFrom(
-        element, dependentElements, constants, isMirrorUsage);
+        element,
+        dependentElements,
+        constants,
+        isMirrorUsage);
 
     LibraryElement library = element.library;
     for (Element dependency in dependentElements) {
       if (_isExplicitlyDeferred(dependency, library)) {
         for (Import deferredImport in _getImports(dependency, library)) {
           _mapDependencies(dependency, deferredImport);
-        };
+        }
+        ;
       } else {
         _mapDependencies(dependency, import);
       }
@@ -425,7 +402,8 @@ class DeferredLoadTask extends CompilerTask {
         ConstantExpression constant =
             backend.constants.getConstantForMetadata(metadata);
         if (constant != null) {
-          _mapDependencies(constant.value.computeType(compiler).element,
+          _mapDependencies(
+              constant.value.computeType(compiler).element,
               deferredImport);
         }
       }
@@ -434,7 +412,8 @@ class DeferredLoadTask extends CompilerTask {
           ConstantExpression constant =
               backend.constants.getConstantForMetadata(metadata);
           if (constant != null) {
-            _mapDependencies(constant.value.computeType(compiler).element,
+            _mapDependencies(
+                constant.value.computeType(compiler).element,
                 deferredImport);
           }
         }
@@ -443,8 +422,8 @@ class DeferredLoadTask extends CompilerTask {
 
     for (Import deferredImport in _allDeferredImports.keys) {
       LibraryElement deferredLibrary = _allDeferredImports[deferredImport];
-      for (LibraryElement library in
-          _nonDeferredReachableLibraries(deferredLibrary)) {
+      for (LibraryElement library in _nonDeferredReachableLibraries(
+          deferredLibrary)) {
         handleLibrary(library, deferredImport);
       }
     }
@@ -479,7 +458,8 @@ class DeferredLoadTask extends CompilerTask {
         }
       }
       assert(result != null);
-      importDeferName[import] = makeUnique(result, usedImportNames);;
+      importDeferName[import] = makeUnique(result, usedImportNames);
+      ;
     }
 
     int counter = 1;
@@ -569,9 +549,9 @@ class DeferredLoadTask extends CompilerTask {
           if (import == _fakeMainImport) {
             elementToOutputUnitBuilder[element] = mainOutputUnit;
           } else {
-            elementToOutputUnitBuilder
-                .putIfAbsent(element, () => new OutputUnit())
-                .imports.add(import);
+            elementToOutputUnitBuilder.putIfAbsent(
+                element,
+                () => new OutputUnit()).imports.add(import);
           }
         }
         for (ConstantValue constant in _constantsDeferredBy[import]) {
@@ -580,9 +560,9 @@ class DeferredLoadTask extends CompilerTask {
           if (import == _fakeMainImport) {
             constantToOutputUnitBuilder[constant] = mainOutputUnit;
           } else {
-            constantToOutputUnitBuilder
-                .putIfAbsent(constant, () => new OutputUnit())
-                .imports.add(import);
+            constantToOutputUnitBuilder.putIfAbsent(
+                constant,
+                () => new OutputUnit()).imports.add(import);
           }
         }
       }
@@ -659,22 +639,23 @@ class DeferredLoadTask extends CompilerTask {
               Element element =
                   metadata.constant.value.computeType(compiler).element;
               if (element == deferredLibraryClass) {
-                 compiler.reportFatalError(
-                     import, MessageKind.DEFERRED_OLD_SYNTAX);
+                compiler.reportFatalError(
+                    import,
+                    MessageKind.DEFERRED_OLD_SYNTAX);
               }
             }
           }
 
-          String prefix = (import.prefix != null)
-              ? import.prefix.toString()
-              : null;
+          String prefix =
+              (import.prefix != null) ? import.prefix.toString() : null;
           // The last import we saw with the same prefix.
           Import previousDeferredImport = prefixDeferredImport[prefix];
           if (import.isDeferred) {
             _allDeferredImports[import] = library.getLibraryFromTag(import);
 
             if (prefix == null) {
-              compiler.reportError(import,
+              compiler.reportError(
+                  import,
                   MessageKind.DEFERRED_LIBRARY_WITHOUT_PREFIX);
             } else {
               prefixDeferredImport[prefix] = import;
@@ -685,10 +666,10 @@ class DeferredLoadTask extends CompilerTask {
           if (prefix != null) {
             if (previousDeferredImport != null ||
                 (import.isDeferred && usedPrefixes.contains(prefix))) {
-              Import failingImport = (previousDeferredImport != null)
-                  ? previousDeferredImport
-                  : import;
-              compiler.reportError(failingImport.prefix,
+              Import failingImport =
+                  (previousDeferredImport != null) ? previousDeferredImport : import;
+              compiler.reportError(
+                  failingImport.prefix,
                   MessageKind.DEFERRED_LIBRARY_DUPLICATE_PREFIX);
             }
             usedPrefixes.add(prefix);

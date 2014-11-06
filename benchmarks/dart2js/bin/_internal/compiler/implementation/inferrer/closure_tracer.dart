@@ -16,7 +16,7 @@ class ClosureTracerVisitor extends TracerVisitor<ApplyableTypeInformation> {
     analyze();
     if (!continueAnalyzing) return;
     callsToAnalyze.forEach(analyzeCall);
-    for(FunctionElement e in tracedElements) {
+    for (FunctionElement e in tracedElements) {
       e.functionSignature.forEachParameter((Element parameter) {
         ElementTypeInformation info =
             inferrer.types.getInferredTypeOf(parameter);
@@ -40,8 +40,13 @@ class ClosureTracerVisitor extends TracerVisitor<ApplyableTypeInformation> {
     Selector selector = info.selector;
     tracedElements.forEach((FunctionElement functionElement) {
       if (!selector.signatureApplies(functionElement)) return;
-      inferrer.updateParameterAssignments(info, functionElement, info.arguments,
-          selector, remove: false, addToQueue: false);
+      inferrer.updateParameterAssignments(
+          info,
+          functionElement,
+          info.arguments,
+          selector,
+          remove: false,
+          addToQueue: false);
     });
   }
 
@@ -63,10 +68,10 @@ class ClosureTracerVisitor extends TracerVisitor<ApplyableTypeInformation> {
         bailout('Used in JS ${info.call}');
       }
     }
-    if (called.isGetter
-        && info.selector != null
-        && info.selector.isCall
-        && inferrer.types.getInferredTypeOf(called) == currentUser) {
+    if (called.isGetter &&
+        info.selector != null &&
+        info.selector.isCall &&
+        inferrer.types.getInferredTypeOf(called) == currentUser) {
       // This node can be a closure call as well. For example, `foo()`
       // where `foo` is a getter.
       registerCallForLaterAnalysis(info);
@@ -113,9 +118,9 @@ class StaticTearOffClosureTracerVisitor extends ClosureTracerVisitor {
 
   visitStaticCallSiteTypeInformation(StaticCallSiteTypeInformation info) {
     super.visitStaticCallSiteTypeInformation(info);
-    if (info.calledElement == tracedElements.first
-        && info.selector != null
-        && info.selector.isGetter) {
+    if (info.calledElement == tracedElements.first &&
+        info.selector != null &&
+        info.selector.isGetter) {
       addNewEscapeInformation(info);
     }
   }

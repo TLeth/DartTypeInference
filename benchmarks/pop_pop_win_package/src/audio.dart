@@ -12,13 +12,13 @@ class GameAudio {
 
   static ResourceManager _resourceManager;
 
-  static const String _WIN = 'win',
-      _CLICK = 'click',
-      _POP = 'Pop',
-      _FLAG = 'flag',
-      _UNFLAG = 'unflag',
-      _BOMB = 'Bomb',
-      _THROW_DART = 'throw';
+  static const String _WIN = 'win';
+  static const String _CLICK = 'click';
+  static const String _POP = 'Pop';
+  static const String _FLAG = 'flag';
+  static const String _UNFLAG = 'unflag';
+  static const String _BOMB = 'Bomb';
+  static const String _THROW_DART = 'throw';
 
   static void initialize(ResourceManager resourceManager) {
     if (_resourceManager != null) throw new StateError('already initialized');

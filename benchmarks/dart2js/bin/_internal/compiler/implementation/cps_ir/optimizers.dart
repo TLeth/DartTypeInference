@@ -4,8 +4,7 @@
 
 library dart2js.optimizers;
 
-import '../constants/expressions.dart' show
-    ConstantExpression,
+import '../constants/expressions.dart' show ConstantExpression,
     PrimitiveConstantExpression;
 import '../constants/values.dart';
 import '../dart_types.dart' as types;

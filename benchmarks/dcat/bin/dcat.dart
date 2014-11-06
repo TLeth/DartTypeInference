@@ -43,15 +43,13 @@ Future dcat(List<String> paths, bool showLineNumbers) {
       // Transform the stream using a `StreamTransformer`. The transformers
       // used here convert the data to UTF8 and split string values into
       // individual lines.
-      return stream
-          .transform(UTF8.decoder)
-          .transform(const LineSplitter())
-          .listen((line) {
-            if (showLineNumbers) {
-              stdout.write('${lineNumber++} ');
-            }
-            stdout.writeln(line);
-          }).asFuture().catchError((_) => _handleError(path));
+      return stream.transform(
+          UTF8.decoder).transform(const LineSplitter()).listen((line) {
+        if (showLineNumbers) {
+          stdout.write('${lineNumber++} ');
+        }
+        stdout.writeln(line);
+      }).asFuture().catchError((_) => _handleError(path));
     });
   }
 }
@@ -67,8 +65,8 @@ _handleError(String path) {
 }
 
 void main(List<String> arguments) {
-  final parser = new ArgParser()
-      ..addFlag(LINE_NUMBER, negatable: false, abbr: 'n');
+  final parser =
+      new ArgParser()..addFlag(LINE_NUMBER, negatable: false, abbr: 'n');
 
   argResults = parser.parse(arguments);
   List<String> paths = argResults.rest;

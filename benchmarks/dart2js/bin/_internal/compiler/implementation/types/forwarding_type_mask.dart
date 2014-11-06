@@ -109,7 +109,7 @@ abstract class ForwardingTypeMask implements TypeMask {
     }
   }
 
-  bool operator==(other) {
+  bool operator ==(other) {
     return equalsDisregardNull(other) && isNullable == other.isNullable;
   }
 

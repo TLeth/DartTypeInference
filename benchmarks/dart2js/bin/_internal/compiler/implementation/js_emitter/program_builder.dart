@@ -8,14 +8,10 @@ import 'model.dart';
 import '../common.dart';
 import '../js/js.dart' as js;
 
-import '../js_backend/js_backend.dart' show
-    Namer,
-    JavaScriptBackend,
+import '../js_backend/js_backend.dart' show Namer, JavaScriptBackend,
     JavaScriptConstantCompiler;
 
-import 'js_emitter.dart' as emitterTask show
-    CodeEmitterTask,
-    Emitter,
+import 'js_emitter.dart' as emitterTask show CodeEmitterTask, Emitter,
     InterceptorStubGenerator;
 
 import '../universe/universe.dart' show Universe;
@@ -30,9 +26,7 @@ class ProgramBuilder {
 
   final Registry _registry;
 
-  ProgramBuilder(Compiler compiler,
-                 this.namer,
-                 this._task)
+  ProgramBuilder(Compiler compiler, this.namer, this._task)
       : this._compiler = compiler,
         this._registry = new Registry(compiler);
 
@@ -61,8 +55,8 @@ class ProgramBuilder {
     _registry.registerHolder(r'$');
 
     MainOutput mainOutput = _buildMainOutput(_registry.mainFragment);
-    Iterable<Output> deferredOutputs = _registry.deferredFragments
-        .map((fragment) => _buildDeferredOutput(mainOutput, fragment));
+    Iterable<Output> deferredOutputs = _registry.deferredFragments.map(
+        (fragment) => _buildDeferredOutput(mainOutput, fragment));
 
     List<Output> outputs = new List<Output>(_registry.fragmentCount);
     outputs[0] = mainOutput;
@@ -82,25 +76,24 @@ class ProgramBuilder {
   /// Builds a map from loadId to outputs-to-load.
   Map<String, List<Output>> _buildLoadMap() {
     List<OutputUnit> convertHunks(List<OutputUnit> hunks) {
-      return hunks.map((OutputUnit unit) => _outputs[unit])
-          .toList(growable: false);
+      return hunks.map(
+          (OutputUnit unit) => _outputs[unit]).toList(growable: false);
     }
 
     Map<String, List<Output>> loadMap = <String, List<Output>>{};
-    _compiler.deferredLoadTask.hunksToLoad
-        .forEach((String loadId, List<OutputUnit> outputUnits) {
-      loadMap[loadId] = outputUnits
-          .map((OutputUnit unit) => _outputs[unit])
-          .toList(growable: false);
+    _compiler.deferredLoadTask.hunksToLoad.forEach(
+        (String loadId, List<OutputUnit> outputUnits) {
+      loadMap[loadId] =
+          outputUnits.map((OutputUnit unit) => _outputs[unit]).toList(growable: false);
     });
     return loadMap;
   }
 
   MainOutput _buildMainOutput(Fragment fragment) {
     // Construct the main output from the libraries and the registered holders.
-    MainOutput result = new MainOutput(
-        "",  // The empty string is the name for the main output file.
-        namer.elementAccess(_compiler.mainFunction),
+    MainOutput result =
+        new MainOutput("", // The empty string is the name for the main output file.
+    namer.elementAccess(_compiler.mainFunction),
         _buildLibraries(fragment),
         _buildStaticNonFinalFields(fragment),
         _buildConstants(fragment),
@@ -112,17 +105,17 @@ class ProgramBuilder {
   /// Returns a name composed of the main output file name and [name].
   String _outputFileName(String name) {
     assert(name != "");
-    String outPath = _compiler.outputUri != null
-        ? _compiler.outputUri.path
-        : "out";
+    String outPath =
+        _compiler.outputUri != null ? _compiler.outputUri.path : "out";
     String outName = outPath.substring(outPath.lastIndexOf('/') + 1);
     return "${outName}_$name";
   }
 
   DeferredOutput _buildDeferredOutput(MainOutput mainOutput,
-                                      Fragment fragment) {
+      Fragment fragment) {
     DeferredOutput result = new DeferredOutput(
-        _outputFileName(fragment.name), fragment.name,
+        _outputFileName(fragment.name),
+        fragment.name,
         mainOutput,
         _buildLibraries(fragment),
         _buildStaticNonFinalFields(fragment),
@@ -135,8 +128,8 @@ class ProgramBuilder {
     List<ConstantValue> constantValues =
         _task.outputConstantLists[fragment.outputUnit];
     if (constantValues == null) return const <Constant>[];
-    return constantValues.map((ConstantValue value) => _constants[value])
-        .toList(growable: false);
+    return constantValues.map(
+        (ConstantValue value) => _constants[value]).toList(growable: false);
   }
 
   List<StaticField> _buildStaticNonFinalFields(Fragment fragment) {
@@ -145,9 +138,8 @@ class ProgramBuilder {
     if (fragment != _registry.mainFragment) return const <StaticField>[];
     Iterable<VariableElement> staticNonFinalFields =
         backend.constants.getStaticNonFinalFieldsForEmission();
-    return Elements.sortedByPosition(staticNonFinalFields)
-        .map(_buildStaticField)
-        .toList(growable: false);
+    return Elements.sortedByPosition(
+        staticNonFinalFields).map(_buildStaticField).toList(growable: false);
   }
 
   StaticField _buildStaticField(Element element) {
@@ -157,8 +149,12 @@ class ProgramBuilder {
     String name = namer.getNameOfGlobalField(element);
     bool isFinal = false;
     bool isLazy = false;
-    return new StaticField(name, _registry.registerHolder(r'$'), code,
-                           isFinal, isLazy);
+    return new StaticField(
+        name,
+        _registry.registerHolder(r'$'),
+        code,
+        isFinal,
+        isLazy);
   }
 
   List<Library> _buildLibraries(Fragment fragment) {
@@ -175,23 +171,24 @@ class ProgramBuilder {
   Library _buildLibrary(LibraryElement library, List<Element> elements) {
     String uri = library.canonicalUri.toString();
 
-    List<StaticMethod> statics = elements
-        .where((e) => e is FunctionElement).map(_buildStaticMethod).toList();
+    List<StaticMethod> statics =
+        elements.where((e) => e is FunctionElement).map(_buildStaticMethod).toList();
 
-    statics.addAll(elements
-        .where((e) => e is FunctionElement)
-        .where((e) => universe.staticFunctionsNeedingGetter.contains(e))
-        .map(_buildStaticMethodTearOff));
+    statics.addAll(
+        elements.where(
+            (e) =>
+                e is FunctionElement).where(
+                    (e) =>
+                        universe.staticFunctionsNeedingGetter.contains(
+                            e)).map(_buildStaticMethodTearOff));
 
     if (library == backend.interceptorsLibrary) {
       statics.addAll(_generateGetInterceptorMethods());
       statics.addAll(_generateOneShotInterceptors());
     }
 
-    List<Class> classes = elements
-        .where((e) => e is ClassElement)
-        .map(_buildClass)
-        .toList(growable: false);
+    List<Class> classes = elements.where(
+        (e) => e is ClassElement).map(_buildClass).toList(growable: false);
 
     return new Library(uri, statics, classes);
   }
@@ -267,7 +264,7 @@ class ProgramBuilder {
   }
 
   void _registerConstants(OutputUnit outputUnit,
-                          List<ConstantValue> constantValues) {
+      List<ConstantValue> constantValues) {
     if (constantValues == null) return;
     for (ConstantValue constantValue in constantValues) {
       assert(!_constants.containsKey(constantValue));
@@ -276,6 +273,7 @@ class ProgramBuilder {
       Holder holder = _registry.registerHolder(constantObject);
       Constant constant = new Constant(name, holder, constantValue);
       _constants[constantValue] = constant;
-    };
+    }
+    ;
   }
 }

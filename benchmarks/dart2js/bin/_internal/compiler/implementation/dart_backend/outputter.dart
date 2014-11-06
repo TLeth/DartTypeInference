@@ -4,12 +4,11 @@
 
 part of dart_backend;
 
-typedef bool IsSafeToRemoveTypeDeclarations(
-    Map<ClassElement, Iterable<Element>> classMembers);
+typedef bool IsSafeToRemoveTypeDeclarations(Map<ClassElement,
+    Iterable<Element>> classMembers);
 typedef void ElementCallback<E>(E element);
-typedef void ElementPostProcessFunction(
-    AstElement element, ElementAst elementAst,
-    ElementCallback<TypedefElement> typedefCallback,
+typedef void ElementPostProcessFunction(AstElement element,
+    ElementAst elementAst, ElementCallback<TypedefElement> typedefCallback,
     ElementCallback<ClassElement> classCallback);
 typedef ElementAst ComputeElementAstFunction(AstElement element);
 typedef bool ElementFilter(Element element);
@@ -37,10 +36,8 @@ class DartOutputter {
   ElementInfo elementInfo;
 
   // TODO(johnniwinther): Support recompilation.
-  DartOutputter(this.listener, this.outputProvider,
-                {bool this.forceStripTypes: false,
-                 bool this.enableMinification: false,
-                 bool this.multiFile: false});
+  DartOutputter(this.listener, this.outputProvider, {bool this.forceStripTypes:
+      false, bool this.enableMinification: false, bool this.multiFile: false});
 
   /// Generate Dart code for the program starting at [mainFunction].
   ///
@@ -55,33 +52,42 @@ class DartOutputter {
   ///
   /// The [sortElements] function is used to sort [instantiatedClasses] and
   /// [resolvedElements] in the generated output.
-  String assembleProgram({
-      MirrorRenamer mirrorRenamer: const MirrorRenamer(),
-      Iterable<LibraryElement> libraries,
-      Iterable<Element> instantiatedClasses,
-      Iterable<Element> resolvedElements,
-      Iterable<ClassElement> usedTypeLiterals: const <ClassElement>[],
-      FunctionElement mainFunction,
-      Uri outputUri,
-      ElementPostProcessFunction postProcessElementAst,
-      ComputeElementAstFunction computeElementAst,
-      ElementFilter shouldOutput,
-      IsSafeToRemoveTypeDeclarations isSafeToRemoveTypeDeclarations,
-      ElementSorter sortElements}) {
+  String assembleProgram({MirrorRenamer mirrorRenamer: const MirrorRenamer(),
+      Iterable<LibraryElement> libraries, Iterable<Element> instantiatedClasses,
+      Iterable<Element> resolvedElements, Iterable<ClassElement> usedTypeLiterals:
+      const <ClassElement>[
+      ], FunctionElement mainFunction, Uri outputUri,
+          ElementPostProcessFunction postProcessElementAst,
+          ComputeElementAstFunction computeElementAst, ElementFilter shouldOutput,
+          IsSafeToRemoveTypeDeclarations isSafeToRemoveTypeDeclarations,
+          ElementSorter sortElements}) {
 
-    assert(invariant(NO_LOCATION_SPANNABLE, libraries != null,
+    assert(invariant(
+        NO_LOCATION_SPANNABLE,
+        libraries != null,
         message: "'libraries' must be non-null."));
-    assert(invariant(NO_LOCATION_SPANNABLE, instantiatedClasses != null,
+    assert(invariant(
+        NO_LOCATION_SPANNABLE,
+        instantiatedClasses != null,
         message: "'instantiatedClasses' must be non-null."));
-    assert(invariant(NO_LOCATION_SPANNABLE, resolvedElements != null,
+    assert(invariant(
+        NO_LOCATION_SPANNABLE,
+        resolvedElements != null,
         message: "'resolvedElements' must be non-null."));
-    assert(invariant(NO_LOCATION_SPANNABLE, mainFunction != null,
+    assert(invariant(
+        NO_LOCATION_SPANNABLE,
+        mainFunction != null,
         message: "'mainFunction' must be non-null."));
-    assert(invariant(NO_LOCATION_SPANNABLE, computeElementAst != null,
+    assert(invariant(
+        NO_LOCATION_SPANNABLE,
+        computeElementAst != null,
         message: "'computeElementAst' must be non-null."));
-    assert(invariant(NO_LOCATION_SPANNABLE, shouldOutput != null,
+    assert(invariant(
+        NO_LOCATION_SPANNABLE,
+        shouldOutput != null,
         message: "'shouldOutput' must be non-null."));
-    assert(invariant(NO_LOCATION_SPANNABLE,
+    assert(invariant(
+        NO_LOCATION_SPANNABLE,
         isSafeToRemoveTypeDeclarations != null,
         message: "'isSafeToRemoveTypeDeclarations' must be non-null."));
 
@@ -141,12 +147,9 @@ class DartOutputter {
     return assembledCode;
   }
 
-  static PlaceholderCollector collectPlaceholders(
-      DiagnosticListener listener,
-      MirrorRenamer mirrorRenamer,
-      FunctionElement mainFunction,
-      LibraryInfo libraryInfo,
-      ElementInfo elementInfo) {
+  static PlaceholderCollector collectPlaceholders(DiagnosticListener listener,
+      MirrorRenamer mirrorRenamer, FunctionElement mainFunction,
+      LibraryInfo libraryInfo, ElementInfo elementInfo) {
     // Create all necessary placeholders.
     PlaceholderCollector collector = new PlaceholderCollector(
         listener,
@@ -166,20 +169,18 @@ class DartOutputter {
     return collector;
   }
 
-  static PlaceholderRenamer createRenamer(
-      PlaceholderCollector collector,
-      LibraryInfo libraryInfo,
-      ElementInfo elementInfo,
-      {bool enableMinification: false,
-       bool forceStripTypes: false,
-       isSafeToRemoveTypeDeclarations}) {
+  static PlaceholderRenamer createRenamer(PlaceholderCollector collector,
+      LibraryInfo libraryInfo, ElementInfo elementInfo, {bool enableMinification:
+      false, bool forceStripTypes: false, isSafeToRemoveTypeDeclarations}) {
     // Create renames.
-    bool shouldCutDeclarationTypes = forceStripTypes
-        || (enableMinification
-            && isSafeToRemoveTypeDeclarations(elementInfo.classMembers));
+    bool shouldCutDeclarationTypes =
+        forceStripTypes ||
+        (enableMinification &&
+            isSafeToRemoveTypeDeclarations(elementInfo.classMembers));
 
     PlaceholderRenamer placeholderRenamer = new PlaceholderRenamer(
-        libraryInfo.fixedMemberNames, libraryInfo.reexportingLibraries,
+        libraryInfo.fixedMemberNames,
+        libraryInfo.reexportingLibraries,
         cutDeclarationTypes: shouldCutDeclarationTypes,
         enableMinification: enableMinification);
 
@@ -188,7 +189,7 @@ class DartOutputter {
   }
 
   static String astOutput(DiagnosticListener listener,
-                          ElementInfo elementInfo) {
+      ElementInfo elementInfo) {
     // TODO(antonm): Ideally XML should be a separate backend.
     // TODO(antonm): obey renames and minification, at least as an option.
     StringBuffer sb = new StringBuffer();
@@ -215,16 +216,14 @@ class LibraryInfo {
   final Map<Element, LibraryElement> reexportingLibraries;
   final List<LibraryElement> userLibraries;
 
-  LibraryInfo(this.fixedMemberNames,
-              this.reexportingLibraries,
-              this.userLibraries);
+  LibraryInfo(this.fixedMemberNames, this.reexportingLibraries,
+      this.userLibraries);
 
-  static LibraryInfo processLibraries(
-      Iterable<LibraryElement> libraries,
+  static LibraryInfo processLibraries(Iterable<LibraryElement> libraries,
       Iterable<AstElement> resolvedElements) {
     Set<String> fixedMemberNames = new Set<String>();
-    Map<Element, LibraryElement> reexportingLibraries =
-          <Element, LibraryElement>{};
+    Map<Element, LibraryElement> reexportingLibraries = <Element,
+        LibraryElement>{};
     List<LibraryElement> userLibraries = <LibraryElement>[];
     // Conservatively traverse all platform libraries and collect member names.
     // TODO(antonm): ideally we should only collect names of used members,
@@ -239,7 +238,9 @@ class LibraryInfo {
       library.forEachLocalMember((Element element) {
         if (element.isClass) {
           ClassElement classElement = element;
-          assert(invariant(classElement, classElement.isResolved,
+          assert(invariant(
+              classElement,
+              classElement.isResolved,
               message: "Unresolved platform class."));
           classElement.forEachLocalMember((member) {
             String name = member.name;
@@ -260,8 +261,7 @@ class LibraryInfo {
       });
 
       for (Element export in library.exports) {
-        if (!library.isInternalLibrary &&
-            export.library.isInternalLibrary) {
+        if (!library.isInternalLibrary && export.library.isInternalLibrary) {
           // If an element of an internal library is reexported by a platform
           // library, we have to import the reexporting library instead of the
           // internal library, because the internal library is an
@@ -291,7 +291,9 @@ class LibraryInfo {
     fixedMemberNames.add('dstType');
 
     return new LibraryInfo(
-        fixedMemberNames, reexportingLibraries, userLibraries);
+        fixedMemberNames,
+        reexportingLibraries,
+        userLibraries);
   }
 }
 
@@ -301,10 +303,8 @@ class ElementInfo {
   final Map<ClassElement, Iterable<Element>> classMembers;
   final Iterable<ClassElement> emitNoMembersFor;
 
-  ElementInfo(this.elementAsts,
-              this.topLevelElements,
-              this.classMembers,
-              this.emitNoMembersFor);
+  ElementInfo(this.elementAsts, this.topLevelElements, this.classMembers,
+      this.emitNoMembersFor);
 }
 
 class ElementInfoProcessor implements ElementInfo {
@@ -317,32 +317,29 @@ class ElementInfoProcessor implements ElementInfo {
   final ComputeElementAstFunction parseElementAst;
   final ElementFilter shouldOutput;
 
-  ElementInfoProcessor(
-      {this.postProcessElementAst,
-       this.parseElementAst,
-       this.shouldOutput});
+  ElementInfoProcessor({this.postProcessElementAst, this.parseElementAst,
+      this.shouldOutput});
 
-  static ElementInfo createElementInfo(
-      Iterable<ClassElement> instantiatedClasses,
-      Iterable<AstElement> resolvedElements,
-      Iterable<ClassElement> usedTypeLiterals,
+  static ElementInfo
+      createElementInfo(Iterable<ClassElement> instantiatedClasses,
+      Iterable<AstElement> resolvedElements, Iterable<ClassElement> usedTypeLiterals,
       {ElementPostProcessFunction postProcessElementAst,
-       ComputeElementAstFunction parseElementAst,
-       ElementFilter shouldOutput,
-       ElementSorter sortElements}) {
+      ComputeElementAstFunction parseElementAst, ElementFilter shouldOutput,
+      ElementSorter sortElements}) {
     ElementInfoProcessor processor = new ElementInfoProcessor(
         postProcessElementAst: postProcessElementAst,
         parseElementAst: parseElementAst,
         shouldOutput: shouldOutput);
     return processor.process(
-        instantiatedClasses, resolvedElements, usedTypeLiterals,
+        instantiatedClasses,
+        resolvedElements,
+        usedTypeLiterals,
         sortElements: sortElements);
   }
 
   ElementInfo process(Iterable<ClassElement> instantiatedClasses,
-                      Iterable<AstElement> resolvedElements,
-                      Iterable<ClassElement> usedTypeLiterals,
-                      {ElementSorter sortElements}) {
+      Iterable<AstElement> resolvedElements, Iterable<ClassElement> usedTypeLiterals,
+      {ElementSorter sortElements}) {
     // Build all top level elements to emit and necessary class members.
     instantiatedClasses.where(shouldOutput).forEach(addClass);
     resolvedElements.where(shouldOutput).forEach(addMember);
@@ -365,14 +362,19 @@ class ElementInfoProcessor implements ElementInfo {
     });
 
     return new ElementInfo(
-        elementAsts, sortedTopLevels, sortedClassMembers, emitNoMembersFor);
+        elementAsts,
+        sortedTopLevels,
+        sortedClassMembers,
+        emitNoMembersFor);
   }
 
   void processElement(Element element, ElementAst elementAst) {
     if (postProcessElementAst != null) {
-      postProcessElementAst(element, elementAst,
-                            newTypedefElementCallback,
-                            newClassElementCallback);
+      postProcessElementAst(
+          element,
+          elementAst,
+          newTypedefElementCallback,
+          newClassElementCallback);
     }
     elementAsts[element] = elementAst;
   }
@@ -424,21 +426,15 @@ class ElementInfoProcessor implements ElementInfo {
 /// [CompilerOutputProvider].
 class MainOutputGenerator {
   final Map<ClassNode, List<Node>> memberNodes =
-       new Map<ClassNode, List<Node>>();
+      new Map<ClassNode, List<Node>>();
   final List<Node> topLevelNodes = <Node>[];
 
-  String generateCode(
-      LibraryInfo libraryInfo,
-      ElementInfo elementInfo,
-      PlaceholderCollector collector,
-      PlaceholderRenamer placeholderRenamer,
-      FunctionElement mainFunction,
-      Uri outputUri,
-      CompilerOutputProvider outputProvider,
-      MirrorRenamer mirrorRenamer,
-      {bool multiFile: false,
-       bool forceStripTypes: false,
-       bool enableMinification: false}) {
+  String generateCode(LibraryInfo libraryInfo, ElementInfo elementInfo,
+      PlaceholderCollector collector, PlaceholderRenamer placeholderRenamer,
+      FunctionElement mainFunction, Uri outputUri,
+      CompilerOutputProvider outputProvider, MirrorRenamer mirrorRenamer,
+      {bool multiFile: false, bool forceStripTypes: false, bool enableMinification:
+      false}) {
     for (Element element in elementInfo.topLevelElements) {
       topLevelNodes.add(elementInfo.elementAsts[element].ast);
       if (element.isClass && !element.isMixinApplication) {
@@ -450,26 +446,29 @@ class MainOutputGenerator {
       }
     }
 
-    mirrorRenamer.addRenames(placeholderRenamer.renames,
-                             topLevelNodes, collector);
+    mirrorRenamer.addRenames(
+        placeholderRenamer.renames,
+        topLevelNodes,
+        collector);
 
     Map<LibraryElement, String> outputPaths = new Map<LibraryElement, String>();
     Map<LibraryElement, EmitterUnparser> unparsers =
         new Map<LibraryElement, EmitterUnparser>();
 
     // The single unparser used if we collect all the output in one file.
-    EmitterUnparser mainUnparser = multiFile
-        ? null
-        : new EmitterUnparser(placeholderRenamer.renames,
+    EmitterUnparser mainUnparser = multiFile ?
+        null :
+        new EmitterUnparser(
+            placeholderRenamer.renames,
             stripTypes: forceStripTypes,
             minify: enableMinification);
 
     if (multiFile) {
       // TODO(sigurdm): Factor handling of library-paths out from emitting.
       String mainName = outputUri.pathSegments.last;
-      String mainBaseName = mainName.endsWith(".dart")
-          ? mainName.substring(0, mainName.length - 5)
-          : mainName;
+      String mainBaseName = mainName.endsWith(".dart") ?
+          mainName.substring(0, mainName.length - 5) :
+          mainName;
       // Map each library to a path based on the uri of the original
       // library and [compiler.outputUri].
       Set<String> usedLibraryPaths = new Set<String>();
@@ -488,7 +487,7 @@ class MainOutputGenerator {
       }
 
       /// Rewrites imports/exports to refer to the paths given in [outputPaths].
-      for(LibraryElement outputLibrary in libraryInfo.userLibraries) {
+      for (LibraryElement outputLibrary in libraryInfo.userLibraries) {
         EmitterUnparser unparser = new EmitterUnparser(
             placeholderRenamer.renames,
             stripTypes: forceStripTypes,
@@ -503,9 +502,9 @@ class MainOutputGenerator {
           LibraryDependency dependency = tag;
           LibraryElement libraryElement =
               outputLibrary.getLibraryFromTag(dependency);
-          String uri = outputPaths.containsKey(libraryElement)
-              ? "${outputPaths[libraryElement]}.dart"
-              : libraryElement.canonicalUri.toString();
+          String uri = outputPaths.containsKey(libraryElement) ?
+              "${outputPaths[libraryElement]}.dart" :
+              libraryElement.canonicalUri.toString();
           if (dependency is Import) {
             unparser.unparseImportTag(uri);
           } else {
@@ -514,7 +513,7 @@ class MainOutputGenerator {
         }
       }
     } else {
-      for(LibraryElement library in placeholderRenamer.platformImports) {
+      for (LibraryElement library in placeholderRenamer.platformImports) {
         if (library.isPlatformLibrary && !library.isInternalLibrary) {
           mainUnparser.unparseImportTag(library.canonicalUri.toString());
         }
@@ -537,22 +536,22 @@ class MainOutputGenerator {
     int totalSize = 0;
     String assembledCode;
     if (multiFile) {
-      for(LibraryElement outputLibrary in libraryInfo.userLibraries) {
+      for (LibraryElement outputLibrary in libraryInfo.userLibraries) {
         // TODO(sigurdm): Make the unparser output directly into the buffer
         // instead of caching in `.result`.
         String code = unparsers[outputLibrary].result;
         totalSize += code.length;
         outputProvider(outputPaths[outputLibrary], "dart")
-             ..add(code)
-             ..close();
+            ..add(code)
+            ..close();
       }
       // TODO(sigurdm): We should get rid of compiler.assembledCode.
       assembledCode = unparsers[mainFunction.library].result;
     } else {
       assembledCode = mainUnparser.result;
       outputProvider("", "dart")
-           ..add(assembledCode)
-           ..close();
+          ..add(assembledCode)
+          ..close();
 
       totalSize = assembledCode.length;
     }

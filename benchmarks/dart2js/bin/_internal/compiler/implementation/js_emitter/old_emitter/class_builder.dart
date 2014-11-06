@@ -52,10 +52,10 @@ class ClassBuilder {
       classData =
           new jsAst.ArrayInitializer.from([classData]..addAll(fieldMetadata));
     }
-    var fieldsAndProperties =
-        [new jsAst.Property(js.string(namer.classDescriptorProperty),
-                            classData)]
-        ..addAll(properties);
+    var fieldsAndProperties = [
+        new jsAst.Property(
+            js.string(namer.classDescriptorProperty),
+            classData)]..addAll(properties);
     return new jsAst.ObjectInitializer(fieldsAndProperties, isOneLiner: false);
   }
 

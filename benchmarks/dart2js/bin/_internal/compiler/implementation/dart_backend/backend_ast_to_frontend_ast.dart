@@ -16,7 +16,7 @@ import 'backend_ast_emitter.dart' show createTypeAnnotation;
 
 /// Translates the backend AST to Dart frontend AST.
 tree.FunctionExpression emit(dart2js.TreeElementMapping treeElements,
-                             Node definition) {
+    Node definition) {
   return new TreePrinter(treeElements).makeExpression(definition);
 }
 
@@ -56,12 +56,12 @@ class TreePrinter {
     return openTok;
   }
 
-  final BeginGroupToken openParen = makeGroup(OPEN_PAREN_INFO,
-                                              CLOSE_PAREN_INFO);
-  final BeginGroupToken openBrace = makeGroup(OPEN_CURLY_BRACKET_INFO,
-                                              CLOSE_CURLY_BRACKET_INFO);
-  final BeginGroupToken openBracket = makeGroup(OPEN_SQUARE_BRACKET_INFO,
-                                                CLOSE_SQUARE_BRACKET_INFO);
+  final BeginGroupToken openParen =
+      makeGroup(OPEN_PAREN_INFO, CLOSE_PAREN_INFO);
+  final BeginGroupToken openBrace =
+      makeGroup(OPEN_CURLY_BRACKET_INFO, CLOSE_CURLY_BRACKET_INFO);
+  final BeginGroupToken openBracket =
+      makeGroup(OPEN_SQUARE_BRACKET_INFO, CLOSE_SQUARE_BRACKET_INFO);
   final BeginGroupToken lt = makeGroup(LT_INFO, GT_INFO);
 
   Token get closeParen => openParen.endGroup;
@@ -134,10 +134,8 @@ class TreePrinter {
   tree.NodeList singleton(tree.Node node) {
     return new tree.NodeList(null, makeLink([node]), null, '');
   }
-  tree.NodeList makeList(String delimiter,
-                         Iterable<tree.Node> nodes,
-                         { Token open,
-                           Token close }) {
+  tree.NodeList makeList(String delimiter, Iterable<tree.Node> nodes,
+      {Token open, Token close}) {
     return new tree.NodeList(open, makeLink(nodes), close, delimiter);
   }
   tree.NodeList parenList(String delimiter, Iterable<tree.Node> nodes) {
@@ -161,7 +159,7 @@ class TreePrinter {
     if (name == null) {
       return null;
     }
-    List<String> names = name.split('.').toList(growable:false);
+    List<String> names = name.split('.').toList(growable: false);
     tree.Node node = makeIdentifier(names[0]);
     for (int i = 1; i < names.length; i++) {
       node = new tree.Send(node, makeIdentifier(names[i]));
@@ -171,18 +169,30 @@ class TreePrinter {
 
   static Token assignmentToken(String operatorName) {
     switch (operatorName) {
-      case '=': return new SymbolToken(EQ_INFO, -1);
-      case '+=': return new SymbolToken(PLUS_EQ_INFO, -1);
-      case '-=': return new SymbolToken(MINUS_EQ_INFO, -1);
-      case '*=': return new SymbolToken(STAR_EQ_INFO, -1);
-      case '/=': return new SymbolToken(SLASH_EQ_INFO, -1);
-      case '~/=': return new SymbolToken(TILDE_SLASH_EQ_INFO, -1);
-      case '%=': return new SymbolToken(PERCENT_EQ_INFO, -1);
-      case '&=': return new SymbolToken(AMPERSAND_EQ_INFO, -1);
-      case '^=': return new SymbolToken(CARET_EQ_INFO, -1);
-      case '|=': return new SymbolToken(BAR_EQ_INFO, -1);
-      case '>>=': return new SymbolToken(GT_GT_EQ_INFO, -1);
-      case '<<=': return new SymbolToken(LT_LT_EQ_INFO, -1);
+      case '=':
+        return new SymbolToken(EQ_INFO, -1);
+      case '+=':
+        return new SymbolToken(PLUS_EQ_INFO, -1);
+      case '-=':
+        return new SymbolToken(MINUS_EQ_INFO, -1);
+      case '*=':
+        return new SymbolToken(STAR_EQ_INFO, -1);
+      case '/=':
+        return new SymbolToken(SLASH_EQ_INFO, -1);
+      case '~/=':
+        return new SymbolToken(TILDE_SLASH_EQ_INFO, -1);
+      case '%=':
+        return new SymbolToken(PERCENT_EQ_INFO, -1);
+      case '&=':
+        return new SymbolToken(AMPERSAND_EQ_INFO, -1);
+      case '^=':
+        return new SymbolToken(CARET_EQ_INFO, -1);
+      case '|=':
+        return new SymbolToken(BAR_EQ_INFO, -1);
+      case '>>=':
+        return new SymbolToken(GT_GT_EQ_INFO, -1);
+      case '<<=':
+        return new SymbolToken(LT_LT_EQ_INFO, -1);
       default:
         throw "Unrecognized assignment operator: $operatorName";
     }
@@ -190,25 +200,44 @@ class TreePrinter {
 
   static Token binopToken(String operatorName) {
     switch (operatorName) {
-      case '+': return new SymbolToken(PLUS_INFO, -1);
-      case '-': return new SymbolToken(MINUS_INFO, -1);
-      case '*': return new SymbolToken(STAR_INFO, -1);
-      case '/': return new SymbolToken(SLASH_INFO, -1);
-      case '~/': return new SymbolToken(TILDE_SLASH_INFO, -1);
-      case '%': return new SymbolToken(PERCENT_INFO, -1);
-      case '&': return new SymbolToken(AMPERSAND_INFO, -1);
-      case '^': return new SymbolToken(CARET_INFO, -1);
-      case '|': return new SymbolToken(BAR_INFO, -1);
-      case '>>': return new SymbolToken(GT_GT_INFO, -1);
-      case '<<': return new SymbolToken(LT_LT_INFO, -1);
-      case '==': return new SymbolToken(EQ_EQ_INFO, -1);
-      case '!=': return new SymbolToken(BANG_EQ_INFO, -1);
-      case '>': return new SymbolToken(GT_INFO, -1);
-      case '>=': return new SymbolToken(GT_EQ_INFO, -1);
-      case '<': return new SymbolToken(LT_INFO, -1);
-      case '<=': return new SymbolToken(LT_EQ_INFO, -1);
-      case '&&': return new SymbolToken(AMPERSAND_AMPERSAND_INFO, -1);
-      case '||': return new SymbolToken(BAR_BAR_INFO, -1);
+      case '+':
+        return new SymbolToken(PLUS_INFO, -1);
+      case '-':
+        return new SymbolToken(MINUS_INFO, -1);
+      case '*':
+        return new SymbolToken(STAR_INFO, -1);
+      case '/':
+        return new SymbolToken(SLASH_INFO, -1);
+      case '~/':
+        return new SymbolToken(TILDE_SLASH_INFO, -1);
+      case '%':
+        return new SymbolToken(PERCENT_INFO, -1);
+      case '&':
+        return new SymbolToken(AMPERSAND_INFO, -1);
+      case '^':
+        return new SymbolToken(CARET_INFO, -1);
+      case '|':
+        return new SymbolToken(BAR_INFO, -1);
+      case '>>':
+        return new SymbolToken(GT_GT_INFO, -1);
+      case '<<':
+        return new SymbolToken(LT_LT_INFO, -1);
+      case '==':
+        return new SymbolToken(EQ_EQ_INFO, -1);
+      case '!=':
+        return new SymbolToken(BANG_EQ_INFO, -1);
+      case '>':
+        return new SymbolToken(GT_INFO, -1);
+      case '>=':
+        return new SymbolToken(GT_EQ_INFO, -1);
+      case '<':
+        return new SymbolToken(LT_INFO, -1);
+      case '<=':
+        return new SymbolToken(LT_EQ_INFO, -1);
+      case '&&':
+        return new SymbolToken(AMPERSAND_AMPERSAND_INFO, -1);
+      case '||':
+        return new SymbolToken(BAR_BAR_INFO, -1);
       default:
         throw "Unrecognized binary operator: $operatorName";
     }
@@ -216,8 +245,10 @@ class TreePrinter {
 
   static Token incrementToken(String operatorName) {
     switch (operatorName) {
-      case '++': return new SymbolToken(PLUS_PLUS_INFO, -1);
-      case '--': return new SymbolToken(MINUS_MINUS_INFO, -1);
+      case '++':
+        return new SymbolToken(PLUS_PLUS_INFO, -1);
+      case '--':
+        return new SymbolToken(MINUS_MINUS_INFO, -1);
       default:
         throw "Unrecognized increment operator: $operatorName";
     }
@@ -225,8 +256,10 @@ class TreePrinter {
 
   static Token typeOpToken(String operatorName) {
     switch (operatorName) { // "is!" is not an operator in the frontend AST.
-      case 'is': return new SymbolToken(IS_INFO, -1);
-      case 'as': return new SymbolToken(AS_INFO, -1);
+      case 'is':
+        return new SymbolToken(IS_INFO, -1);
+      case 'as':
+        return new SymbolToken(AS_INFO, -1);
       default:
         throw 'Unrecognized type operator: $operatorName';
     }
@@ -234,9 +267,12 @@ class TreePrinter {
 
   Token unopToken(String operatorName) {
     switch (operatorName) {
-      case '-': return new SymbolToken(MINUS_INFO, -1);
-      case '~': return new SymbolToken(TILDE_INFO, -1);
-      case '!': return bang;
+      case '-':
+        return new SymbolToken(MINUS_INFO, -1);
+      case '~':
+        return new SymbolToken(TILDE_INFO, -1);
+      case '!':
+        return bang;
       default:
         throw "Unrecognized unary operator: $operatorName";
     }
@@ -246,9 +282,7 @@ class TreePrinter {
     if (treeElements == null) return null;
     if (element.isStatic) {
       elements.ClassElement enclosingClass = element.enclosingClass;
-      tree.Send send = new tree.Send(
-          null,
-          makeIdentifier(enclosingClass.name));
+      tree.Send send = new tree.Send(null, makeIdentifier(enclosingClass.name));
       treeElements[send] = enclosingClass;
       return send;
     } else {
@@ -301,8 +335,8 @@ class TreePrinter {
       } else if (left is IndexExpression) {
         receiver = makeExp(left.object, PRIMARY, beginStmt: beginStmt);
         selector = new tree.Operator(indexToken);
-        arguments = bracketList(',',
-            [makeExpression(left.index), makeExpression(exp.right)]);
+        arguments =
+            bracketList(',', [makeExpression(left.index), makeExpression(exp.right)]);
       } else {
         throw "Unexpected left-hand side of assignment: ${left}";
       }
@@ -332,18 +366,15 @@ class TreePrinter {
       } else {
         selector = makeExp(callee, CALLEE, beginStmt: beginStmt);
       }
-      result = new tree.Send(
-          receiver,
-          selector,
-          argList(exp.arguments.map(makeArgument)));
+      result =
+          new tree.Send(receiver, selector, argList(exp.arguments.map(makeArgument)));
       if (callee is Identifier) {
         setElement(result, element, exp);
       }
     } else if (exp is CallMethod) {
       precedence = CALLEE;
-      tree.Node receiver = exp.object is This
-          ? null
-          : makeExp(exp.object, PRIMARY, beginStmt: beginStmt);
+      tree.Node receiver =
+          exp.object is This ? null : makeExp(exp.object, PRIMARY, beginStmt: beginStmt);
       result = new tree.Send(
           receiver,
           makeIdentifier(exp.methodName),
@@ -358,17 +389,12 @@ class TreePrinter {
         setType(selector, exp.dartType, exp);
       }
       if (exp.constructorName != null) {
-        selector = new tree.Send(
-            selector,
-            makeIdentifier(exp.constructorName));
+        selector = new tree.Send(selector, makeIdentifier(exp.constructorName));
       }
-      tree.Send send = new tree.Send(
-          null,
-          selector,
-          argList(exp.arguments.map(makeArgument)));
-      result = new tree.NewExpression(
-          exp.isConst ? constToken : newToken,
-          send);
+      tree.Send send =
+          new tree.Send(null, selector, argList(exp.arguments.map(makeArgument)));
+      result =
+          new tree.NewExpression(exp.isConst ? constToken : newToken, send);
       setType(result, exp.dartType, exp);
       setElement(send, exp.constructor, exp);
     } else if (exp is CallStatic) {
@@ -388,40 +414,34 @@ class TreePrinter {
           colon);
     } else if (exp is FieldExpression) {
       precedence = PRIMARY;
-      tree.Node receiver = exp.object is This
-          ? null
-          : makeExp(exp.object, PRIMARY, beginStmt: beginStmt);
+      tree.Node receiver =
+          exp.object is This ? null : makeExp(exp.object, PRIMARY, beginStmt: beginStmt);
       result = new tree.Send(receiver, makeIdentifier(exp.fieldName));
     } else if (exp is FunctionExpression) {
       precedence = PRIMARY;
       if (beginStmt && exp.name != null) {
         needParen = true; // Do not mistake for function declaration.
       }
-      Token getOrSet = exp.isGetter
-          ? getToken
-          : exp.isSetter
-              ? setToken
-              : null;
-      tree.NodeList parameters = exp.isGetter
-          ? makeList("", [])
-          : makeParameters(exp.parameters);
+      Token getOrSet = exp.isGetter ? getToken : exp.isSetter ? setToken : null;
+      tree.NodeList parameters =
+          exp.isGetter ? makeList("", []) : makeParameters(exp.parameters);
       tree.Node body = makeFunctionBody(exp.body);
       result = new tree.FunctionExpression(
           functionName(exp),
           parameters,
           body,
-          exp.returnType == null || exp.element.isConstructor
-            ? null
-            : makeType(exp.returnType),
+          exp.returnType == null || exp.element.isConstructor ?
+              null :
+              makeType(exp.returnType),
           makeFunctionModifiers(exp),
-          null,  // initializers
-          getOrSet);
+          null,
+          // initializers
+      getOrSet);
       setElement(result, exp.element, exp);
     } else if (exp is Identifier) {
       precedence = CALLEE;
-      result = new tree.Send(
-          makeStaticReceiver(exp.element),
-          makeIdentifier(exp.name));
+      result =
+          new tree.Send(makeStaticReceiver(exp.element), makeIdentifier(exp.name));
       setElement(result, exp.element, exp);
     } else if (exp is Increment) {
       Expression lvalue = exp.expression;
@@ -462,8 +482,8 @@ class TreePrinter {
     } else if (exp is Literal) {
       precedence = CALLEE;
       values.PrimitiveConstantValue value = exp.value;
-      Token tok = new StringToken.fromString(
-          STRING_INFO, '${value.primitiveValue}', -1);
+      Token tok =
+          new StringToken.fromString(STRING_INFO, '${value.primitiveValue}', -1);
       if (value.isString) {
         result = unparseStringLiteral(exp);
       } else if (value.isInt) {
@@ -528,9 +548,7 @@ class TreePrinter {
       }
     } else if (exp is ReifyTypeVar) {
       precedence = PRIMARY;
-      result = new tree.Send(
-          null,
-          makeIdentifier(exp.name));
+      result = new tree.Send(null, makeIdentifier(exp.name));
       setElement(result, exp.element, exp);
       setType(result, exp.element.type, exp);
     } else if (exp is StringConcat) {
@@ -551,10 +569,8 @@ class TreePrinter {
       tree.Node rightOperand = makeType(exp.type);
       if (exp.operator == 'is!') {
         operator = new tree.Operator(typeOpToken('is'));
-        rightOperand = new tree.Send(
-            rightOperand,
-            new tree.Operator(bang),
-            blankList());
+        rightOperand =
+            new tree.Send(rightOperand, new tree.Operator(bang), blankList());
       } else {
         operator = new tree.Operator(typeOpToken(exp.operator));
       }
@@ -601,8 +617,8 @@ class TreePrinter {
 
   tree.Node makeFunctionBody(Statement stmt) {
     if (INSERT_NEW_BACKEND_COMMENT) {
-      return new tree.Block(makeList('', [makeBlock(stmt)],
-                                     open: newBackendComment));
+      return new tree.Block(
+          makeList('', [makeBlock(stmt)], open: newBackendComment));
     } else {
       return makeBlock(stmt);
     }
@@ -634,7 +650,7 @@ class TreePrinter {
   /// True if [stmt] is equivalent to an empty statement.
   bool isEmptyStatement(Statement stmt) {
     return stmt is EmptyStatement ||
-          (stmt is Block && stmt.statements.every(isEmptyStatement));
+        (stmt is Block && stmt.statements.every(isEmptyStatement));
   }
 
   tree.Node makeStatement(Statement stmt, {bool shortIf: true}) {
@@ -678,9 +694,8 @@ class TreePrinter {
       }
       tree.Node condition;
       if (stmt.condition != null) {
-        condition = new tree.ExpressionStatement(
-            makeExpression(stmt.condition),
-            semicolon);
+        condition =
+            new tree.ExpressionStatement(makeExpression(stmt.condition), semicolon);
       } else {
         condition = new tree.EmptyStatement(semicolon);
       }
@@ -710,8 +725,9 @@ class TreePrinter {
           makeFunctionBody(stmt.body),
           stmt.returnType != null ? makeType(stmt.returnType) : null,
           makeEmptyModifiers(),
-          null,  // initializers
-          null);  // get/set
+          null,
+          // initializers
+      null); // get/set
       setElement(function, stmt.function.element, stmt);
       return new tree.FunctionDeclaration(function);
     } else if (stmt is If) {
@@ -719,13 +735,11 @@ class TreePrinter {
         tree.Node node = new tree.If(
             parenthesize(makeExpression(stmt.condition)),
             makeStatement(stmt.thenStatement),
-            null, // else statement
-            ifToken,
-            null); // else token
-        if (shortIf)
-          return node;
-        else
-          return new tree.Block(braceList('', [node]));
+            null,
+            // else statement
+        ifToken, null); // else token
+        if (shortIf) return node; else return new tree.Block(
+            braceList('', [node]));
       } else {
         return new tree.If(
             parenthesize(makeExpression(stmt.condition)),
@@ -783,10 +797,10 @@ class TreePrinter {
       return id;
     }
     tree.Node send = new tree.SendSet(
-          null,
-          id,
-          new tree.Operator(eq),
-          singleton(makeExpression(vd.initializer)));
+        null,
+        id,
+        new tree.Operator(eq),
+        singleton(makeExpression(vd.initializer)));
     setElement(send, vd.element, vd);
     return send;
   }
@@ -794,32 +808,32 @@ class TreePrinter {
   /// If [useVar] is true, the variable definition will use `var` as modifier
   /// if no other modifiers are present.
   /// [endToken] will be used to terminate the declaration list.
-  tree.Node makeVariableDeclarations(VariableDeclarations decl,
-                                      { bool useVar: false,
-                                        Token endToken: null }) {
+  tree.Node makeVariableDeclarations(VariableDeclarations decl, {bool useVar:
+      false, Token endToken: null}) {
     return new tree.VariableDefinitions(
         decl.type == null ? null : makeType(decl.type),
-        makeVarModifiers(isConst: decl.isConst,
-                          isFinal: decl.isFinal,
-                          useVar: useVar && decl.type == null),
-        makeList(',',
-            decl.declarations.map(makeVariableDeclaration),
-            close: endToken));
+        makeVarModifiers(
+            isConst: decl.isConst,
+            isFinal: decl.isFinal,
+            useVar: useVar && decl.type == null),
+        makeList(',', decl.declarations.map(makeVariableDeclaration), close: endToken));
   }
 
   tree.CatchBlock makeCatchBlock(CatchBlock block) {
     List<tree.VariableDefinitions> formals = [];
     if (block.exceptionVar != null) {
-      formals.add(new tree.VariableDefinitions(
-          null,
-          makeEmptyModifiers(),
-          singleton(makeIdentifier(block.exceptionVar))));
+      formals.add(
+          new tree.VariableDefinitions(
+              null,
+              makeEmptyModifiers(),
+              singleton(makeIdentifier(block.exceptionVar))));
     }
     if (block.stackVar != null) {
-      formals.add(new tree.VariableDefinitions(
-          null,
-          makeEmptyModifiers(),
-          singleton(makeIdentifier(block.stackVar))));
+      formals.add(
+          new tree.VariableDefinitions(
+              null,
+              makeEmptyModifiers(),
+              singleton(makeIdentifier(block.stackVar))));
     }
     return new tree.CatchBlock(
         block.onType == null ? null : makeType(block.onType),
@@ -839,8 +853,9 @@ class TreePrinter {
     } else {
       return new tree.SwitchCase(
           makeList('', caze.expressions.map(makeCaseMatch)),
-          null, // defaultKeyword,
-          makeList('', caze.statements.map(makeStatement)),
+          null,
+          // defaultKeyword,
+      makeList('', caze.statements.map(makeStatement)),
           null); // startToken unused by unparser
     }
   }
@@ -870,7 +885,7 @@ class TreePrinter {
       Token open = params.hasNamedParameters ? openBrace : openBracket;
       Token close = params.hasNamedParameters ? closeBrace : closeBracket;
       Iterable<tree.Node> opt =
-          params.optionalParameters.map((p) => makeParameter(p,assign));
+          params.optionalParameters.map((p) => makeParameter(p, assign));
       nodes.add(new tree.NodeList(open, makeLink(opt), close, ','));
     }
     return argList(nodes);
@@ -882,11 +897,13 @@ class TreePrinter {
       tree.Node definition = new tree.FunctionExpression(
           makeIdentifier(param.name),
           makeParameters(param.parameters),
-          null, // body
-          param.type == null ? null : makeType(param.type),
-          makeEmptyModifiers(), // TODO: Function parameter modifiers?
-          null, // initializers
-          null); // get/set
+          null,
+          // body
+      param.type == null ? null : makeType(param.type),
+          makeEmptyModifiers(),
+          // TODO: Function parameter modifiers?
+      null, // initializers
+      null); // get/set
       if (param.element != null) {
         setElement(definition, param.element, param);
       }
@@ -918,8 +935,9 @@ class TreePrinter {
       }
       return new tree.VariableDefinitions(
           param.type == null ? null : makeType(param.type),
-          makeEmptyModifiers(), // TODO: Parameter modifiers?
-          singleton(definition));
+          makeEmptyModifiers(),
+          // TODO: Parameter modifiers?
+      singleton(definition));
     }
   }
 
@@ -927,12 +945,9 @@ class TreePrinter {
     return new tree.Modifiers(blankList());
   }
 
-  tree.Modifiers makeModifiers({bool isStatic: false,
-                                bool isAbstract: false,
-                                bool isFactory: false,
-                                bool isConst: false,
-                                bool isFinal: false,
-                                bool isVar: false}) {
+  tree.Modifiers makeModifiers({bool isStatic: false, bool isAbstract: false,
+      bool isFactory: false, bool isConst: false, bool isFinal: false, bool isVar:
+      false}) {
     List<tree.Node> nodes = [];
     if (isStatic) {
       nodes.add(makeIdentifier('static'));
@@ -955,18 +970,19 @@ class TreePrinter {
     return new tree.Modifiers(makeList('', nodes));
   }
 
-  tree.Modifiers makeVarModifiers({bool isConst: false,
-                                   bool isFinal: false,
-                                   bool useVar: false}) {
-    return makeModifiers(isConst: isConst,
-                         isFinal: isFinal,
-                         isVar: useVar && !(isConst || isFinal));
+  tree.Modifiers makeVarModifiers({bool isConst: false, bool isFinal: false,
+      bool useVar: false}) {
+    return makeModifiers(
+        isConst: isConst,
+        isFinal: isFinal,
+        isVar: useVar && !(isConst || isFinal));
   }
 
   tree.Modifiers makeFunctionModifiers(FunctionExpression exp) {
     if (exp.element == null) return makeEmptyModifiers();
-    return makeModifiers(isStatic: exp.element.isStatic,
-                         isFactory: exp.element.isFactoryConstructor);
+    return makeModifiers(
+        isStatic: exp.element.isStatic,
+        isFactory: exp.element.isFactoryConstructor);
   }
 
   tree.Node makeNodeForClassElement(elements.ClassElement cls) {
@@ -1010,12 +1026,10 @@ class TreePrinter {
   // TODO(johnniwinther): Normalize interfaces on[tree.NamedMixinApplication]
   // and [tree.ClassNode].
   tree.NodeList makeInterfaces(Link<types.DartType> interfaces,
-                               Set<types.DartType> mixinTypes,
-                               {bool forNamedMixinApplication: false}) {
+      Set<types.DartType> mixinTypes, {bool forNamedMixinApplication: false}) {
     Link<tree.Node> typeAnnotations = const Link<tree.Node>();
-    for (Link<types.DartType> link = interfaces;
-         !link.isEmpty;
-         link = link.tail) {
+    for (Link<types.DartType> link =
+        interfaces; !link.isEmpty; link = link.tail) {
       types.DartType interface = link.head;
       if (!mixinTypes.contains(interface)) {
         typeAnnotations =
@@ -1027,19 +1041,22 @@ class TreePrinter {
     } else {
       return new tree.NodeList(
           forNamedMixinApplication ? null : implementsToken,
-          typeAnnotations, null, ',');
+          typeAnnotations,
+          null,
+          ',');
     }
   }
 
   /// Creates a [tree.NamedMixinApplication] node for [cls].
   // TODO(johnniwinther): Unify creation of mixin lists between
   // [NamedMixinApplicationElement] and [ClassElement].
-  tree.NamedMixinApplication makeNamedMixinApplication(
-       elements.MixinApplicationElement cls) {
+  tree.NamedMixinApplication
+      makeNamedMixinApplication(elements.MixinApplicationElement cls) {
 
-    assert(dart2js.invariant(cls, !cls.isUnnamedMixinApplication,
-        message: "Cannot create ClassNode for unnamed mixin application "
-                 "$cls."));
+    assert(dart2js.invariant(
+        cls,
+        !cls.isUnnamedMixinApplication,
+        message: "Cannot create ClassNode for unnamed mixin application " "$cls."));
     tree.Modifiers modifiers = makeModifiers(isAbstract: cls.isAbstract);
     tree.Identifier name = makeIdentifier(cls.name);
     tree.NodeList typeParameters = makeTypeParameters(cls.typeVariables);
@@ -1064,21 +1081,28 @@ class TreePrinter {
     superclass =
         makeType(createTypeAnnotation(cls.asInstanceOf(supertype.element)));
     tree.Node supernode = new tree.MixinApplication(
-        superclass, new tree.NodeList(null, mixins, null, ','));
+        superclass,
+        new tree.NodeList(null, mixins, null, ','));
 
-    tree.NodeList interfaces = makeInterfaces(
-        cls.interfaces, mixinTypes, forNamedMixinApplication: true);
+    tree.NodeList interfaces =
+        makeInterfaces(cls.interfaces, mixinTypes, forNamedMixinApplication: true);
 
     return new tree.NamedMixinApplication(
-        name, typeParameters, modifiers, supernode,
-        interfaces, classToken, semicolon);
+        name,
+        typeParameters,
+        modifiers,
+        supernode,
+        interfaces,
+        classToken,
+        semicolon);
   }
 
   /// Creates a [tree.ClassNode] node for [cls].
   tree.ClassNode makeClassNode(elements.ClassElement cls) {
-    assert(dart2js.invariant(cls, !cls.isUnnamedMixinApplication,
-        message: "Cannot create ClassNode for unnamed mixin application "
-                 "$cls."));
+    assert(dart2js.invariant(
+        cls,
+        !cls.isUnnamedMixinApplication,
+        message: "Cannot create ClassNode for unnamed mixin application " "$cls."));
     tree.Modifiers modifiers = makeModifiers(isAbstract: cls.isAbstract);
     tree.Identifier name = makeIdentifier(cls.name);
     tree.NodeList typeParameters = makeTypeParameters(cls.typeVariables);
@@ -1103,20 +1127,26 @@ class TreePrinter {
         tree.Node superclass =
             makeType(createTypeAnnotation(cls.asInstanceOf(supertype.element)));
         supernode = new tree.MixinApplication(
-            superclass, new tree.NodeList(null, mixins, null, ','));
+            superclass,
+            new tree.NodeList(null, mixins, null, ','));
       } else if (!supertype.isObject) {
         supernode = makeType(createTypeAnnotation(supertype));
       }
     }
-    tree.NodeList interfaces = makeInterfaces(
-        cls.interfaces, mixinTypes);
+    tree.NodeList interfaces = makeInterfaces(cls.interfaces, mixinTypes);
 
     Token extendsKeyword = supernode != null ? extendsToken : null;
     return new tree.ClassNode(
-        modifiers, name, typeParameters, supernode,
-        interfaces, openBrace, extendsKeyword,
-        null, // No body.
-        closeBrace);
+        modifiers,
+        name,
+        typeParameters,
+        supernode,
+        interfaces,
+        openBrace,
+        extendsKeyword,
+        null,
+        // No body.
+    closeBrace);
   }
 
   tree.Node functionName(FunctionExpression exp) {
@@ -1162,9 +1192,8 @@ class TreePrinter {
           // Finish the previous string interpolation, if there is one.
           tree.LiteralString lit = makeVerbatimStringLiteral(sb.toString());
           if (currentInterpolation != null) {
-            literalParts.add(new tree.StringInterpolationPart(
-                currentInterpolation,
-                lit));
+            literalParts.add(
+                new tree.StringInterpolationPart(currentInterpolation, lit));
           } else {
             firstLiteral = lit;
           }
@@ -1188,12 +1217,10 @@ class TreePrinter {
       if (firstLiteral == null) {
         node = lit;
       } else {
-        literalParts.add(new tree.StringInterpolationPart(
-            currentInterpolation,
-            lit));
-        node = new tree.StringInterpolation(
-            firstLiteral,
-            makeList('', literalParts));
+        literalParts.add(
+            new tree.StringInterpolationPart(currentInterpolation, lit));
+        node =
+            new tree.StringInterpolation(firstLiteral, makeList('', literalParts));
       }
 
       // Juxtapose with the previous string chunks, if any.

@@ -24,7 +24,7 @@ import 'implementation/apiimpl.dart';
  * expected to hold a zero element at the last position. If this is not the
  * case, the entire data structure is copied before scanning.
  */
-typedef Future/*<String | List<int>>*/ CompilerInputProvider(Uri uri);
+typedef Future /*<String | List<int>>*/ CompilerInputProvider(Uri uri);
 
 /// Deprecated, please use [CompilerInputProvider] instead.
 typedef Future<String> ReadStringFromUri(Uri uri);
@@ -49,8 +49,7 @@ typedef Future<String> ReadStringFromUri(Uri uri);
  * As more features are added to the compiler, new names and
  * extensions may be introduced.
  */
-typedef EventSink<String> CompilerOutputProvider(String name,
-                                                 String extension);
+typedef EventSink<String> CompilerOutputProvider(String name, String extension);
 
 /**
  * Invoked by the compiler to report diagnostics. If [uri] is
@@ -62,8 +61,8 @@ typedef EventSink<String> CompilerOutputProvider(String name,
  * diagnostic message, and [kind] indicates indicates what kind of
  * diagnostic it is.
  */
-typedef void DiagnosticHandler(Uri uri, int begin, int end,
-                               String message, Diagnostic kind);
+typedef void DiagnosticHandler(Uri uri, int begin, int end, String message,
+    Diagnostic kind);
 
 /**
  * Returns a future that completes to a non-null String when [script]
@@ -80,14 +79,11 @@ typedef void DiagnosticHandler(Uri uri, int begin, int end,
  * as the compiler may create multiple files to support lazy loading
  * of libraries.
  */
-Future<String> compile(Uri script,
-                       Uri libraryRoot,
-                       Uri packageRoot,
-                       CompilerInputProvider inputProvider,
-                       DiagnosticHandler handler,
-                       [List<String> options = const [],
-                        CompilerOutputProvider outputProvider,
-                        Map<String, dynamic> environment = const {}]) {
+Future<String> compile(Uri script, Uri libraryRoot, Uri packageRoot,
+    CompilerInputProvider inputProvider, DiagnosticHandler handler,
+    [List<String> options = const [
+    ], CompilerOutputProvider outputProvider, Map<String, dynamic> environment =
+        const {}]) {
   if (!libraryRoot.path.endsWith("/")) {
     throw new ArgumentError("libraryRoot must end with a /");
   }
@@ -96,13 +92,14 @@ Future<String> compile(Uri script,
   }
   // TODO(ahe): Consider completing the future with an exception if
   // code is null.
-  Compiler compiler = new Compiler(inputProvider,
-                                   outputProvider,
-                                   handler,
-                                   libraryRoot,
-                                   packageRoot,
-                                   options,
-                                   environment);
+  Compiler compiler = new Compiler(
+      inputProvider,
+      outputProvider,
+      handler,
+      libraryRoot,
+      packageRoot,
+      options,
+      environment);
   // TODO(ahe): Use the value of the future (which signals success or failure).
   return compiler.run(script).then((_) {
     String code = compiler.assembledCode;

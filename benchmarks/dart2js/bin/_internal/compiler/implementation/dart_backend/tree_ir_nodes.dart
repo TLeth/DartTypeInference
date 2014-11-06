@@ -153,7 +153,7 @@ class InvokeSuperMethod extends Expression implements Invoke {
   final Selector selector;
   final List<Expression> arguments;
 
-  InvokeSuperMethod(this.selector, this.arguments) ;
+  InvokeSuperMethod(this.selector, this.arguments);
 
   accept(ExpressionVisitor visitor) => visitor.visitInvokeSuperMethod(this);
 }
@@ -238,7 +238,7 @@ class TypeOperator extends Expression {
   final DartType type;
   final String operator;
 
-  TypeOperator(this.receiver, this.type, this.operator) ;
+  TypeOperator(this.receiver, this.type, this.operator);
 
   accept(ExpressionVisitor visitor) => visitor.visitTypeOperator(this);
 }
@@ -367,8 +367,7 @@ class WhileCondition extends Loop {
   Statement body;
   Statement next;
 
-  WhileCondition(this.label, this.condition, this.body,
-                 this.next) {
+  WhileCondition(this.label, this.condition, this.body, this.next) {
     assert(label.binding == null);
     label.binding = this;
   }
@@ -431,8 +430,8 @@ class Assign extends Statement {
   /// All uses of the variable must be nested inside the [next] statement.
   bool isDeclaration;
 
-  Assign(this.variable, this.definition, this.next,
-         { this.isDeclaration: false }) {
+  Assign(this.variable, this.definition, this.next, {this.isDeclaration: false})
+      {
     variable.writeCount++;
   }
 
@@ -535,10 +534,10 @@ abstract class StatementVisitor<S> {
   S visitExpressionStatement(ExpressionStatement node);
 }
 
-abstract class Visitor<S,E> implements ExpressionVisitor<E>,
-                                       StatementVisitor<S> {
-   E visitExpression(Expression e) => e.accept(this);
-   S visitStatement(Statement s) => s.accept(this);
+abstract class Visitor<S, E> implements ExpressionVisitor<E>,
+    StatementVisitor<S> {
+  E visitExpression(Expression e) => e.accept(this);
+  S visitStatement(Statement s) => s.accept(this);
 }
 
 class RecursiveVisitor extends Visitor {
@@ -595,7 +594,7 @@ class RecursiveVisitor extends Visitor {
   }
 
   visitLiteralMap(LiteralMap node) {
-    for (int i=0; i<node.keys.length; i++) {
+    for (int i = 0; i < node.keys.length; i++) {
       visitExpression(node.keys[i]);
       visitExpression(node.values[i]);
     }

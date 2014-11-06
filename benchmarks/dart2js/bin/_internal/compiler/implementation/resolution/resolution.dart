@@ -13,29 +13,13 @@ import '../dart_types.dart';
 import '../dart2jslib.dart';
 import '../tree/tree.dart';
 import '../elements/elements.dart';
-import '../elements/modelx.dart'
-    show BaseClassElementX,
-         ConstructorElementX,
-         ErroneousElementX,
-         FieldElementX,
-         FormalElementX,
-         FunctionElementX,
-         FunctionSignatureX,
-         InitializingFormalElementX,
-         LabelDefinitionX,
-         LocalFunctionElementX,
-         LocalParameterElementX,
-         LocalVariableElementX,
-         MetadataAnnotationX,
-         MixinApplicationElementX,
-         ParameterElementX,
-         ParameterMetadataAnnotation,
-         SynthesizedConstructorElementX,
-         JumpTargetX,
-         TypedefElementX,
-         TypeVariableElementX,
-         VariableElementX,
-         VariableList;
+import '../elements/modelx.dart' show BaseClassElementX, ConstructorElementX,
+    ErroneousElementX, FieldElementX, FormalElementX, FunctionElementX,
+    FunctionSignatureX, InitializingFormalElementX, LabelDefinitionX,
+    LocalFunctionElementX, LocalParameterElementX, LocalVariableElementX,
+    MetadataAnnotationX, MixinApplicationElementX, ParameterElementX,
+    ParameterMetadataAnnotation, SynthesizedConstructorElementX, JumpTargetX,
+    TypedefElementX, TypeVariableElementX, VariableElementX, VariableList;
 import '../ordered_typeset.dart' show OrderedTypeSet, OrderedTypeSetBuilder;
 import '../util/util.dart';
 

@@ -10,177 +10,428 @@ part of js_backend;
 class Namer implements ClosureNamer {
 
   static const javaScriptKeywords = const <String>[
-    // These are current keywords.
-    "break", "delete", "function", "return", "typeof", "case", "do", "if",
-    "switch", "var", "catch", "else", "in", "this", "void", "continue",
-    "false", "instanceof", "throw", "while", "debugger", "finally", "new",
-    "true", "with", "default", "for", "null", "try",
+      // These are current keywords.
+    "break",
+        "delete",
+        "function",
+        "return",
+        "typeof",
+        "case",
+        "do",
+        "if",
+        "switch",
+        "var",
+        "catch",
+        "else",
+        "in",
+        "this",
+        "void",
+        "continue",
+        "false",
+        "instanceof",
+        "throw",
+        "while",
+        "debugger",
+        "finally",
+        "new",
+        "true",
+        "with",
+        "default",
+        "for",
+        "null",
+        "try",
+        // These are future keywords.
+    "abstract",
+        "double",
+        "goto",
+        "native",
+        "static",
+        "boolean",
+        "enum",
+        "implements",
+        "package",
+        "super",
+        "byte",
+        "export",
+        "import",
+        "private",
+        "synchronized",
+        "char",
+        "extends",
+        "int",
+        "protected",
+        "throws",
+        "class",
+        "final",
+        "interface",
+        "public",
+        "transient",
+        "const",
+        "float",
+        "long",
+        "short",
+        "volatile"];
 
-    // These are future keywords.
-    "abstract", "double", "goto", "native", "static", "boolean", "enum",
-    "implements", "package", "super", "byte", "export", "import", "private",
-    "synchronized", "char", "extends", "int", "protected", "throws",
-    "class", "final", "interface", "public", "transient", "const", "float",
-    "long", "short", "volatile"
-  ];
-
-  static const reservedPropertySymbols =
-      const <String>["__proto__", "prototype", "constructor", "call"];
+  static const reservedPropertySymbols = const <String>[
+      "__proto__",
+      "prototype",
+      "constructor",
+      "call"];
 
   // Symbols that we might be using in our JS snippets.
   static const reservedGlobalSymbols = const <String>[
-    // Section references are from Ecma-262
-    // (http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-262.pdf)
+      // Section references are from Ecma-262
+
+
+        // (http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-262.pdf)
 
     // 15.1.1 Value Properties of the Global Object
-    "NaN", "Infinity", "undefined",
+    "NaN",
+        "Infinity",
+        "undefined",
+        // 15.1.2 Function Properties of the Global Object
+    "eval",
+        "parseInt",
+        "parseFloat",
+        "isNaN",
+        "isFinite",
+        // 15.1.3 URI Handling Function Properties
+    "decodeURI",
+        "decodeURIComponent",
+        "encodeURI",
+        "encodeURIComponent",
+        // 15.1.4 Constructor Properties of the Global Object
+    "Object",
+        "Function",
+        "Array",
+        "String",
+        "Boolean",
+        "Number",
+        "Date",
+        "RegExp",
+        "Error",
+        "EvalError",
+        "RangeError",
+        "ReferenceError",
+        "SyntaxError",
+        "TypeError",
+        "URIError",
+        // 15.1.5 Other Properties of the Global Object
+    "Math", // 10.1.6 Activation Object
+    "arguments", // B.2 Additional Properties (non-normative)
+    "escape",
+        "unescape",
+        // Window props (https://developer.mozilla.org/en/DOM/window)
+    "applicationCache",
+        "closed",
+        "Components",
+        "content",
+        "controllers",
+        "crypto",
+        "defaultStatus",
+        "dialogArguments",
+        "directories",
+        "document",
+        "frameElement",
+        "frames",
+        "fullScreen",
+        "globalStorage",
+        "history",
+        "innerHeight",
+        "innerWidth",
+        "length",
+        "location",
+        "locationbar",
+        "localStorage",
+        "menubar",
+        "mozInnerScreenX",
+        "mozInnerScreenY",
+        "mozScreenPixelsPerCssPixel",
+        "name",
+        "navigator",
+        "opener",
+        "outerHeight",
+        "outerWidth",
+        "pageXOffset",
+        "pageYOffset",
+        "parent",
+        "personalbar",
+        "pkcs11",
+        "returnValue",
+        "screen",
+        "scrollbars",
+        "scrollMaxX",
+        "scrollMaxY",
+        "self",
+        "sessionStorage",
+        "sidebar",
+        "status",
+        "statusbar",
+        "toolbar",
+        "top",
+        "window",
+        // Window methods (https://developer.mozilla.org/en/DOM/window)
+    "alert",
+        "addEventListener",
+        "atob",
+        "back",
+        "blur",
+        "btoa",
+        "captureEvents",
+        "clearInterval",
+        "clearTimeout",
+        "close",
+        "confirm",
+        "disableExternalCapture",
+        "dispatchEvent",
+        "dump",
+        "enableExternalCapture",
+        "escape",
+        "find",
+        "focus",
+        "forward",
+        "GeckoActiveXObject",
+        "getAttention",
+        "getAttentionWithCycleCount",
+        "getComputedStyle",
+        "getSelection",
+        "home",
+        "maximize",
+        "minimize",
+        "moveBy",
+        "moveTo",
+        "open",
+        "openDialog",
+        "postMessage",
+        "print",
+        "prompt",
+        "QueryInterface",
+        "releaseEvents",
+        "removeEventListener",
+        "resizeBy",
+        "resizeTo",
+        "restore",
+        "routeEvent",
+        "scroll",
+        "scrollBy",
+        "scrollByLines",
+        "scrollByPages",
+        "scrollTo",
+        "setInterval",
+        "setResizeable",
+        "setTimeout",
+        "showModalDialog",
+        "sizeToContent",
+        "stop",
+        "uuescape",
+        "updateCommands",
+        "XPCNativeWrapper",
+        "XPCSafeJSOjbectWrapper",
+        // Mozilla Window event handlers, same cite
+    "onabort",
+        "onbeforeunload",
+        "onchange",
+        "onclick",
+        "onclose",
+        "oncontextmenu",
+        "ondragdrop",
+        "onerror",
+        "onfocus",
+        "onhashchange",
+        "onkeydown",
+        "onkeypress",
+        "onkeyup",
+        "onload",
+        "onmousedown",
+        "onmousemove",
+        "onmouseout",
+        "onmouseover",
+        "onmouseup",
+        "onmozorientation",
+        "onpaint",
+        "onreset",
+        "onresize",
+        "onscroll",
+        "onselect",
+        "onsubmit",
+        "onunload",
+        // Safari Web Content Guide
 
-    // 15.1.2 Function Properties of the Global Object
-    "eval", "parseInt", "parseFloat", "isNaN", "isFinite",
 
-    // 15.1.3 URI Handling Function Properties
-    "decodeURI", "decodeURIComponent",
-    "encodeURI",
-    "encodeURIComponent",
-
-    // 15.1.4 Constructor Properties of the Global Object
-    "Object", "Function", "Array", "String", "Boolean", "Number", "Date",
-    "RegExp", "Error", "EvalError", "RangeError", "ReferenceError",
-    "SyntaxError", "TypeError", "URIError",
-
-    // 15.1.5 Other Properties of the Global Object
-    "Math",
-
-    // 10.1.6 Activation Object
-    "arguments",
-
-    // B.2 Additional Properties (non-normative)
-    "escape", "unescape",
-
-    // Window props (https://developer.mozilla.org/en/DOM/window)
-    "applicationCache", "closed", "Components", "content", "controllers",
-    "crypto", "defaultStatus", "dialogArguments", "directories",
-    "document", "frameElement", "frames", "fullScreen", "globalStorage",
-    "history", "innerHeight", "innerWidth", "length",
-    "location", "locationbar", "localStorage", "menubar",
-    "mozInnerScreenX", "mozInnerScreenY", "mozScreenPixelsPerCssPixel",
-    "name", "navigator", "opener", "outerHeight", "outerWidth",
-    "pageXOffset", "pageYOffset", "parent", "personalbar", "pkcs11",
-    "returnValue", "screen", "scrollbars", "scrollMaxX", "scrollMaxY",
-    "self", "sessionStorage", "sidebar", "status", "statusbar", "toolbar",
-    "top", "window",
-
-    // Window methods (https://developer.mozilla.org/en/DOM/window)
-    "alert", "addEventListener", "atob", "back", "blur", "btoa",
-    "captureEvents", "clearInterval", "clearTimeout", "close", "confirm",
-    "disableExternalCapture", "dispatchEvent", "dump",
-    "enableExternalCapture", "escape", "find", "focus", "forward",
-    "GeckoActiveXObject", "getAttention", "getAttentionWithCycleCount",
-    "getComputedStyle", "getSelection", "home", "maximize", "minimize",
-    "moveBy", "moveTo", "open", "openDialog", "postMessage", "print",
-    "prompt", "QueryInterface", "releaseEvents", "removeEventListener",
-    "resizeBy", "resizeTo", "restore", "routeEvent", "scroll", "scrollBy",
-    "scrollByLines", "scrollByPages", "scrollTo", "setInterval",
-    "setResizeable", "setTimeout", "showModalDialog", "sizeToContent",
-    "stop", "uuescape", "updateCommands", "XPCNativeWrapper",
-    "XPCSafeJSOjbectWrapper",
-
-    // Mozilla Window event handlers, same cite
-    "onabort", "onbeforeunload", "onchange", "onclick", "onclose",
-    "oncontextmenu", "ondragdrop", "onerror", "onfocus", "onhashchange",
-    "onkeydown", "onkeypress", "onkeyup", "onload", "onmousedown",
-    "onmousemove", "onmouseout", "onmouseover", "onmouseup",
-    "onmozorientation", "onpaint", "onreset", "onresize", "onscroll",
-    "onselect", "onsubmit", "onunload",
-
-    // Safari Web Content Guide
-    // http://developer.apple.com/library/safari/#documentation/AppleApplications/Reference/SafariWebContent/SafariWebContent.pdf
+        // http://developer.apple.com/library/safari/#documentation/AppleApplications/Reference/SafariWebContent/SafariWebContent.pdf
     // WebKit Window member data, from WebKit DOM Reference
-    // (http://developer.apple.com/safari/library/documentation/AppleApplications/Reference/WebKitDOMRef/DOMWindow_idl/Classes/DOMWindow/index.html)
-    "ontouchcancel", "ontouchend", "ontouchmove", "ontouchstart",
-    "ongesturestart", "ongesturechange", "ongestureend",
 
-    // extra window methods
+
+        // (http://developer.apple.com/safari/library/documentation/AppleApplications/Reference/WebKitDOMRef/DOMWindow_idl/Classes/DOMWindow/index.html)
+    "ontouchcancel",
+        "ontouchend",
+        "ontouchmove",
+        "ontouchstart",
+        "ongesturestart",
+        "ongesturechange",
+        "ongestureend",
+        // extra window methods
     "uneval",
-
-    // keywords https://developer.mozilla.org/en/New_in_JavaScript_1.7,
+        // keywords https://developer.mozilla.org/en/New_in_JavaScript_1.7,
     // https://developer.mozilla.org/en/New_in_JavaScript_1.8.1
-    "getPrototypeOf", "let", "yield",
-
-    // "future reserved words"
-    "abstract", "int", "short", "boolean", "interface", "static", "byte",
-    "long", "char", "final", "native", "synchronized", "float", "package",
-    "throws", "goto", "private", "transient", "implements", "protected",
-    "volatile", "double", "public",
-
-    // IE methods
+    "getPrototypeOf", "let", "yield", // "future reserved words"
+    "abstract",
+        "int",
+        "short",
+        "boolean",
+        "interface",
+        "static",
+        "byte",
+        "long",
+        "char",
+        "final",
+        "native",
+        "synchronized",
+        "float",
+        "package",
+        "throws",
+        "goto",
+        "private",
+        "transient",
+        "implements",
+        "protected",
+        "volatile",
+        "double",
+        "public",
+        // IE methods
     // (http://msdn.microsoft.com/en-us/library/ms535873(VS.85).aspx#)
-    "attachEvent", "clientInformation", "clipboardData", "createPopup",
-    "dialogHeight", "dialogLeft", "dialogTop", "dialogWidth",
-    "onafterprint", "onbeforedeactivate", "onbeforeprint",
-    "oncontrolselect", "ondeactivate", "onhelp", "onresizeend",
-
-    // Common browser-defined identifiers not defined in ECMAScript
-    "event", "external", "Debug", "Enumerator", "Global", "Image",
-    "ActiveXObject", "VBArray", "Components",
-
-    // Functions commonly defined on Object
-    "toString", "getClass", "constructor", "prototype", "valueOf",
-
-    // Client-side JavaScript identifiers
-    "Anchor", "Applet", "Attr", "Canvas", "CanvasGradient",
-    "CanvasPattern", "CanvasRenderingContext2D", "CDATASection",
-    "CharacterData", "Comment", "CSS2Properties", "CSSRule",
-    "CSSStyleSheet", "Document", "DocumentFragment", "DocumentType",
-    "DOMException", "DOMImplementation", "DOMParser", "Element", "Event",
-    "ExternalInterface", "FlashPlayer", "Form", "Frame", "History",
-    "HTMLCollection", "HTMLDocument", "HTMLElement", "IFrame", "Image",
-    "Input", "JSObject", "KeyEvent", "Link", "Location", "MimeType",
-    "MouseEvent", "Navigator", "Node", "NodeList", "Option", "Plugin",
-    "ProcessingInstruction", "Range", "RangeException", "Screen", "Select",
-    "Table", "TableCell", "TableRow", "TableSelection", "Text", "TextArea",
-    "UIEvent", "Window", "XMLHttpRequest", "XMLSerializer",
-    "XPathException", "XPathResult", "XSLTProcessor",
-
-    // These keywords trigger the loading of the java-plugin. For the
+    "attachEvent",
+        "clientInformation",
+        "clipboardData",
+        "createPopup",
+        "dialogHeight",
+        "dialogLeft",
+        "dialogTop",
+        "dialogWidth",
+        "onafterprint",
+        "onbeforedeactivate",
+        "onbeforeprint",
+        "oncontrolselect",
+        "ondeactivate",
+        "onhelp",
+        "onresizeend",
+        // Common browser-defined identifiers not defined in ECMAScript
+    "event",
+        "external",
+        "Debug",
+        "Enumerator",
+        "Global",
+        "Image",
+        "ActiveXObject",
+        "VBArray",
+        "Components",
+        // Functions commonly defined on Object
+    "toString",
+        "getClass",
+        "constructor",
+        "prototype",
+        "valueOf",
+        // Client-side JavaScript identifiers
+    "Anchor",
+        "Applet",
+        "Attr",
+        "Canvas",
+        "CanvasGradient",
+        "CanvasPattern",
+        "CanvasRenderingContext2D",
+        "CDATASection",
+        "CharacterData",
+        "Comment",
+        "CSS2Properties",
+        "CSSRule",
+        "CSSStyleSheet",
+        "Document",
+        "DocumentFragment",
+        "DocumentType",
+        "DOMException",
+        "DOMImplementation",
+        "DOMParser",
+        "Element",
+        "Event",
+        "ExternalInterface",
+        "FlashPlayer",
+        "Form",
+        "Frame",
+        "History",
+        "HTMLCollection",
+        "HTMLDocument",
+        "HTMLElement",
+        "IFrame",
+        "Image",
+        "Input",
+        "JSObject",
+        "KeyEvent",
+        "Link",
+        "Location",
+        "MimeType",
+        "MouseEvent",
+        "Navigator",
+        "Node",
+        "NodeList",
+        "Option",
+        "Plugin",
+        "ProcessingInstruction",
+        "Range",
+        "RangeException",
+        "Screen",
+        "Select",
+        "Table",
+        "TableCell",
+        "TableRow",
+        "TableSelection",
+        "Text",
+        "TextArea",
+        "UIEvent",
+        "Window",
+        "XMLHttpRequest",
+        "XMLSerializer",
+        "XPathException",
+        "XPathResult",
+        "XSLTProcessor",
+        // These keywords trigger the loading of the java-plugin. For the
     // next-generation plugin, this results in starting a new Java process.
-    "java", "Packages", "netscape", "sun", "JavaObject", "JavaClass",
-    "JavaArray", "JavaMember",
-  ];
+    "java",
+        "Packages",
+        "netscape",
+        "sun",
+        "JavaObject",
+        "JavaClass",
+        "JavaArray",
+        "JavaMember",];
 
   static const reservedGlobalObjectNames = const <String>[
       "A",
       "B",
-      "C", // Global object for *C*onstants.
-      "D",
-      "E",
-      "F",
-      "G",
-      "H", // Global object for internal (*H*elper) libraries.
-      // I is used for used for the Isolate function.
-      "J", // Global object for the interceptor library.
-      "K",
-      "L",
-      "M",
-      "N",
-      "O",
-      "P", // Global object for other *P*latform libraries.
-      "Q",
-      "R",
-      "S",
-      "T",
-      "U",
-      "V",
-      "W", // Global object for *W*eb libraries (dart:html).
-      "X",
-      "Y",
-      "Z",
-  ];
+      "C",
+      // Global object for *C*onstants.
+    "D", "E", "F", "G", "H", // Global object for internal (*H*elper) libraries.
+    // I is used for used for the Isolate function.
+    "J", // Global object for the interceptor library.
+    "K",
+        "L",
+        "M",
+        "N",
+        "O",
+        "P",
+        // Global object for other *P*latform libraries.
+    "Q",
+        "R",
+        "S",
+        "T",
+        "U",
+        "V",
+        "W",
+        // Global object for *W*eb libraries (dart:html).
+    "X", "Y", "Z",];
 
   static const reservedGlobalHelperFunctions = const <String>[
       "init",
-      "Isolate",
-  ];
+      "Isolate",];
 
   static final userGlobalObjects = new List.from(reservedGlobalObjectNames)
       ..remove('C')
@@ -295,16 +546,22 @@ class Namer implements ClosureNamer {
 
   String getNameForJsGetName(Node node, String name) {
     switch (name) {
-      case 'GETTER_PREFIX': return getterPrefix;
-      case 'SETTER_PREFIX': return setterPrefix;
-      case 'CALL_PREFIX': return callPrefix;
-      case 'CALL_CATCH_ALL': return callCatchAllName;
-      case 'REFLECTABLE': return reflectableField;
-      case 'CLASS_DESCRIPTOR_PROPERTY': return classDescriptorProperty;
+      case 'GETTER_PREFIX':
+        return getterPrefix;
+      case 'SETTER_PREFIX':
+        return setterPrefix;
+      case 'CALL_PREFIX':
+        return callPrefix;
+      case 'CALL_CATCH_ALL':
+        return callCatchAllName;
+      case 'REFLECTABLE':
+        return reflectableField;
+      case 'CLASS_DESCRIPTOR_PROPERTY':
+        return classDescriptorProperty;
       default:
-        compiler.reportError(
-            node, MessageKind.GENERIC,
-            {'text': 'Error: Namer has no name for "$name".'});
+        compiler.reportError(node, MessageKind.GENERIC, {
+          'text': 'Error: Namer has no name for "$name".'
+        });
         return 'BROKEN';
     }
   }
@@ -317,8 +574,11 @@ class Namer implements ClosureNamer {
     String result = constantNames[constant];
     if (result == null) {
       String longName = constantLongName(constant);
-      result = getFreshName(longName, usedGlobalNames, suggestedGlobalNames,
-                            ensureSafe: true);
+      result = getFreshName(
+          longName,
+          usedGlobalNames,
+          suggestedGlobalNames,
+          ensureSafe: true);
       constantNames[constant] = result;
     }
     return result;
@@ -328,8 +588,8 @@ class Namer implements ClosureNamer {
   String constantLongName(ConstantValue constant) {
     String longName = constantLongNames[constant];
     if (longName == null) {
-      longName = new ConstantNamingVisitor(compiler, constantHasher)
-          .getName(constant);
+      longName =
+          new ConstantNamingVisitor(compiler, constantHasher).getName(constant);
       constantLongNames[constant] = longName;
     }
     return longName;
@@ -434,8 +694,8 @@ class Namer implements ClosureNamer {
       return '$setterPrefix${getMappedInstanceName(proposedName)}';
     } else {
       String name = selector.name;
-      if (selector.kind == SelectorKind.OPERATOR
-          || selector.kind == SelectorKind.INDEX) {
+      if (selector.kind == SelectorKind.OPERATOR ||
+          selector.kind == SelectorKind.INDEX) {
         name = operatorNameToIdentifier(name);
         assert(name != selector.name);
         return getMappedOperatorName(name);
@@ -461,17 +721,17 @@ class Namer implements ClosureNamer {
   /**
    * Returns the internal name used for an invocation mirror of this selector.
    */
-  String invocationMirrorInternalName(Selector selector)
-      => invocationName(selector);
+  String invocationMirrorInternalName(Selector selector) =>
+      invocationName(selector);
 
   /**
    * Returns name of accessor (root to getter and setter) for a static or
    * instance field.
    */
   String fieldAccessorName(Element element) {
-    return element.isInstanceMember
-        ? instanceFieldAccessorName(element)
-        : getNameOfField(element);
+    return element.isInstanceMember ?
+        instanceFieldAccessorName(element) :
+        getNameOfField(element);
   }
 
   /**
@@ -479,9 +739,9 @@ class Namer implements ClosureNamer {
    * field.
    */
   String fieldPropertyName(Element element) {
-    return element.isInstanceMember
-        ? instanceFieldPropertyName(element)
-        : getNameOfField(element);
+    return element.isInstanceMember ?
+        instanceFieldPropertyName(element) :
+        getNameOfField(element);
   }
 
   /**
@@ -560,8 +820,11 @@ class Namer implements ClosureNamer {
   String getMappedGlobalName(String proposedName, {bool ensureSafe: true}) {
     var newName = globalNameMap[proposedName];
     if (newName == null) {
-      newName = getFreshName(proposedName, usedGlobalNames,
-                             suggestedGlobalNames, ensureSafe: ensureSafe);
+      newName = getFreshName(
+          proposedName,
+          usedGlobalNames,
+          suggestedGlobalNames,
+          ensureSafe: ensureSafe);
       globalNameMap[proposedName] = newName;
     }
     return newName;
@@ -570,8 +833,11 @@ class Namer implements ClosureNamer {
   String getMappedInstanceName(String proposedName) {
     var newName = instanceNameMap[proposedName];
     if (newName == null) {
-      newName = getFreshName(proposedName, usedInstanceNames,
-                             suggestedInstanceNames, ensureSafe: true);
+      newName = getFreshName(
+          proposedName,
+          usedInstanceNames,
+          suggestedInstanceNames,
+          ensureSafe: true);
       instanceNameMap[proposedName] = newName;
     }
     return newName;
@@ -580,17 +846,18 @@ class Namer implements ClosureNamer {
   String getMappedOperatorName(String proposedName) {
     var newName = operatorNameMap[proposedName];
     if (newName == null) {
-      newName = getFreshName(proposedName, usedInstanceNames,
-                             suggestedInstanceNames, ensureSafe: false);
+      newName = getFreshName(
+          proposedName,
+          usedInstanceNames,
+          suggestedInstanceNames,
+          ensureSafe: false);
       operatorNameMap[proposedName] = newName;
     }
     return newName;
   }
 
-  String getFreshName(String proposedName,
-                      Set<String> usedNames,
-                      Map<String, String> suggestedNames,
-                      {bool ensureSafe: true}) {
+  String getFreshName(String proposedName, Set<String> usedNames, Map<String,
+      String> suggestedNames, {bool ensureSafe: true}) {
     var candidate;
     if (ensureSafe) {
       proposedName = safeName(proposedName);
@@ -623,8 +890,7 @@ class Namer implements ClosureNamer {
     assert(!element.isInstanceMember);
     String name;
     if (element.isGenerativeConstructor) {
-      name = "${element.enclosingClass.name}\$"
-             "${element.name}";
+      name = "${element.enclosingClass.name}\$" "${element.name}";
     } else if (element.isFactoryConstructor) {
       // TODO(johnniwinther): Change factory name encoding as to not include
       // the class-name twice.
@@ -633,8 +899,7 @@ class Namer implements ClosureNamer {
     } else if (Elements.isStaticOrTopLevel(element)) {
       if (element.isClassMember) {
         ClassElement enclosingClass = element.enclosingClass;
-        name = "${enclosingClass.name}_"
-               "${element.name}";
+        name = "${enclosingClass.name}_" "${element.name}";
       } else {
         name = element.name.replaceAll('+', '_');
       }
@@ -645,16 +910,17 @@ class Namer implements ClosureNamer {
         // For libraries that have a library tag, we use the last part
         // of the fully qualified name as their base name. For all other
         // libraries, we use the first part of their filename.
-        name = library.hasLibraryName()
-            ? name.substring(name.lastIndexOf('.') + 1)
-            : name.substring(0, name.indexOf('.'));
+        name = library.hasLibraryName() ?
+            name.substring(name.lastIndexOf('.') + 1) :
+            name.substring(0, name.indexOf('.'));
       }
       // The filename based name can contain all kinds of nasty characters. Make
       // sure it is an identifier.
       if (!IDENTIFIER.hasMatch(name)) {
-        name = name.replaceAllMapped(NON_IDENTIFIER_CHAR,
+        name = name.replaceAllMapped(
+            NON_IDENTIFIER_CHAR,
             (match) => match[0].codeUnitAt(0).toRadixString(16));
-        if (!IDENTIFIER.hasMatch(name)) {  // e.g. starts with digit.
+        if (!IDENTIFIER.hasMatch(name)) { // e.g. starts with digit.
           name = 'lib_$name';
         }
       }
@@ -677,10 +943,8 @@ class Namer implements ClosureNamer {
       if (cls == backend.jsInterceptorClass) return "I";
       return cls.name;
     }
-    List<String> names = classes
-        .where((cls) => !Elements.isNativeOrExtendsNative(cls))
-        .map(abbreviate)
-        .toList();
+    List<String> names = classes.where(
+        (cls) => !Elements.isNativeOrExtendsNative(cls)).map(abbreviate).toList();
     // There is one dispatch mechanism for all native classes.
     if (classes.any((cls) => Elements.isNativeOrExtendsNative(cls))) {
       names.add("x");
@@ -703,12 +967,12 @@ class Namer implements ClosureNamer {
   }
 
   String getOneShotInterceptorName(Selector selector,
-                                   Iterable<ClassElement> classes) {
+      Iterable<ClassElement> classes) {
     // The one-shot name is a global name derived from the invocation name.  To
     // avoid instability we would like the names to be unique and not clash with
     // other global names.
 
-    String root = invocationName(selector);  // Is already safe.
+    String root = invocationName(selector); // Is already safe.
 
     if (classes.contains(backend.jsInterceptorClass)) {
       // If the base Interceptor class is in the set of intercepted classes,
@@ -743,19 +1007,21 @@ class Namer implements ClosureNamer {
   // and should not be call from outside.
   String getNameX(Element element) {
     if (element.isInstanceMember) {
-      if (element.kind == ElementKind.GENERATIVE_CONSTRUCTOR_BODY
-          || element.kind == ElementKind.FUNCTION) {
+      if (element.kind == ElementKind.GENERATIVE_CONSTRUCTOR_BODY ||
+          element.kind == ElementKind.FUNCTION) {
         return instanceMethodName(element);
       } else if (element.kind == ElementKind.GETTER) {
         return getterName(element);
       } else if (element.kind == ElementKind.SETTER) {
         return setterName(element);
       } else if (element.kind == ElementKind.FIELD) {
-        compiler.internalError(element,
+        compiler.internalError(
+            element,
             'Use instanceFieldPropertyName or instanceFieldAccessorName.');
         return null;
       } else {
-        compiler.internalError(element,
+        compiler.internalError(
+            element,
             'getName for bad kind: ${element.kind}.');
         return null;
       }
@@ -768,8 +1034,7 @@ class Namer implements ClosureNamer {
 
       String guess = _computeGuess(element);
       ElementKind kind = element.kind;
-      if (kind == ElementKind.VARIABLE ||
-          kind == ElementKind.PARAMETER) {
+      if (kind == ElementKind.VARIABLE || kind == ElementKind.PARAMETER) {
         // The name is not guaranteed to be unique.
         return safeName(guess);
       }
@@ -785,14 +1050,14 @@ class Namer implements ClosureNamer {
         if (Elements.isInstanceField(element)) {
           fixedName = element.hasFixedBackendName;
         }
-        String result = fixedName
-            ? guess
-            : getFreshName(guess, usedGlobalNames, suggestedGlobalNames,
-                           ensureSafe: true);
+        String result = fixedName ?
+            guess :
+            getFreshName(guess, usedGlobalNames, suggestedGlobalNames, ensureSafe: true);
         globals[element] = result;
         return result;
       }
-      compiler.internalError(element,
+      compiler.internalError(
+          element,
           'getName for unknown kind: ${element.kind}.');
       return null;
     }
@@ -820,11 +1085,10 @@ class Namer implements ClosureNamer {
   bool isPropertyOfCurrentIsolate(Element element) {
     // TODO(ahe): Make sure this method's documentation is always true and
     // remove the word "intend".
-    return
-        // TODO(ahe): Re-write these tests to be positive (so it only returns
-        // true for static/top-level mutable fields). Right now, a number of
-        // other elements, such as bound closures also live in [currentIsolate].
-        !element.isAccessor &&
+    return // TODO(ahe): Re-write these tests to be positive (so it only returns
+    // true for static/top-level mutable fields). Right now, a number of
+    // other elements, such as bound closures also live in [currentIsolate].
+    !element.isAccessor &&
         !element.isClass &&
         !element.isTypedef &&
         !element.isConstructor &&
@@ -842,8 +1106,8 @@ class Namer implements ClosureNamer {
       if ('${library.canonicalUri}' == 'dart:html') return 'W';
       return 'P';
     }
-    return userGlobalObjects[
-        library.getLibraryOrScriptName().hashCode % userGlobalObjects.length];
+    return userGlobalObjects[library.getLibraryOrScriptName().hashCode %
+        userGlobalObjects.length];
   }
 
   jsAst.PropertyAccess elementAccess(Element element) {
@@ -864,12 +1128,14 @@ class Namer implements ClosureNamer {
   }
 
   jsAst.Expression isolateLazyInitializerAccess(Element element) {
-    return js('#.#',
+    return js(
+        '#.#',
         [globalObjectFor(element), getLazyInitializerName(element)]);
   }
 
   jsAst.Expression isolateStaticClosureAccess(Element element) {
-    return js('#.#()',
+    return js(
+        '#.#()',
         [globalObjectFor(element), getStaticClosureName(element)]);
   }
 
@@ -902,15 +1168,18 @@ class Namer implements ClosureNamer {
 
   String functionTypeNamedParametersTag() => r'named';
 
-  Map<FunctionType,String> functionTypeNameMap =
-      new Map<FunctionType,String>();
+  Map<FunctionType, String> functionTypeNameMap =
+      new Map<FunctionType, String>();
   final FunctionTypeNamer functionTypeNamer;
 
   String getFunctionTypeName(FunctionType functionType) {
     return functionTypeNameMap.putIfAbsent(functionType, () {
       String proposedName = functionTypeNamer.computeName(functionType);
-      String freshName = getFreshName(proposedName, usedInstanceNames,
-                                      suggestedInstanceNames, ensureSafe: true);
+      String freshName = getFreshName(
+          proposedName,
+          usedInstanceNames,
+          suggestedInstanceNames,
+          ensureSafe: true);
       return freshName;
     });
   }
@@ -1030,8 +1299,8 @@ class ConstantNamingVisitor implements ConstantValueVisitor {
   final Compiler compiler;
   final ConstantCanonicalHasher hasher;
 
-  String root = null;     // First word, usually a type name.
-  bool failed = false;    // Failed to generate something pretty.
+  String root = null; // First word, usually a type name.
+  bool failed = false; // Failed to generate something pretty.
   List<String> fragments = <String>[];
   int length = 0;
 
@@ -1053,8 +1322,8 @@ class ConstantNamingVisitor implements ConstantValueVisitor {
     StringBuffer sb = new StringBuffer();
     for (int i = 0; i < length; i++) {
       int digit = hash % 62;
-      sb.write('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
-          [digit]);
+      sb.write(
+          '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'[digit]);
       hash ~/= 62;
       if (hash == 0) break;
     }
@@ -1260,7 +1529,8 @@ class ConstantCanonicalHasher implements ConstantValueVisitor<int> {
   }
 
   visitDummy(DummyConstantValue constant) {
-    compiler.internalError(NO_LOCATION_SPANNABLE,
+    compiler.internalError(
+        NO_LOCATION_SPANNABLE,
         'DummyReceiverConstant should never be named and never be subconstant');
   }
 
@@ -1295,7 +1565,7 @@ class ConstantCanonicalHasher implements ConstantValueVisitor<int> {
   static int _hashDouble(double value) {
     double magnitude = value.abs();
     int sign = value < 0 ? 1 : 0;
-    if (magnitude < _UINT32_LIMIT) {  // 2^32
+    if (magnitude < _UINT32_LIMIT) { // 2^32
       int intValue = value.toInt();
       // Integer valued doubles in 32-bit range hash to the same values as ints.
       int hash = _hashInt(intValue);
@@ -1333,7 +1603,7 @@ class ConstantCanonicalHasher implements ConstantValueVisitor<int> {
   }
 
   static int _finish(int hash) {
-    hash = _MASK & (hash + (((_MASK >> 3) & hash) <<  3));
+    hash = _MASK & (hash + (((_MASK >> 3) & hash) << 3));
     hash = hash & (hash >> 11);
     return _MASK & (hash + (((_MASK >> 15) & hash) << 15));
   }
@@ -1373,7 +1643,7 @@ class FunctionTypeNamer extends DartTypeVisitor {
       visit(parameter);
     }
     bool first = false;
-    for (DartType parameter in  type.optionalParameterTypes) {
+    for (DartType parameter in type.optionalParameterTypes) {
       if (!first) {
         sb.write('_');
       }

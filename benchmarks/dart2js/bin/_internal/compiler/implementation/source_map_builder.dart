@@ -14,8 +14,8 @@ class SourceMapBuilder {
   static const int VLQ_BASE_MASK = (1 << 5) - 1;
   static const int VLQ_CONTINUATION_BIT = 1 << 5;
   static const int VLQ_CONTINUATION_MASK = 1 << 5;
-  static const String BASE64_DIGITS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn'
-                                      'opqrstuvwxyz0123456789+/';
+  static const String BASE64_DIGITS =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn' 'opqrstuvwxyz0123456789+/';
 
   final Uri uri;
   final Uri fileUri;
@@ -78,10 +78,9 @@ class SourceMapBuilder {
     }
     int sourceUrlIndex =
         indexOf(sourceUrlList, sourceLocation.getSourceUrl(), sourceUrlMap);
-    return
-       sourceUrlIndex == previousSourceUrlIndex &&
-       sourceLocation.getLine() == previousSourceLine &&
-       sourceLocation.getColumn() == previousSourceColumn;
+    return sourceUrlIndex == previousSourceUrlIndex &&
+        sourceLocation.getLine() == previousSourceLine &&
+        sourceLocation.getColumn() == previousSourceColumn;
   }
 
   void addMapping(int targetOffset, SourceFileLocation sourceLocation) {
@@ -125,8 +124,8 @@ class SourceMapBuilder {
   String build() {
     resetPreviousSourceLocation();
     StringBuffer mappingsBuffer = new StringBuffer();
-    entries.forEach((SourceMapEntry entry) => writeEntry(entry, targetFile,
-                                                         mappingsBuffer));
+    entries.forEach(
+        (SourceMapEntry entry) => writeEntry(entry, targetFile, mappingsBuffer));
     StringBuffer buffer = new StringBuffer();
     buffer.write('{\n');
     buffer.write('  "version": 3,\n');
@@ -137,8 +136,7 @@ class SourceMapBuilder {
     buffer.write('  "sources": ');
     if (uri != null) {
       sourceUrlList =
-          sourceUrlList.map((url) => relativize(uri, Uri.parse(url), false))
-              .toList();
+          sourceUrlList.map((url) => relativize(uri, Uri.parse(url), false)).toList();
     }
     printStringListOn(sourceUrlList, buffer);
     buffer.write(',\n');
@@ -151,7 +149,8 @@ class SourceMapBuilder {
     return buffer.toString();
   }
 
-  void writeEntry(SourceMapEntry entry, SourceFile targetFile, StringBuffer output) {
+  void writeEntry(SourceMapEntry entry, SourceFile targetFile,
+      StringBuffer output) {
     int targetLine = targetFile.getLine(entry.targetOffset);
     int targetColumn = targetFile.getColumn(targetLine, entry.targetOffset);
 
@@ -257,7 +256,7 @@ class TokenSourceFileLocation extends SourceFileLocation {
   final String name;
 
   TokenSourceFileLocation(SourceFile sourceFile, this.token, this.name)
-    : super(sourceFile);
+      : super(sourceFile);
 
   int get offset => token.charOffset;
 

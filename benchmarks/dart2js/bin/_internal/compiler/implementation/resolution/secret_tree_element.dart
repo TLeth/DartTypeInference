@@ -36,7 +36,9 @@ abstract class NullTreeElementMixin implements TreeElementMixin, Spannable {
   // You're not really supposed to access this field anyways.
   Object get _element => null;
   set _element(_) {
-    assert(invariant(this, false,
+    assert(invariant(
+        this,
+        false,
         message: "Elements cannot be associated with ${runtimeType}."));
   }
 }

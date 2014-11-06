@@ -66,8 +66,10 @@ class Environment {
 
   ir.Primitive lookup(Element element) {
     assert(!element.isConst);
-    assert(invariant(element, variable2index.containsKey(element),
-                     message: "Unknown variable: $element."));
+    assert(invariant(
+        element,
+        variable2index.containsKey(element),
+        message: "Unknown variable: $element."));
     return index2value[variable2index[element]];
   }
 
@@ -167,9 +169,8 @@ class IrBuilderSharedState {
 
   final ir.Continuation returnContinuation = new ir.Continuation.retrn();
 
-  IrBuilderSharedState(this.constantSystem,
-                       this.currentFunction,
-                       this.closureLocals);
+  IrBuilderSharedState(this.constantSystem, this.currentFunction,
+      this.closureLocals);
 }
 
 /// A factory for building the cps IR.
@@ -211,11 +212,12 @@ class IrBuilder {
   ir.Expression _root = null;
   ir.Expression _current = null;
 
-  IrBuilder(ConstantSystem constantSystem,
-            FunctionElement currentFunction,
-            Iterable<Entity> closureLocals)
+  IrBuilder(ConstantSystem constantSystem, FunctionElement currentFunction,
+      Iterable<Entity> closureLocals)
       : this.state = new IrBuilderSharedState(
-            constantSystem, currentFunction, closureLocals),
+          constantSystem,
+          currentFunction,
+          closureLocals),
         this.environment = new Environment.empty();
 
   /// Construct a delimited visitor for visiting a subtree.
@@ -250,8 +252,8 @@ class IrBuilder {
   ///
   /// [isClosureVariable] marks whether [parameterElement] is accessed from an
   /// inner function.
-  void createParameter(LocalElement parameterElement,
-                       {bool isClosureVariable: false}) {
+  void createParameter(LocalElement parameterElement, {bool isClosureVariable:
+      false}) {
     ir.Parameter parameter = new ir.Parameter(parameterElement);
     _parameters.add(parameter);
     if (isClosureVariable) {
@@ -264,7 +266,7 @@ class IrBuilder {
   /// Add the constant [variableElement] to the environment with [value] as its
   /// constant value.
   void declareLocalConstant(LocalVariableElement variableElement,
-                            ConstantExpression value) {
+      ConstantExpression value) {
     state.localConstants.add(new ConstDeclaration(variableElement, value));
   }
 
@@ -274,8 +276,7 @@ class IrBuilder {
   /// [isClosureVariable] marks whether [variableElement] is accessed from an
   /// inner function.
   void declareLocalVariable(LocalVariableElement variableElement,
-                            {ir.Primitive initialValue,
-                             bool isClosureVariable: false}) {
+      {ir.Primitive initialValue, bool isClosureVariable: false}) {
     assert(isOpen);
     if (initialValue == null) {
       // TODO(kmillikin): Consider pooling constants.
@@ -284,9 +285,8 @@ class IrBuilder {
       add(new ir.LetPrim(initialValue));
     }
     if (isClosureVariable) {
-      add(new ir.SetClosureVariable(variableElement,
-                                    initialValue,
-                                    isDeclaration: true));
+      add(
+          new ir.SetClosureVariable(variableElement, initialValue, isDeclaration: true));
     } else {
       // In case a primitive was introduced for the initializer expression,
       // use this variable element to help derive a good name for it.
@@ -371,8 +371,7 @@ class IrBuilder {
     assert(isOpen);
     assert(selector.isGetter);
     return continueWithExpression(
-        (k) => new ir.InvokeStatic(
-            element, selector, k, const <ir.Definition>[]));
+        (k) => new ir.InvokeStatic(element, selector, k, const <ir.Definition>[]));
   }
 
   /// Create a dynamic get access on [receiver] where the property is defined
@@ -381,8 +380,7 @@ class IrBuilder {
     assert(isOpen);
     assert(selector.isGetter);
     return continueWithExpression(
-        (k) => new ir.InvokeMethod(
-            receiver, selector, k, const <ir.Definition>[]));
+        (k) => new ir.InvokeMethod(receiver, selector, k, const <ir.Definition>[]));
   }
 
   /**
@@ -402,22 +400,28 @@ class IrBuilder {
   ///
   /// Parameters must be created before the construction of the body using
   /// [createParameter].
-  ir.FunctionDefinition buildFunctionDefinition(
-      FunctionElement element,
+  ir.FunctionDefinition buildFunctionDefinition(FunctionElement element,
       List<ConstantExpression> defaults) {
     if (!element.isAbstract) {
       ensureReturn();
       return new ir.FunctionDefinition(
-          element, state.returnContinuation, _parameters, _root,
-          state.localConstants, defaults);
+          element,
+          state.returnContinuation,
+          _parameters,
+          _root,
+          state.localConstants,
+          defaults);
     } else {
-      assert(invariant(element, _root == null,
+      assert(invariant(
+          element,
+          _root == null,
           message: "Non-empty body for abstract method $element: $_root"));
-      assert(invariant(element, state.localConstants.isEmpty,
+      assert(invariant(
+          element,
+          state.localConstants.isEmpty,
           message: "Local constants for abstract method $element: "
-                   "${state.localConstants}"));
-      return new ir.FunctionDefinition.abstract(
-                element, _parameters, defaults);
+              "${state.localConstants}"));
+      return new ir.FunctionDefinition.abstract(element, _parameters, defaults);
     }
   }
 
@@ -425,7 +429,7 @@ class IrBuilder {
   /// Create a super invocation with method name and arguments structure defined
   /// by [selector] and argument values defined by [arguments].
   ir.Primitive buildSuperInvocation(Selector selector,
-                                    List<ir.Definition> arguments) {
+      List<ir.Definition> arguments) {
     assert(isOpen);
     return continueWithExpression(
         (k) => new ir.InvokeSuperMethod(selector, k, arguments));
@@ -435,9 +439,8 @@ class IrBuilder {
   /// Create a dynamic invocation on [receiver] with method name and arguments
   /// structure defined by [selector] and argument values defined by
   /// [arguments].
-  ir.Primitive buildDynamicInvocation(ir.Definition receiver,
-                                      Selector selector,
-                                      List<ir.Definition> arguments) {
+  ir.Primitive buildDynamicInvocation(ir.Definition receiver, Selector selector,
+      List<ir.Definition> arguments) {
     assert(isOpen);
     return continueWithExpression(
         (k) => new ir.InvokeMethod(receiver, selector, k, arguments));
@@ -445,9 +448,8 @@ class IrBuilder {
 
   /// Create a static invocation of [element] with arguments structure defined
   /// by [selector] and argument values defined by [arguments].
-  ir.Primitive buildStaticInvocation(Element element,
-                                     Selector selector,
-                                     List<ir.Definition> arguments) {
+  ir.Primitive buildStaticInvocation(Element element, Selector selector,
+      List<ir.Definition> arguments) {
     return continueWithExpression(
         (k) => new ir.InvokeStatic(element, selector, k, arguments));
   }
@@ -485,7 +487,7 @@ class IrBuilder {
   }
 
   bool buildJumpInternal(JumpTarget target,
-                         Iterable<JumpCollector> collectors) {
+      Iterable<JumpCollector> collectors) {
     assert(isOpen);
     for (JumpCollector collector in collectors) {
       if (target == collector.target) {
@@ -512,27 +514,29 @@ class IrBuilder {
     ir.Constant falseConstant =
         makePrimConst(state.constantSystem.createBool(false));
 
-    thenContinuation.body = new ir.LetPrim(falseConstant)
-        ..plug(new ir.InvokeContinuation(joinContinuation, [falseConstant]));
-    elseContinuation.body = new ir.LetPrim(trueConstant)
-        ..plug(new ir.InvokeContinuation(joinContinuation, [trueConstant]));
+    thenContinuation.body = new ir.LetPrim(
+        falseConstant)..plug(
+            new ir.InvokeContinuation(joinContinuation, [falseConstant]));
+    elseContinuation.body = new ir.LetPrim(
+        trueConstant)..plug(
+            new ir.InvokeContinuation(joinContinuation, [trueConstant]));
 
-    add(new ir.LetCont(joinContinuation,
-          new ir.LetCont(thenContinuation,
-            new ir.LetCont(elseContinuation,
-              new ir.Branch(new ir.IsTrue(condition),
-                            thenContinuation,
-                            elseContinuation)))));
+    add(
+        new ir.LetCont(
+            joinContinuation,
+            new ir.LetCont(
+                thenContinuation,
+                new ir.LetCont(
+                    elseContinuation,
+                    new ir.Branch(new ir.IsTrue(condition), thenContinuation, elseContinuation)))));
     return resultParameter;
   }
 
   /// Create a lazy and/or expression. [leftValue] is the value of the left
   /// operand and [buildRightValue] is called to process the value of the right
   /// operand in the context of its own [IrBuilder].
-  ir.Primitive buildLogicalOperator(
-      ir.Primitive leftValue,
-      ir.Primitive buildRightValue(IrBuilder builder),
-      {bool isLazyOr: false}) {
+  ir.Primitive buildLogicalOperator(ir.Primitive leftValue, ir.Primitive
+      buildRightValue(IrBuilder builder), {bool isLazyOr: false}) {
     // e0 && e1 is translated as if e0 ? (e1 == true) : false.
     // e0 || e1 is translated as if e0 ? true : (e1 == true).
     // The translation must convert both e0 and e1 to booleans and handle
@@ -590,11 +594,14 @@ class IrBuilder {
     rightFalseContinuation.body = rightFalseBuilder._root;
     // The right subexpression has two continuations.
     rightBuilder.add(
-        new ir.LetCont(rightTrueContinuation,
-            new ir.LetCont(rightFalseContinuation,
-                new ir.Branch(new ir.IsTrue(rightValue),
-                              rightTrueContinuation,
-                              rightFalseContinuation))));
+        new ir.LetCont(
+            rightTrueContinuation,
+            new ir.LetCont(
+                rightFalseContinuation,
+                new ir.Branch(
+                    new ir.IsTrue(rightValue),
+                    rightTrueContinuation,
+                    rightFalseContinuation))));
     // Depending on the operator, the left subexpression's continuations are
     // either the right subexpression or an invocation of the join-point
     // continuation.
@@ -606,12 +613,17 @@ class IrBuilder {
       leftFalseContinuation.body = emptyBuilder._root;
     }
 
-    add(new ir.LetCont(joinContinuation,
-            new ir.LetCont(leftTrueContinuation,
-                new ir.LetCont(leftFalseContinuation,
-                    new ir.Branch(new ir.IsTrue(leftValue),
-                                  leftTrueContinuation,
-                                  leftFalseContinuation)))));
+    add(
+        new ir.LetCont(
+            joinContinuation,
+            new ir.LetCont(
+                leftTrueContinuation,
+                new ir.LetCont(
+                    leftFalseContinuation,
+                    new ir.Branch(
+                        new ir.IsTrue(leftValue),
+                        leftTrueContinuation,
+                        leftFalseContinuation)))));
     // There is always a join parameter for the result value, because it
     // is different on at least two paths.
     return joinContinuation.parameters.last;
@@ -645,16 +657,15 @@ class IrBuilder {
     // The null elements of common correspond to required parameters of the
     // join-point continuation.
     List<ir.Primitive> common =
-        new List<ir.Primitive>.generate(environmentLength,
-            (i) {
-              ir.Primitive candidate = first[i];
-              if (second[i] == candidate) {
-                return candidate;
-              } else {
-                ++parameterCount;
-                return null;
-              }
-            });
+        new List<ir.Primitive>.generate(environmentLength, (i) {
+      ir.Primitive candidate = first[i];
+      if (second[i] == candidate) {
+        return candidate;
+      } else {
+        ++parameterCount;
+        return null;
+      }
+    });
     // If there is already a parameter for each variable, the other
     // environments do not need to be considered.
     if (parameterCount < environmentLength) {

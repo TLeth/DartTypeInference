@@ -55,13 +55,15 @@ class Template {
   int positionalArgumentCount = -1;
   // TODO(sra): Named arguments.
 
-  Template(this.source, this.ast,
-           {this.isExpression: true, this.forceCopy: false}) {
+  Template(this.source, this.ast, {this.isExpression: true, this.forceCopy:
+      false}) {
     _compile();
   }
 
   Template.withExpressionResult(this.ast)
-      : source = null, isExpression = true, forceCopy = false {
+      : source = null,
+        isExpression = true,
+        forceCopy = false {
     assert(ast is Expression);
     assert(_checkNoPlaceholders());
     positionalArgumentCount = 0;
@@ -69,7 +71,9 @@ class Template {
   }
 
   Template.withStatementResult(this.ast)
-      : source = null, isExpression = false, forceCopy = false {
+      : source = null,
+        isExpression = false,
+        forceCopy = false {
     assert(ast is Statement);
     assert(_checkNoPlaceholders());
     positionalArgumentCount = 0;
@@ -173,7 +177,8 @@ class InstantiatorGeneratorVisitor implements NodeVisitor<Instantiator> {
     return (arguments) {
       var value = arguments[position];
       if (value is Expression) return value;
-      if (value is String) return convertStringToVariableUse(value);;
+      if (value is String) return convertStringToVariableUse(value);
+      ;
       error('Interpolated value #$position is not an Expression: $value');
     };
   }
@@ -186,8 +191,9 @@ class InstantiatorGeneratorVisitor implements NodeVisitor<Instantiator> {
         Expression toExpression(item) {
           if (item is Expression) return item;
           if (item is String) return convertStringToVariableUse(item);
-          return error('Interpolated value #$position is not '
-              'an Expression or List of Expressions: $value');
+          return error(
+              'Interpolated value #$position is not '
+                  'an Expression or List of Expressions: $value');
         }
         if (value is Iterable) return value.map(toExpression);
         return toExpression(value);
@@ -213,8 +219,9 @@ class InstantiatorGeneratorVisitor implements NodeVisitor<Instantiator> {
       Parameter toParameter(item) {
         if (item is Parameter) return item;
         if (item is String) return new Parameter(item);
-        return error('Interpolated value #$position is not a Parameter or '
-                     'List of Parameters: $value');
+        return error(
+            'Interpolated value #$position is not a Parameter or '
+                'List of Parameters: $value');
       }
       if (value is Iterable) return value.map(toParameter);
       return toParameter(value);
@@ -250,9 +257,11 @@ class InstantiatorGeneratorVisitor implements NodeVisitor<Instantiator> {
         var value = arguments[position];
         Statement toStatement(item) {
           if (item is Statement) return item;
-          if (item is Expression) return item.toStatement();;
-          return error('Interpolated value #$position is not '
-                       'a Statement or List of Statements: $value');
+          if (item is Expression) return item.toStatement();
+          ;
+          return error(
+              'Interpolated value #$position is not '
+                  'a Statement or List of Statements: $value');
         }
         if (value is Iterable) return value.map(toStatement);
         return toStatement(value);
@@ -327,7 +336,8 @@ class InstantiatorGeneratorVisitor implements NodeVisitor<Instantiator> {
         var value = arguments[position];
         if (value is bool) return value;
         if (value is Expression) return value;
-        if (value is String) return convertStringToVariableUse(value);;
+        if (value is String) return convertStringToVariableUse(value);
+        ;
         error('Interpolated value #$position is not an Expression: $value');
       };
     }
@@ -343,10 +353,7 @@ class InstantiatorGeneratorVisitor implements NodeVisitor<Instantiator> {
           return makeOtherwise(arguments);
         }
       }
-      return new If(
-          condition,
-          makeThen(arguments),
-          makeOtherwise(arguments));
+      return new If(condition, makeThen(arguments), makeOtherwise(arguments));
     };
   }
 
@@ -369,7 +376,9 @@ class InstantiatorGeneratorVisitor implements NodeVisitor<Instantiator> {
     Instantiator makeBody = visit(node.body);
     return (arguments) {
       return new For(
-          makeInit(arguments), makeCondition(arguments), makeUpdate(arguments),
+          makeInit(arguments),
+          makeCondition(arguments),
+          makeUpdate(arguments),
           makeBody(arguments));
     };
   }
@@ -414,15 +423,15 @@ class InstantiatorGeneratorVisitor implements NodeVisitor<Instantiator> {
     Instantiator makeBody = visit(node.body);
     Instantiator makeCatch = visitNullable(node.catchPart);
     Instantiator makeFinally = visitNullable(node.finallyPart);
-    return (arguments) => new Try(
-        makeBody(arguments), makeCatch(arguments), makeFinally(arguments));
+    return (arguments) =>
+        new Try(makeBody(arguments), makeCatch(arguments), makeFinally(arguments));
   }
 
   Instantiator visitCatch(Catch node) {
     Instantiator makeDeclaration = visit(node.declaration);
     Instantiator makeBody = visit(node.body);
-    return (arguments) => new Catch(
-        makeDeclaration(arguments), makeBody(arguments));
+    return (arguments) =>
+        new Catch(makeDeclaration(arguments), makeBody(arguments));
   }
 
   Instantiator visitSwitch(Switch node) => TODO('visitSwitch');
@@ -440,8 +449,7 @@ class InstantiatorGeneratorVisitor implements NodeVisitor<Instantiator> {
       TODO('visitLabeledStatement');
   Instantiator visitLiteralStatement(LiteralStatement node) =>
       TODO('visitLiteralStatement');
-  Instantiator visitBlob(Blob node) =>
-      TODO('visitBlob');
+  Instantiator visitBlob(Blob node) => TODO('visitBlob');
   Instantiator visitLiteralExpression(LiteralExpression node) =>
       TODO('visitLiteralExpression');
 
@@ -475,7 +483,8 @@ class InstantiatorGeneratorVisitor implements NodeVisitor<Instantiator> {
     Instantiator makeValue = visitNullable(node.value);
     return (arguments) {
       return new VariableInitialization(
-          makeDeclaration(arguments), makeValue(arguments));
+          makeDeclaration(arguments),
+          makeValue(arguments));
     };
   }
 
@@ -483,10 +492,11 @@ class InstantiatorGeneratorVisitor implements NodeVisitor<Instantiator> {
     Instantiator makeCondition = visit(cond.condition);
     Instantiator makeThen = visit(cond.then);
     Instantiator makeOtherwise = visit(cond.otherwise);
-    return (arguments) => new Conditional(
-        makeCondition(arguments),
-        makeThen(arguments),
-        makeOtherwise(arguments));
+    return (arguments) =>
+        new Conditional(
+            makeCondition(arguments),
+            makeThen(arguments),
+            makeOtherwise(arguments));
   }
 
   Instantiator visitNew(New node) =>
@@ -596,9 +606,8 @@ class InstantiatorGeneratorVisitor implements NodeVisitor<Instantiator> {
   Instantiator visitArrayInitializer(ArrayInitializer node) {
     // Assume array has no missing elements.
     // TODO(sra): Implement splicing?
-    List<Instantiator> elementMakers = node.elements
-        .map((ArrayElement element) => visit(element.value))
-        .toList();
+    List<Instantiator> elementMakers =
+        node.elements.map((ArrayElement element) => visit(element.value)).toList();
     return (arguments) {
       List<ArrayElement> elements = <ArrayElement>[];
       void add(Expression value) {

@@ -60,8 +60,10 @@ class SsaInstructionSelection extends HBaseVisitor {
     if (node.kind == HIs.RAW_CHECK) {
       HInstruction interceptor = node.interceptor;
       if (interceptor != null) {
-        return new HIsViaInterceptor(node.typeExpression, interceptor,
-                                     backend.boolType);
+        return new HIsViaInterceptor(
+            node.typeExpression,
+            interceptor,
+            backend.boolType);
       }
     }
     return node;
@@ -80,8 +82,7 @@ class SsaInstructionSelection extends HBaseVisitor {
     if (leftType.isNullable && rightType.isNullable) {
       if (left.isConstantNull() ||
           right.isConstantNull() ||
-          (left.isPrimitive(compiler) &&
-           leftType == rightType)) {
+          (left.isPrimitive(compiler) && leftType == rightType)) {
         return '==';
       }
       return null;
@@ -120,8 +121,8 @@ class SsaInstructionSelection extends HBaseVisitor {
           // TODO(15933): Make automatically generated property extraction
           // closures work with the dummy receiver optimization.
           if (!selector.isGetter) {
-            ConstantValue constant = new DummyConstantValue(
-                receiverArgument.instructionType);
+            ConstantValue constant =
+                new DummyConstantValue(receiverArgument.instructionType);
             HConstant dummy = graph.addConstant(constant, compiler);
             receiverArgument.usedBy.remove(node);
             node.inputs[1] = dummy;
@@ -147,7 +148,9 @@ class SsaInstructionSelection extends HBaseVisitor {
       if (candidate is HFieldGet) {
         if (candidate.element != setter.element) return false;
         if (candidate.receiver != setter.receiver) return false;
-        // Recognize only three instructions in sequence in the same block.  This
+
+
+            // Recognize only three instructions in sequence in the same block.  This
         // could be broadened to allow non-interfering interleaved instructions.
         if (op.block != block) return false;
         if (candidate.block != block) return false;
@@ -180,20 +183,28 @@ class SsaInstructionSelection extends HBaseVisitor {
         if (left.usedBy.length == 1) {
           if (right is HConstant && right.constant.isOne) {
             HInstruction rmw = new HReadModifyWrite.preOp(
-                setter.element, incrementOp, receiver, op.instructionType);
+                setter.element,
+                incrementOp,
+                receiver,
+                op.instructionType);
             return replaceOp(rmw, left);
           } else {
             HInstruction rmw = new HReadModifyWrite.assignOp(
                 setter.element,
                 assignOp,
-                receiver, right, op.instructionType);
+                receiver,
+                right,
+                op.instructionType);
             return replaceOp(rmw, left);
           }
         } else if (op.usedBy.length == 1 &&
-                   right is HConstant &&
-                   right.constant.isOne) {
+            right is HConstant &&
+            right.constant.isOne) {
           HInstruction rmw = new HReadModifyWrite.postOp(
-              setter.element, incrementOp, receiver, op.instructionType);
+              setter.element,
+              incrementOp,
+              receiver,
+              op.instructionType);
           block.addAfter(left, rmw);
           block.remove(setter);
           block.remove(op);
@@ -205,14 +216,16 @@ class SsaInstructionSelection extends HBaseVisitor {
       return noMatchingRead();
     }
 
-    HInstruction simple(String assignOp,
-                        HInstruction left, HInstruction right) {
+    HInstruction simple(String assignOp, HInstruction left, HInstruction right)
+        {
       if (isMatchingRead(left)) {
         if (left.usedBy.length == 1) {
           HInstruction rmw = new HReadModifyWrite.assignOp(
               setter.element,
               assignOp,
-              receiver, right, op.instructionType);
+              receiver,
+              right,
+              op.instructionType);
           return replaceOp(rmw, left);
         }
       }
@@ -312,12 +325,12 @@ class SsaInstructionMerger extends HBaseVisitor {
     List<HInstruction> inputs = user.inputs;
     for (int i = start; i < inputs.length; i++) {
       HInstruction input = inputs[i];
-      if (!generateAtUseSite.contains(input)
-          && !input.isCodeMotionInvariant()
-          && input.usedBy.length == 1
-          && input is !HPhi
-          && input is !HLocalValue
-          && !input.isJsStatement()) {
+      if (!generateAtUseSite.contains(input) &&
+          !input.isCodeMotionInvariant() &&
+          input.usedBy.length == 1 &&
+          input is! HPhi &&
+          input is! HLocalValue &&
+          !input.isJsStatement()) {
         if (input.isPure()) {
           // Only consider a pure input if it is in the same loop.
           // Otherwise, we might move GVN'ed instruction back into the
@@ -374,8 +387,7 @@ class SsaInstructionMerger extends HBaseVisitor {
   }
 
   void visitTypeConversion(HTypeConversion instruction) {
-    if (!instruction.isArgumentTypeCheck
-        && !instruction.isReceiverTypeCheck) {
+    if (!instruction.isArgumentTypeCheck && !instruction.isReceiverTypeCheck) {
       assert(instruction.isCheckedModeCheck || instruction.isCastTypeCheck);
       // Checked mode checks and cast checks compile to code that
       // only use their input once, so we can safely visit them
@@ -395,8 +407,8 @@ class SsaInstructionMerger extends HBaseVisitor {
   }
 
   bool isBlockSinglePredecessor(HBasicBlock block) {
-    return block.successors.length == 1
-        && block.successors[0].predecessors.length == 1;
+    return block.successors.length == 1 &&
+        block.successors[0].predecessors.length == 1;
   }
 
   void visitBasicBlock(HBasicBlock block) {
@@ -435,9 +447,8 @@ class SsaInstructionMerger extends HBaseVisitor {
     }
 
     block.last.accept(this);
-    for (HInstruction instruction = block.last.previous;
-         instruction != null;
-         instruction = instruction.previous) {
+    for (HInstruction instruction =
+        block.last.previous; instruction != null; instruction = instruction.previous) {
       if (generateAtUseSite.contains(instruction)) {
         continue;
       }
@@ -502,7 +513,9 @@ class SsaInstructionMerger extends HBaseVisitor {
             List<HInstruction> newInputs = expectedInputs.sublist(oldLength);
             int newCount = newInputs.length;
             expectedInputs.setRange(
-                newCount, newCount + oldLength, expectedInputs);
+                newCount,
+                newCount + oldLength,
+                expectedInputs);
             expectedInputs.setRange(0, newCount, newInputs);
           }
         }
@@ -518,8 +531,8 @@ class SsaInstructionMerger extends HBaseVisitor {
       }
     }
 
-    if (block.predecessors.length == 1
-        && isBlockSinglePredecessor(block.predecessors[0])) {
+    if (block.predecessors.length == 1 &&
+        isBlockSinglePredecessor(block.predecessors[0])) {
       assert(block.phis.isEmpty);
       tryMergingExpressions(block.predecessors[0]);
     } else {
@@ -556,22 +569,23 @@ class SsaConditionMerger extends HGraphVisitor {
   bool hasAnyStatement(HBasicBlock block, HInstruction instruction) {
     // If [instruction] is not in [block], then if the block is not
     // empty, we know there will be a statement to emit.
-    if (!identical(instruction.block, block)) return !identical(block.last, block.first);
+    if (!identical(
+        instruction.block,
+        block)) return !identical(block.last, block.first);
 
     // If [instruction] is not the last instruction of the block
     // before the control flow instruction, or the last instruction,
     // then we will have to emit a statement for that last instruction.
-    if (instruction != block.last
-        && !identical(instruction, block.last.previous)) return true;
+    if (instruction != block.last &&
+        !identical(instruction, block.last.previous)) return true;
 
     // If one of the instructions in the block until [instruction] is
     // not generated at use site, then we will have to emit a
     // statement for it.
     // TODO(ngeoffray): we could generate a comma separated
     // list of expressions.
-    for (HInstruction temp = block.first;
-         !identical(temp, instruction);
-         temp = temp.next) {
+    for (HInstruction temp =
+        block.first; !identical(temp, instruction); temp = temp.next) {
       if (!generateAtUseSite.contains(temp)) return true;
     }
 
@@ -592,7 +606,7 @@ class SsaConditionMerger extends HGraphVisitor {
   }
 
   void visitBasicBlock(HBasicBlock block) {
-    if (block.last is !HIf) return;
+    if (block.last is! HIf) return;
     HIf startIf = block.last;
     HBasicBlock end = startIf.joinBlock;
 
@@ -682,9 +696,9 @@ class SsaConditionMerger extends HGraphVisitor {
     // If the operation is only used by the first instruction
     // of its block and is safe to be generated at use site, mark it
     // so.
-    if (phi.usedBy.length == 1
-        && phi.usedBy[0] == nextInstruction
-        && isSafeToGenerateAtUseSite(phi.usedBy[0], phi)) {
+    if (phi.usedBy.length == 1 &&
+        phi.usedBy[0] == nextInstruction &&
+        isSafeToGenerateAtUseSite(phi.usedBy[0], phi)) {
       markAsGenerateAtUseSite(phi);
     }
 

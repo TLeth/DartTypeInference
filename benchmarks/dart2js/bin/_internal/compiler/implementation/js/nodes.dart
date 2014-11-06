@@ -82,8 +82,7 @@ class BaseVisitor<T> implements NodeVisitor<T> {
   T visitJump(Statement node) => visitStatement(node);
 
   T visitBlock(Block node) => visitStatement(node);
-  T visitExpressionStatement(ExpressionStatement node)
-      => visitStatement(node);
+  T visitExpressionStatement(ExpressionStatement node) => visitStatement(node);
   T visitEmptyStatement(EmptyStatement node) => visitStatement(node);
   T visitIf(If node) => visitStatement(node);
   T visitFor(For node) => visitLoop(node);
@@ -96,8 +95,7 @@ class BaseVisitor<T> implements NodeVisitor<T> {
   T visitThrow(Throw node) => visitJump(node);
   T visitTry(Try node) => visitStatement(node);
   T visitSwitch(Switch node) => visitStatement(node);
-  T visitFunctionDeclaration(FunctionDeclaration node)
-      => visitStatement(node);
+  T visitFunctionDeclaration(FunctionDeclaration node) => visitStatement(node);
   T visitLabeledStatement(LabeledStatement node) => visitStatement(node);
   T visitLiteralStatement(LiteralStatement node) => visitStatement(node);
 
@@ -110,8 +108,8 @@ class BaseVisitor<T> implements NodeVisitor<T> {
   T visitVariableReference(VariableReference node) => visitExpression(node);
 
   T visitLiteralExpression(LiteralExpression node) => visitExpression(node);
-  T visitVariableDeclarationList(VariableDeclarationList node)
-      => visitExpression(node);
+  T visitVariableDeclarationList(VariableDeclarationList node) =>
+      visitExpression(node);
   T visitAssignment(Assignment node) => visitExpression(node);
   T visitVariableInitialization(VariableInitialization node) {
     if (node.value != null) {
@@ -129,8 +127,8 @@ class BaseVisitor<T> implements NodeVisitor<T> {
   T visitAccess(PropertyAccess node) => visitExpression(node);
 
   T visitVariableUse(VariableUse node) => visitVariableReference(node);
-  T visitVariableDeclaration(VariableDeclaration node)
-      => visitVariableReference(node);
+  T visitVariableDeclaration(VariableDeclaration node) =>
+      visitVariableReference(node);
   T visitParameter(Parameter node) => visitVariableDeclaration(node);
   T visitThis(This node) => visitParameter(node);
 
@@ -152,16 +150,16 @@ class BaseVisitor<T> implements NodeVisitor<T> {
 
   T visitInterpolatedNode(InterpolatedNode node) => visitNode(node);
 
-  T visitInterpolatedExpression(InterpolatedExpression node)
-      => visitInterpolatedNode(node);
-  T visitInterpolatedLiteral(InterpolatedLiteral node)
-      => visitInterpolatedNode(node);
-  T visitInterpolatedParameter(InterpolatedParameter node)
-      => visitInterpolatedNode(node);
-  T visitInterpolatedSelector(InterpolatedSelector node)
-      => visitInterpolatedNode(node);
-  T visitInterpolatedStatement(InterpolatedStatement node)
-      => visitInterpolatedNode(node);
+  T visitInterpolatedExpression(InterpolatedExpression node) =>
+      visitInterpolatedNode(node);
+  T visitInterpolatedLiteral(InterpolatedLiteral node) =>
+      visitInterpolatedNode(node);
+  T visitInterpolatedParameter(InterpolatedParameter node) =>
+      visitInterpolatedNode(node);
+  T visitInterpolatedSelector(InterpolatedSelector node) =>
+      visitInterpolatedNode(node);
+  T visitInterpolatedStatement(InterpolatedStatement node) =>
+      visitInterpolatedNode(node);
 
   // Ignore comments by default.
   T visitComment(Comment node) => null;
@@ -245,7 +243,9 @@ class ExpressionStatement extends Statement {
   ExpressionStatement(this.expression);
 
   accept(NodeVisitor visitor) => visitor.visitExpressionStatement(this);
-  void visitChildren(NodeVisitor visitor) { expression.accept(visitor); }
+  void visitChildren(NodeVisitor visitor) {
+    expression.accept(visitor);
+  }
   ExpressionStatement _clone() => new ExpressionStatement(expression);
 }
 
@@ -265,7 +265,7 @@ class If extends Statement {
   If(this.condition, this.then, this.otherwise);
   If.noElse(this.condition, this.then) : this.otherwise = new EmptyStatement();
 
-  bool get hasElse => otherwise is !EmptyStatement;
+  bool get hasElse => otherwise is! EmptyStatement;
 
   accept(NodeVisitor visitor) => visitor.visitIf(this);
 
@@ -352,7 +352,7 @@ class Do extends Loop {
 }
 
 class Continue extends Statement {
-  final String targetLabel;  // Can be null.
+  final String targetLabel; // Can be null.
 
   Continue(this.targetLabel);
 
@@ -363,7 +363,7 @@ class Continue extends Statement {
 }
 
 class Break extends Statement {
-  final String targetLabel;  // Can be null.
+  final String targetLabel; // Can be null.
 
   Break(this.targetLabel);
 
@@ -374,7 +374,7 @@ class Break extends Statement {
 }
 
 class Return extends Statement {
-  final Expression value;  // Can be null.
+  final Expression value; // Can be null.
 
   Return([this.value = null]);
 
@@ -403,8 +403,8 @@ class Throw extends Statement {
 
 class Try extends Statement {
   final Block body;
-  final Catch catchPart;  // Can be null if [finallyPart] is non-null.
-  final Block finallyPart;  // Can be null if [catchPart] is non-null.
+  final Catch catchPart; // Can be null if [finallyPart] is non-null.
+  final Block finallyPart; // Can be null if [catchPart] is non-null.
 
   Try(this.body, this.catchPart, this.finallyPart) {
     assert(catchPart != null || finallyPart != null);
@@ -523,7 +523,7 @@ class LiteralStatement extends Statement {
   LiteralStatement(this.code);
 
   accept(NodeVisitor visitor) => visitor.visitLiteralStatement(this);
-  void visitChildren(NodeVisitor visitor) { }
+  void visitChildren(NodeVisitor visitor) {}
 
   LiteralStatement _clone() => new LiteralStatement(code);
 }
@@ -603,8 +603,8 @@ class VariableDeclarationList extends Expression {
 
 class Assignment extends Expression {
   final Expression leftHandSide;
-  final String op;         // Null, if the assignment is not compound.
-  final Expression value;  // May be null, for [VariableInitialization]s.
+  final String op; // Null, if the assignment is not compound.
+  final Expression value; // May be null, for [VariableInitialization]s.
 
   Assignment(leftHandSide, value)
       : this.compound(leftHandSide, null, value);
@@ -621,8 +621,7 @@ class Assignment extends Expression {
     if (value != null) value.accept(visitor);
   }
 
-  Assignment _clone() =>
-      new Assignment.compound(leftHandSide, op, value);
+  Assignment _clone() => new Assignment.compound(leftHandSide, op, value);
 }
 
 class VariableInitialization extends Assignment {
@@ -957,8 +956,7 @@ class ArrayInitializer extends Expression {
   static List<ArrayElement> _convert(Iterable<Expression> expressions) {
     int index = 0;
     return expressions.map(
-        (expression) => new ArrayElement(index++, expression))
-        .toList();
+        (expression) => new ArrayElement(index++, expression)).toList();
   }
 }
 
@@ -1049,8 +1047,8 @@ class InterpolatedLiteral extends Literal implements InterpolatedNode {
   InterpolatedLiteral _clone() => new InterpolatedLiteral(name);
 }
 
-class InterpolatedParameter extends Expression
-    implements Parameter, InterpolatedNode {
+class InterpolatedParameter extends Expression implements Parameter,
+    InterpolatedNode {
   final name;
   bool get allowRename => false;
 

@@ -30,13 +30,13 @@ class ExpensiveMap<K, V> implements Map<K, V> {
   bool containsKey(K key) => _maps[0].containsKey(key);
   bool containsValue(V value) => _maps[0].containsValue(value);
 
-  V operator[](K key) => _maps[0][key];
+  V operator [](K key) => _maps[0][key];
 
   void forEach(void action(K key, V value)) {
     _maps[0].forEach(action);
   }
 
-  void operator[]=(K key, V value) {
+  void operator []=(K key, V value) {
     for (int i = 0; i < _maps.length; i++) {
       _maps[i][key] = value;
     }

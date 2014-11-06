@@ -33,14 +33,15 @@ abstract class Definition extends Node {
   // The head of a linked-list of occurrences, in no particular order.
   Reference firstRef = null;
 
-  bool get hasAtMostOneUse  => firstRef == null || firstRef.next == null;
+  bool get hasAtMostOneUse => firstRef == null || firstRef.next == null;
   bool get hasExactlyOneUse => firstRef != null && firstRef.next == null;
   bool get hasAtLeastOneUse => firstRef != null;
-  bool get hasMultipleUses  => !hasAtMostOneUse;
+  bool get hasMultipleUses => !hasAtMostOneUse;
 
   void substituteFor(Definition other) {
     if (other.firstRef == null) return;
-    Reference previous, current = other.firstRef;
+    Reference previous;
+    Reference current = other.firstRef;
     do {
       current.definition = this;
       previous = current;
@@ -177,7 +178,7 @@ class InvokeStatic extends Expression implements Invoke {
   final List<Reference> arguments;
 
   InvokeStatic(this.target, this.selector, Continuation cont,
-               List<Definition> args)
+      List<Definition> args)
       : continuation = new Reference(cont),
         arguments = _referenceList(args) {
     assert(target is ErroneousElement || selector.name == target.name);
@@ -194,20 +195,18 @@ class InvokeMethod extends Expression implements Invoke {
   final Reference continuation;
   final List<Reference> arguments;
 
-  InvokeMethod(Definition receiver,
-               this.selector,
-               Continuation cont,
-               List<Definition> args)
+  InvokeMethod(Definition receiver, this.selector, Continuation cont,
+      List<Definition> args)
       : receiver = new Reference(receiver),
         continuation = new Reference(cont),
         arguments = _referenceList(args) {
     assert(selector != null);
     assert(selector.kind == SelectorKind.CALL ||
-           selector.kind == SelectorKind.OPERATOR ||
-           (selector.kind == SelectorKind.GETTER && arguments.isEmpty) ||
-           (selector.kind == SelectorKind.SETTER && arguments.length == 1) ||
-           (selector.kind == SelectorKind.INDEX && arguments.length == 1) ||
-           (selector.kind == SelectorKind.INDEX && arguments.length == 2));
+        selector.kind == SelectorKind.OPERATOR ||
+        (selector.kind == SelectorKind.GETTER && arguments.isEmpty) ||
+        (selector.kind == SelectorKind.SETTER && arguments.length == 1) ||
+        (selector.kind == SelectorKind.INDEX && arguments.length == 1) ||
+        (selector.kind == SelectorKind.INDEX && arguments.length == 2));
   }
 
   accept(Visitor visitor) => visitor.visitInvokeMethod(this);
@@ -220,18 +219,16 @@ class InvokeSuperMethod extends Expression implements Invoke {
   final Reference continuation;
   final List<Reference> arguments;
 
-  InvokeSuperMethod(this.selector,
-                    Continuation cont,
-                    List<Definition> args)
+  InvokeSuperMethod(this.selector, Continuation cont, List<Definition> args)
       : continuation = new Reference(cont),
         arguments = _referenceList(args) {
     assert(selector != null);
     assert(selector.kind == SelectorKind.CALL ||
-           selector.kind == SelectorKind.OPERATOR ||
-           (selector.kind == SelectorKind.GETTER && arguments.isEmpty) ||
-           (selector.kind == SelectorKind.SETTER && arguments.length == 1) ||
-           (selector.kind == SelectorKind.INDEX && arguments.length == 1) ||
-           (selector.kind == SelectorKind.INDEX && arguments.length == 2));
+        selector.kind == SelectorKind.OPERATOR ||
+        (selector.kind == SelectorKind.GETTER && arguments.isEmpty) ||
+        (selector.kind == SelectorKind.SETTER && arguments.length == 1) ||
+        (selector.kind == SelectorKind.INDEX && arguments.length == 1) ||
+        (selector.kind == SelectorKind.INDEX && arguments.length == 2));
   }
 
   accept(Visitor visitor) => visitor.visitInvokeSuperMethod(this);
@@ -253,23 +250,21 @@ class InvokeConstructor extends Expression implements Invoke {
   /// True if this is an invocation of a factory constructor.
   bool get isFactory => target.isFactoryConstructor;
 
-  InvokeConstructor(this.type,
-                    this.target,
-                    this.selector,
-                    Continuation cont,
-                    List<Definition> args)
+  InvokeConstructor(this.type, this.target, this.selector, Continuation cont,
+      List<Definition> args)
       : continuation = new Reference(cont),
         arguments = _referenceList(args) {
-    assert(dart2js.invariant(target,
+    assert(dart2js.invariant(
+        target,
         target.isErroneous || target.isConstructor,
-        message: "Constructor invocation target is not a constructor: "
-                 "$target."));
-    assert(dart2js.invariant(target,
+        message: "Constructor invocation target is not a constructor: " "$target."));
+    assert(dart2js.invariant(
+        target,
         target.isErroneous ||
-        type.isDynamic ||
-        type.element == target.enclosingClass.declaration,
+            type.isDynamic ||
+            type.element == target.enclosingClass.declaration,
         message: "Constructor invocation type ${type} does not match enclosing "
-                 "class of target ${target}."));
+            "class of target ${target}."));
   }
 
   accept(Visitor visitor) => visitor.visitInvokeConstructor(this);
@@ -285,10 +280,7 @@ class TypeOperator extends Expression {
   final Reference continuation;
   final String operator;
 
-  TypeOperator(this.operator,
-                Primitive receiver,
-                this.type,
-                Continuation cont)
+  TypeOperator(this.operator, Primitive receiver, this.type, Continuation cont)
       : this.receiver = new Reference(receiver),
         this.continuation = new Reference(cont) {
     assert(operator == "is" || operator == "as");
@@ -354,8 +346,8 @@ class SetClosureVariable extends Expression implements InteriorNode {
   /// avoid declaring closure variables if it is not necessary.
   final bool isDeclaration;
 
-  SetClosureVariable(this.variable, Primitive value,
-                     {this.isDeclaration : false })
+  SetClosureVariable(this.variable, Primitive value, {this.isDeclaration:
+      false})
       : this.value = new Reference(value) {
     assert(variable != null);
   }
@@ -400,13 +392,12 @@ class InvokeContinuation extends Expression {
   // the continuation itself.
   bool isRecursive;
 
-  InvokeContinuation(Continuation cont, List<Definition> args,
-                     {recursive: false})
+  InvokeContinuation(Continuation cont, List<Definition> args, {recursive:
+      false})
       : continuation = new Reference(cont),
         arguments = _referenceList(args),
         isRecursive = recursive {
-    assert(cont.parameters == null ||
-        cont.parameters.length == args.length);
+    assert(cont.parameters == null || cont.parameters.length == args.length);
     if (recursive) cont.isRecursive = true;
   }
 
@@ -547,13 +538,11 @@ class FunctionDefinition extends Node implements InteriorNode {
   /// Values for optional parameters.
   final List<ConstantExpression> defaultParameterValues;
 
-  FunctionDefinition(this.element, this.returnContinuation,
-      this.parameters, this.body, this.localConstants,
-      this.defaultParameterValues);
+  FunctionDefinition(this.element, this.returnContinuation, this.parameters,
+      this.body, this.localConstants, this.defaultParameterValues);
 
-  FunctionDefinition.abstract(this.element,
-                              this.parameters,
-                              this.defaultParameterValues)
+  FunctionDefinition.abstract(this.element, this.parameters,
+      this.defaultParameterValues)
       : this.returnContinuation = null,
         this.localConstants = const <ConstDeclaration>[];
 
@@ -803,8 +792,8 @@ class RegisterArray {
 class RegisterAllocator extends Visitor {
   /// Separate register spaces for each source-level variable/parameter.
   /// Note that null is used as key for primitives without elements.
-  final Map<Element, RegisterArray> elementRegisters =
-      <Element, RegisterArray>{};
+  final Map<Element, RegisterArray> elementRegisters = <Element,
+      RegisterArray>{};
 
   RegisterArray getRegisterArray(Element element) {
     RegisterArray registers = elementRegisters[element];

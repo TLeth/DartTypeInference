@@ -4,8 +4,7 @@
 
 part of dart_backend;
 
-Comparator get _compareNodes =>
-    compareBy((n) => n.getBeginToken().charOffset);
+Comparator get _compareNodes => compareBy((n) => n.getBeginToken().charOffset);
 
 abstract class Renamable implements Comparable {
   final int RENAMABLE_TYPE_ELEMENT = 1;
@@ -58,7 +57,8 @@ class LocalRenamable extends Renamable {
   LocalRenamable(Set<Node> nodes)
       : super(nodes);
   int compareInternals(LocalRenamable other) =>
-      _compareNodes(sorted(this.nodes, _compareNodes)[0],
+      _compareNodes(
+          sorted(this.nodes, _compareNodes)[0],
           sorted(other.nodes, _compareNodes)[0]);
   int get kind => RENAMABLE_TYPE_LOCAL;
   String createNewName(PlaceholderRenamer placeholderRenamer) {
@@ -92,9 +92,8 @@ class PlaceholderRenamer {
 
   Generator _generator;
 
-  PlaceholderRenamer(this.fixedMemberNames,
-                     this.reexportingLibraries,
-                     {this.enableMinification, this.cutDeclarationTypes});
+  PlaceholderRenamer(this.fixedMemberNames, this.reexportingLibraries,
+      {this.enableMinification, this.cutDeclarationTypes});
 
   void _renameNodes(Iterable<Node> nodes, String renamer(Node node)) {
     for (Node node in sorted(nodes, _compareNodes)) {
@@ -105,7 +104,7 @@ class PlaceholderRenamer {
   String _generateUniqueTopLevelName(originalName) {
     String newName = _generator.generate(originalName, (name) {
       return _forbiddenIdentifiers.contains(name) ||
-             _allNamedParameterIdentifiers.contains(name);
+          _allNamedParameterIdentifiers.contains(name);
     });
     _forbiddenIdentifiers.add(newName);
     return newName;
@@ -118,9 +117,12 @@ class PlaceholderRenamer {
   /// Looks up [originalName] in the [_privateCache] cache of [library].
   /// If [originalName] was not renamed before, generate a new name.
   String _getPrivateName(LibraryElement library, String originalName) {
-    return _privateCache.putIfAbsent(library, () => new Map<String, String>())
-        .putIfAbsent(originalName,
-                     () => _generateUniqueTopLevelName(originalName));
+    return _privateCache.putIfAbsent(
+        library,
+        () =>
+            new Map<String, String>()).putIfAbsent(
+                originalName,
+                () => _generateUniqueTopLevelName(originalName));
   }
 
   String _renameConstructor(ConstructorPlaceholder placeholder) {
@@ -132,9 +134,9 @@ class PlaceholderRenamer {
 
   String _renameGlobal(Entity entity) {
     assert(entity is! Element ||
-           Elements.isErroneousElement(entity) ||
-           Elements.isStaticOrTopLevel(entity) ||
-           entity is TypeVariableElement);
+        Elements.isErroneousElement(entity) ||
+        Elements.isStaticOrTopLevel(entity) ||
+        entity is TypeVariableElement);
     // TODO(smok): We may want to reuse class static field and method names.
     if (entity is Element) {
       LibraryElement library = entity.library;
@@ -146,15 +148,17 @@ class PlaceholderRenamer {
           platformImports.add(library);
         }
         if (library.isInternalLibrary) {
-          throw new SpannableAssertionFailure(entity,
+          throw new SpannableAssertionFailure(
+              entity,
               "Internal library $library should never have been imported from "
-              "the code compiled by dart2dart.");
+                  "the code compiled by dart2dart.");
         }
         return entity.name;
       }
     }
-    String name = _renamedCache.putIfAbsent(entity,
-            () => _generateUniqueTopLevelName(entity.name));
+    String name = _renamedCache.putIfAbsent(
+        entity,
+        () => _generateUniqueTopLevelName(entity.name));
     // Look up in [_renamedCache] for a name for [entity] .
     // If it was not renamed before, generate a new name.
     return name;
@@ -166,22 +170,23 @@ class PlaceholderRenamer {
     // Build a list sorted by usage of local nodes that will be renamed to
     // the same identifier. So the top-used local variables in all functions
     // will be renamed first and will all share the same new identifier.
-    int maxLength = placeholderCollector.functionScopes.values.fold(0,
+    int maxLength = placeholderCollector.functionScopes.values.fold(
+        0,
         (a, b) => max(a, b.localPlaceholders.length));
 
-    List<Set<Node>> allLocals = new List<Set<Node>>
-        .generate(maxLength, (_) => new Set<Node>());
+    List<Set<Node>> allLocals =
+        new List<Set<Node>>.generate(maxLength, (_) => new Set<Node>());
 
-    for (FunctionScope functionScope
-        in placeholderCollector.functionScopes.values) {
+    for (FunctionScope functionScope in
+        placeholderCollector.functionScopes.values) {
       // Add current sorted local identifiers to the whole sorted list
       // of all local identifiers for all functions.
-      List<LocalPlaceholder> currentSortedPlaceholders =
-          sorted(functionScope.localPlaceholders,
-              compareBy((LocalPlaceholder ph) => -ph.nodes.length));
+      List<LocalPlaceholder> currentSortedPlaceholders = sorted(
+          functionScope.localPlaceholders,
+          compareBy((LocalPlaceholder ph) => -ph.nodes.length));
 
-      List<Set<Node>> currentSortedNodes = currentSortedPlaceholders
-          .map((LocalPlaceholder ph) => ph.nodes).toList();
+      List<Set<Node>> currentSortedNodes =
+          currentSortedPlaceholders.map((LocalPlaceholder ph) => ph.nodes).toList();
 
       for (int i = 0; i < currentSortedNodes.length; i++) {
         allLocals[i].addAll(currentSortedNodes[i]);
@@ -225,18 +230,17 @@ class PlaceholderRenamer {
       Set<String> memberIdentifiers = new Set<String>();
       Set<LocalPlaceholder> placeholders = functionScope.localPlaceholders;
       if (functionElement.enclosingClass != null) {
-        functionElement.enclosingClass.forEachMember(
-            (enclosingClass, member) {
-              memberIdentifiers.add(member.name);
-            });
+        functionElement.enclosingClass.forEachMember((enclosingClass, member) {
+          memberIdentifiers.add(member.name);
+        });
       }
       Set<String> usedLocalIdentifiers = new Set<String>();
       for (LocalPlaceholder placeholder in placeholders) {
         String nextId = _generator.generate(placeholder.identifier, (name) {
-          return functionScope.parameterIdentifiers.contains(name)
-              || _forbiddenIdentifiers.contains(name)
-              || usedLocalIdentifiers.contains(name)
-              || memberIdentifiers.contains(name);
+          return functionScope.parameterIdentifiers.contains(name) ||
+              _forbiddenIdentifiers.contains(name) ||
+              usedLocalIdentifiers.contains(name) ||
+              memberIdentifiers.contains(name);
         });
         usedLocalIdentifiers.add(nextId);
         _renameNodes(placeholder.nodes, (_) => nextId);
@@ -274,9 +278,9 @@ class PlaceholderRenamer {
     // Rename constructors.
     for (ConstructorPlaceholder placeholder in
         placeholderCollector.constructorPlaceholders) {
-      renames[placeholder.node] =
-          _renameConstructor(placeholder);
-    };
+      renames[placeholder.node] = _renameConstructor(placeholder);
+    }
+    ;
 
     // Rename private identifiers uniquely for each library.
     placeholderCollector.privateNodes.forEach(
@@ -298,7 +302,7 @@ class PlaceholderRenamer {
 
     if (cutDeclarationTypes) {
       for (DeclarationTypePlaceholder placeholder in
-           placeholderCollector.declarationTypePlaceholders) {
+          placeholderCollector.declarationTypePlaceholders) {
         renames[placeholder.typeNode] = placeholder.requiresVar ? 'var' : '';
       }
     }
@@ -319,7 +323,7 @@ String generateMiniId(int index) {
   if (index < firstCharAlphabet.length) return firstCharAlphabet[index];
   StringBuffer resultBuilder = new StringBuffer();
   resultBuilder.writeCharCode(
-     firstCharAlphabet.codeUnitAt(index % firstCharAlphabet.length));
+      firstCharAlphabet.codeUnitAt(index % firstCharAlphabet.length));
   index ~/= firstCharAlphabet.length;
   int length = otherCharsAlphabet.length;
   while (index >= length) {
@@ -339,7 +343,7 @@ class ConservativeGenerator implements Generator {
   String generate(String originalName, bool isForbidden(String name)) {
     String result = originalName;
     int index = 0;
-    while (isForbidden(result) ){ //|| result == originalName) {
+    while (isForbidden(result)) { //|| result == originalName) {
       result = '${originalName}_${generateMiniId(index++)}';
     }
     return result;

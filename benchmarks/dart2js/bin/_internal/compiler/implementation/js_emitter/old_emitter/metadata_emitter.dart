@@ -30,7 +30,7 @@ class MetadataEmitter extends CodeEmitterHelper {
       Link link = element.metadata;
       // TODO(ahe): Why is metadata sometimes null?
       if (link != null) {
-        for (; !link.isEmpty; link = link.tail) {
+        for ( ; !link.isEmpty; link = link.tail) {
           MetadataAnnotation annotation = link.head;
           ConstantExpression constant =
               backend.constants.getConstantForMetadata(annotation);
@@ -42,7 +42,8 @@ class MetadataEmitter extends CodeEmitterHelper {
         }
       }
       if (metadata.isEmpty) return null;
-      return js('function() { return # }',
+      return js(
+          'function() { return # }',
           new jsAst.ArrayInitializer.from(metadata));
     });
   }
@@ -54,10 +55,11 @@ class MetadataEmitter extends CodeEmitterHelper {
     for (ParameterElement element in signature.optionalParameters) {
       ConstantExpression constant =
           backend.constants.getConstantForVariable(element);
-      String stringRepresentation = (constant == null)
-          ? "null"
-          : jsAst.prettyPrint(
-              emitter.constantReference(constant.value), compiler).getText();
+      String stringRepresentation = (constant == null) ?
+          "null" :
+          jsAst.prettyPrint(
+              emitter.constantReference(constant.value),
+              compiler).getText();
       defaultValues.add(addGlobalMetadata(stringRepresentation));
     }
     return defaultValues;
@@ -72,21 +74,18 @@ class MetadataEmitter extends CodeEmitterHelper {
     }
     return addGlobalMetadata(
         jsAst.prettyPrint(
-            emitter.constantReference(constant.value), compiler).getText());
+            emitter.constantReference(constant.value),
+            compiler).getText());
   }
 
   int reifyType(DartType type) {
     jsAst.Expression representation =
-        backend.rti.getTypeRepresentation(
-            type,
-            (variable) {
-              return js.number(
-                  emitter.typeVariableHandler.reifyTypeVariable(
-                      variable.element));
-            },
-            (TypedefType typedef) {
-              return backend.isAccessibleByReflection(typedef.element);
-            });
+        backend.rti.getTypeRepresentation(type, (variable) {
+      return js.number(
+          emitter.typeVariableHandler.reifyTypeVariable(variable.element));
+    }, (TypedefType typedef) {
+      return backend.isAccessibleByReflection(typedef.element);
+    });
 
     return addGlobalMetadata(
         jsAst.prettyPrint(representation, compiler).getText());
@@ -104,8 +103,8 @@ class MetadataEmitter extends CodeEmitterHelper {
   }
 
   void emitMetadata(CodeBuffer buffer) {
-    String metadataAccess = emitter.generateEmbeddedGlobalAccessString(
-          embeddedNames.METADATA);
+    String metadataAccess =
+        emitter.generateEmbeddedGlobalAccessString(embeddedNames.METADATA);
     buffer.write('$metadataAccess$_=$_[');
     for (String metadata in globalMetadata) {
       if (metadata is String) {
@@ -127,7 +126,7 @@ class MetadataEmitter extends CodeEmitterHelper {
       Link link = element.metadata;
       // TODO(ahe): Why is metadata sometimes null?
       if (link != null) {
-        for (; !link.isEmpty; link = link.tail) {
+        for ( ; !link.isEmpty; link = link.tail) {
           metadata.add(reifyMetadata(link.head));
         }
       }

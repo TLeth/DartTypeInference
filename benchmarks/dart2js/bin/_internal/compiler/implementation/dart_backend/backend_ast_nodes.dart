@@ -98,9 +98,9 @@ class For extends Statement {
 
   /// Initializer must be [VariableDeclarations] or [Expression] or null.
   For(this.initializer, this.condition, this.updates, this.body) {
-    assert(initializer == null
-        || initializer is VariableDeclarations
-        || initializer is Expression);
+    assert(initializer == null ||
+        initializer is VariableDeclarations ||
+        initializer is Expression);
   }
 }
 
@@ -114,10 +114,10 @@ class ForIn extends Statement {
   /// initializer.
   ForIn(Node leftHandValue, this.expression, this.body)
       : this.leftHandValue = leftHandValue {
-    assert(leftHandValue is Identifier
-        || (leftHandValue is VariableDeclarations
-            && leftHandValue.declarations.length == 1
-            && leftHandValue.declarations[0].initializer == null));
+    assert(leftHandValue is Identifier ||
+        (leftHandValue is VariableDeclarations &&
+            leftHandValue.declarations.length == 1 &&
+            leftHandValue.declarations[0].initializer == null));
   }
 }
 
@@ -218,10 +218,8 @@ class VariableDeclarations extends Statement {
   final bool isConst;
   final List<VariableDeclaration> declarations;
 
-  VariableDeclarations(this.declarations,
-                      { this.type,
-                        this.isFinal: false,
-                        this.isConst: false }) {
+  VariableDeclarations(this.declarations, {this.type, this.isFinal: false,
+      this.isConst: false}) {
     // Cannot be both final and const.
     assert(!isFinal || !isConst);
   }
@@ -253,15 +251,14 @@ class Parameters extends Node {
   final List<Parameter> optionalParameters;
   final bool hasNamedParameters;
 
-  Parameters(this.requiredParameters,
-             [ this.optionalParameters,
-               this.hasNamedParameters = false ]);
+  Parameters(this.requiredParameters, [this.optionalParameters,
+      this.hasNamedParameters = false]);
 
   Parameters.named(this.requiredParameters, this.optionalParameters)
       : hasNamedParameters = true;
 
   Parameters.positional(this.requiredParameters, this.optionalParameters)
-        : hasNamedParameters = false;
+      : hasNamedParameters = false;
 
   bool get hasOptionalParameters =>
       optionalParameters != null && optionalParameters.length > 0;
@@ -283,10 +280,9 @@ class Parameter extends Node {
   Parameter(this.name, {this.type, this.defaultValue})
       : parameters = null;
 
-  Parameter.function(this.name,
-                     TypeAnnotation returnType,
-                     this.parameters,
-                     [ this.defaultValue ]) : type = returnType {
+  Parameter.function(this.name, TypeAnnotation returnType, this.parameters,
+      [this.defaultValue])
+      : type = returnType {
     assert(parameters != null);
   }
 
@@ -306,12 +302,8 @@ class FunctionExpression extends Expression {
 
   elements.FunctionElement element;
 
-  FunctionExpression(this.parameters,
-                     this.body,
-                     { this.name,
-                       this.returnType,
-                       this.isGetter: false,
-                       this.isSetter: false }) {
+  FunctionExpression(this.parameters, this.body, {this.name, this.returnType,
+      this.isGetter: false, this.isSetter: false}) {
     // Function must have a name if it has a return type
     assert(returnType == null || name != null);
   }
@@ -354,7 +346,7 @@ class LiteralList extends Expression {
   final TypeAnnotation typeArgument;
   final List<Expression> values;
 
-  LiteralList(this.values, { this.typeArgument, this.isConst: false });
+  LiteralList(this.values, {this.typeArgument, this.isConst: false});
 }
 
 class LiteralMap extends Expression {
@@ -362,10 +354,10 @@ class LiteralMap extends Expression {
   final List<TypeAnnotation> typeArguments;
   final List<LiteralMapEntry> entries;
 
-  LiteralMap(this.entries, { this.typeArguments, this.isConst: false }) {
-    assert(this.typeArguments == null
-        || this.typeArguments.length == 0
-        || this.typeArguments.length == 2);
+  LiteralMap(this.entries, {this.typeArguments, this.isConst: false}) {
+    assert(this.typeArguments == null ||
+        this.typeArguments.length == 0 ||
+        this.typeArguments.length == 2);
   }
 }
 
@@ -469,10 +461,8 @@ class CallNew extends Expression {
   elements.FunctionElement constructor;
   types.DartType dartType;
 
-  CallNew(this.type,
-          this.arguments,
-         { this.constructorName,
-           this.isConst: false });
+  CallNew(this.type, this.arguments, {this.constructorName, this.isConst:
+      false});
 }
 
 /// Expression of form `T.f(..)`.
@@ -515,9 +505,7 @@ class TypeOperator extends Expression {
   final TypeAnnotation type;
 
   TypeOperator(this.expression, this.operator, this.type) {
-    assert(operator == 'is'
-        || operator == 'as'
-        || operator == 'is!');
+    assert(operator == 'is' || operator == 'as' || operator == 'is!');
   }
 }
 
@@ -539,9 +527,8 @@ class Increment extends Expression {
 }
 
 class Assignment extends Expression {
-  static final _operators =
-      new Set.from(['=', '|=', '^=', '&=', '<<=', '>>=',
-                    '+=', '-=', '*=', '/=', '%=', '~/=']);
+  static final _operators = new Set.from(
+      ['=', '|=', '^=', '&=', '<<=', '>>=', '+=', '-=', '*=', '/=', '%=', '~/=']);
 
   final Expression left;
   final String operator;
@@ -611,7 +598,7 @@ const int PRIMARY = 20;
 /// Precedence level required for the callee in a [FunctionCall].
 const int CALLEE = 21;
 
-const Map<String,int> BINARY_PRECEDENCE = const {
+const Map<String, int> BINARY_PRECEDENCE = const {
   '&&': LOGICAL_AND,
   '||': LOGICAL_OR,
 
@@ -652,9 +639,9 @@ bool isIdentifierPartNoDollar(dynamic x) {
     return false;
   }
   return (characters.$0 <= x && x <= characters.$9) ||
-         (characters.$A <= x && x <= characters.$Z) ||
-         (characters.$a <= x && x <= characters.$z) ||
-         (x == characters.$_);
+      (characters.$A <= x && x <= characters.$Z) ||
+      (characters.$a <= x && x <= characters.$z) ||
+      (x == characters.$_);
 }
 
 /// The unparser will apply the following syntactic rewritings:
@@ -727,8 +714,8 @@ class Unparser {
       }
       stmt = inner;
     }
-    if (stmt is Block && stmt.statements.length == 0)
-      return new EmptyStatement();
+    if (stmt is Block &&
+        stmt.statements.length == 0) return new EmptyStatement();
     return stmt;
   }
 
@@ -751,7 +738,7 @@ class Unparser {
   /// using parentheses if necessary to raise the precedence level.
   /// Abusing terminology slightly, the function accepts a [Receiver] which
   /// may also be the [SuperReceiver] object.
-  void writeExp(Receiver e, int minPrecedence, {beginStmt:false}) {
+  void writeExp(Receiver e, int minPrecedence, {beginStmt: false}) {
     // TODO(kmillikin,sigurdm): it might be faster to use a Visitor.
     void withPrecedence(int actual, void action()) {
       if (actual < minPrecedence) {
@@ -809,8 +796,7 @@ class Unparser {
     } else if (e is Literal) {
       if (e.value.isString) {
         writeStringLiteral(e);
-      }
-      else if (e.value.isDouble) {
+      } else if (e.value.isDouble) {
         double v = e.value.primitiveValue;
         if (v == double.INFINITY) {
           withPrecedence(MULTIPLICATIVE, () {
@@ -844,8 +830,7 @@ class Unparser {
       write('[');
       writeEach(',', e.values, writeExpression);
       write(']');
-    }
-    else if (e is LiteralMap) {
+    } else if (e is LiteralMap) {
       // The curly brace can be mistaken for a block statement if we
       // are at the beginning of a statement.
       bool needParen = beginStmt;
@@ -889,23 +874,23 @@ class Unparser {
       Receiver operand = e.operand;
       // !(x == y) ==> x != y.
       if (e.operatorName == '!' &&
-          operand is BinaryOperator && operand.operator == '==') {
+          operand is BinaryOperator &&
+          operand.operator == '==') {
         withPrecedence(EQUALITY, () {
           writeExp(operand.left, RELATIONAL);
           writeOperator('!=');
           writeExp(operand.right, RELATIONAL);
         });
-      }
-      // !(x is T) ==> x is!T
+      } // !(x is T) ==> x is!T
       else if (e.operatorName == '!' &&
-          operand is TypeOperator && operand.operator == 'is') {
+          operand is TypeOperator &&
+          operand.operator == 'is') {
         withPrecedence(RELATIONAL, () {
           writeExp(operand.expression, BITWISE_OR, beginStmt: beginStmt);
           write(' is!');
           writeType(operand.type);
         });
-      }
-      else {
+      } else {
         withPrecedence(UNARY, () {
           writeOperator(e.operatorName);
           writeExp(e.operand, UNARY);
@@ -1070,7 +1055,7 @@ class Unparser {
     } else if (stmt is EmptyStatement) {
       write(';');
     } else if (stmt is ExpressionStatement) {
-      writeExp(stmt.expression, EXPRESSION, beginStmt:true);
+      writeExp(stmt.expression, EXPRESSION, beginStmt: true);
       write(';');
     } else if (stmt is For) {
       write('for(');
@@ -1214,10 +1199,7 @@ class Unparser {
 
   /// Writes a variable definition statement without the trailing semicolon
   void writeVariableDefinitions(VariableDeclarations vds) {
-    if (vds.isConst)
-      write('const ');
-    else if (vds.isFinal)
-      write('final ');
+    if (vds.isConst) write('const '); else if (vds.isFinal) write('final ');
     if (vds.type != null) {
       writeType(vds.type);
       write(' ');
@@ -1281,8 +1263,7 @@ class Unparser {
       const tree.StringQuoting(characters.$DQ, raw: false, leftQuoteLength: 1),
       const tree.StringQuoting(characters.$DQ, raw: true, leftQuoteLength: 1),
       const tree.StringQuoting(characters.$SQ, raw: false, leftQuoteLength: 1),
-      const tree.StringQuoting(characters.$SQ, raw: true, leftQuoteLength: 1),
-  ];
+      const tree.StringQuoting(characters.$SQ, raw: true, leftQuoteLength: 1),];
 
   static StringLiteralOutput analyzeStringLiteral(Expression node) {
     // TODO(sigurdm,kmillikin): This might be a bit too expensive. Benchmark.
@@ -1346,21 +1327,17 @@ class Unparser {
 
     /// Applies additional cost to each track in [penalized], and considers
     /// switching from each [penalized] to a [nonPenalized] track.
-    void penalize(List<int> penalized,
-                  List<int> nonPenalized,
-                  int endIndex,
-                  num cost(tree.StringQuoting q)) {
+    void penalize(List<int> penalized, List<int> nonPenalized, int endIndex, num
+        cost(tree.StringQuoting q)) {
       for (int j in penalized) {
         // Check if another track can benefit from switching from this track.
         for (int k in nonPenalized) {
-          num newCost = best[j].cost
-                      + 1             // Whitespace in string juxtaposition
-                      + getQuoteCost(best[k].quoting);
+          num newCost = best[j].cost // Whitespace in string juxtaposition
+          + 1 // Whitespace in string juxtaposition
+          + getQuoteCost(best[k].quoting);
           if (newCost < best[k].cost) {
-            best[k] = new OpenStringChunk(
-                best[j].end(endIndex),
-                best[k].quoting,
-                newCost);
+            best[k] =
+                new OpenStringChunk(best[j].end(endIndex), best[k].quoting, newCost);
           }
         }
         best[j].cost += cost(best[j].quoting);
@@ -1405,18 +1382,16 @@ class Unparser {
         if (part is Identifier &&
             !part.name.contains(r'$') &&
             i + 1 < parts.length &&
-            isIdentifierPartNoDollar(parts[i+1])) {
+            isIdentifierPartNoDollar(parts[i + 1])) {
           for (int j in nonRaws) {
             for (int k = 0; k < best.length; k++) {
-              num newCost = best[j].cost
-                          + 1             // Whitespace in string juxtaposition
-                          - 2             // Save two curly braces
-                          + getQuoteCost(best[k].quoting);
+              num newCost =
+                  best[j].cost + 1 // Whitespace in string juxtaposition
+              - 2 // Save two curly braces
+              + getQuoteCost(best[k].quoting);
               if (newCost < best[k].cost) {
-                best[k] = new OpenStringChunk(
-                    best[j].end(i+1),
-                    best[k].quoting,
-                    newCost);
+                best[k] =
+                    new OpenStringChunk(best[j].end(i + 1), best[k].quoting, newCost);
               }
             }
           }
@@ -1453,15 +1428,14 @@ class Unparser {
       write(chunk.quoting.quoteChar);
       bool raw = chunk.quoting.raw;
       int quoteCode = chunk.quoting.quote;
-      for (int i=startIndex; i<chunk.endIndex; i++) {
+      for (int i = startIndex; i < chunk.endIndex; i++) {
         var part = parts[i];
         if (part is int) {
           int char = part;
           write(getEscapedCharacter(char, quoteCode, raw));
         } else if (part is Identifier &&
-                   !part.name.contains(r'$') &&
-                   (i == chunk.endIndex - 1 ||
-                    !isIdentifierPartNoDollar(parts[i+1]))) {
+            !part.name.contains(r'$') &&
+            (i == chunk.endIndex - 1 || !isIdentifierPartNoDollar(parts[i + 1]))) {
           write(r'$');
           write(part.name);
         } else {

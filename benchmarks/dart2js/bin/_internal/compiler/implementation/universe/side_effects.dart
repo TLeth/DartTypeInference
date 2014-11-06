@@ -8,18 +8,22 @@ class SideEffects {
   // Changes flags.
   static const int FLAG_CHANGES_INDEX = 0;
   static const int FLAG_CHANGES_INSTANCE_PROPERTY = FLAG_CHANGES_INDEX + 1;
-  static const int FLAG_CHANGES_STATIC_PROPERTY
-      = FLAG_CHANGES_INSTANCE_PROPERTY + 1;
+  static const int FLAG_CHANGES_STATIC_PROPERTY =
+      FLAG_CHANGES_INSTANCE_PROPERTY +
+      1;
   static const int FLAG_CHANGES_COUNT = FLAG_CHANGES_STATIC_PROPERTY + 1;
 
   // Depends flags (one for each changes flag).
   static const int FLAG_DEPENDS_ON_INDEX_STORE = FLAG_CHANGES_COUNT;
   static const int FLAG_DEPENDS_ON_INSTANCE_PROPERTY_STORE =
-      FLAG_DEPENDS_ON_INDEX_STORE + 1;
+      FLAG_DEPENDS_ON_INDEX_STORE +
+      1;
   static const int FLAG_DEPENDS_ON_STATIC_PROPERTY_STORE =
-      FLAG_DEPENDS_ON_INSTANCE_PROPERTY_STORE + 1;
+      FLAG_DEPENDS_ON_INSTANCE_PROPERTY_STORE +
+      1;
   static const int FLAG_DEPENDS_ON_COUNT =
-      FLAG_DEPENDS_ON_STATIC_PROPERTY_STORE + 1;
+      FLAG_DEPENDS_ON_STATIC_PROPERTY_STORE +
+      1;
 
   int flags = 0;
 
@@ -30,12 +34,14 @@ class SideEffects {
 
   SideEffects.empty();
 
-  bool operator==(other) => flags == other.flags;
+  bool operator ==(other) => flags == other.flags;
 
   int get hashCode => throw new UnsupportedError('SideEffects.hashCode');
 
   bool getFlag(int position) => (flags & (1 << position)) != 0;
-  void setFlag(int position) { flags |= (1 << position); }
+  void setFlag(int position) {
+    flags |= (1 << position);
+  }
 
   int getChangesFlags() => flags & ((1 << FLAG_CHANGES_COUNT) - 1);
   int getDependsOnFlags() {
@@ -45,9 +51,13 @@ class SideEffects {
   bool hasSideEffects() => getChangesFlags() != 0;
   bool dependsOnSomething() => getDependsOnFlags() != 0;
 
-  void setAllSideEffects() { flags |= ((1 << FLAG_CHANGES_COUNT) - 1); }
+  void setAllSideEffects() {
+    flags |= ((1 << FLAG_CHANGES_COUNT) - 1);
+  }
 
-  void clearAllSideEffects() { flags &= ~((1 << FLAG_CHANGES_COUNT) - 1); }
+  void clearAllSideEffects() {
+    flags &= ~((1 << FLAG_CHANGES_COUNT) - 1);
+  }
 
   void setDependsOnSomething() {
     int count = FLAG_DEPENDS_ON_COUNT - FLAG_CHANGES_COUNT;
@@ -64,12 +74,18 @@ class SideEffects {
   void setDependsOnStaticPropertyStore() {
     setFlag(FLAG_DEPENDS_ON_STATIC_PROPERTY_STORE);
   }
-  void setChangesStaticProperty() { setFlag(FLAG_CHANGES_STATIC_PROPERTY); }
+  void setChangesStaticProperty() {
+    setFlag(FLAG_CHANGES_STATIC_PROPERTY);
+  }
   bool changesStaticProperty() => getFlag(FLAG_CHANGES_STATIC_PROPERTY);
 
   bool dependsOnIndexStore() => getFlag(FLAG_DEPENDS_ON_INDEX_STORE);
-  void setDependsOnIndexStore() { setFlag(FLAG_DEPENDS_ON_INDEX_STORE); }
-  void setChangesIndex() { setFlag(FLAG_CHANGES_INDEX); }
+  void setDependsOnIndexStore() {
+    setFlag(FLAG_DEPENDS_ON_INDEX_STORE);
+  }
+  void setChangesIndex() {
+    setFlag(FLAG_CHANGES_INDEX);
+  }
   bool changesIndex() => getFlag(FLAG_CHANGES_INDEX);
 
   bool dependsOnInstancePropertyStore() {
@@ -78,7 +94,9 @@ class SideEffects {
   void setDependsOnInstancePropertyStore() {
     setFlag(FLAG_DEPENDS_ON_INSTANCE_PROPERTY_STORE);
   }
-  void setChangesInstanceProperty() { setFlag(FLAG_CHANGES_INSTANCE_PROPERTY); }
+  void setChangesInstanceProperty() {
+    setFlag(FLAG_CHANGES_INSTANCE_PROPERTY);
+  }
   bool changesInstanceProperty() => getFlag(FLAG_CHANGES_INSTANCE_PROPERTY);
 
   static int computeDependsOnFlags(int flags) => flags << FLAG_CHANGES_COUNT;

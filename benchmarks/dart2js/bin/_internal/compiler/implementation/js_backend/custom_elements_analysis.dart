@@ -102,8 +102,8 @@ class CustomElementsAnalysis {
     assert(element != null);
     if (!fetchedTableAccessorMethod) {
       fetchedTableAccessorMethod = true;
-      tableAccessorMethod = backend.findInterceptor(
-          'findIndexForNativeSubclassType');
+      tableAccessorMethod =
+          backend.findInterceptor('findIndexForNativeSubclassType');
     }
     if (element == tableAccessorMethod) {
       joinFor(enqueuer).demanded = true;
@@ -152,7 +152,8 @@ class CustomElementsAnalysisJoin {
     for (ClassElement classElement in instantiatedClasses) {
       bool isNative = classElement.isNative;
       bool isExtension =
-          !isNative && Elements.isNativeOrExtendsNative(classElement);
+          !isNative &&
+          Elements.isNativeOrExtendsNative(classElement);
       // Generate table entries for native classes that are explicitly named and
       // extensions that fix our criteria.
       if ((isNative && selectedClasses.contains(classElement)) ||
@@ -162,13 +163,14 @@ class CustomElementsAnalysisJoin {
         Iterable<Element> escapingConstructors =
             computeEscapingConstructors(classElement);
         escapingConstructors.forEach(enqueuer.registerStaticUse);
-        escapingConstructors
-            .forEach(compiler.globalDependencies.registerDependency);
+        escapingConstructors.forEach(
+            compiler.globalDependencies.registerDependency);
         // Force the generaton of the type constant that is the key to an entry
         // in the generated table.
         ConstantValue constant = makeTypeConstant(classElement);
         backend.registerCompileTimeConstant(
-            constant, compiler.globalDependencies);
+            constant,
+            compiler.globalDependencies);
         backend.constants.addCompileTimeConstantForEmission(constant);
       }
     }
@@ -199,7 +201,8 @@ class CustomElementsAnalysisJoin {
         }
       }
     }
-    classElement.forEachMember(selectGenerativeConstructors,
+    classElement.forEachMember(
+        selectGenerativeConstructors,
         includeBackendMembers: false,
         includeSuperAndInjectedMembers: false);
     return result;

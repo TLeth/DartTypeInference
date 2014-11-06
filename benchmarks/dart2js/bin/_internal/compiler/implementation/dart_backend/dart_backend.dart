@@ -27,12 +27,8 @@ import 'backend_ast_to_frontend_ast.dart' as backend2frontend;
 import '../tracer.dart';
 import '../../compiler.dart' show CompilerOutputProvider;
 
-import '../scanner/scannerlib.dart' show StringToken,
-                                         Keyword,
-                                         OPEN_PAREN_INFO,
-                                         CLOSE_PAREN_INFO,
-                                         SEMICOLON_INFO,
-                                         IDENTIFIER_INFO;
+import '../scanner/scannerlib.dart' show StringToken, Keyword, OPEN_PAREN_INFO,
+    CLOSE_PAREN_INFO, SEMICOLON_INFO, IDENTIFIER_INFO;
 
 part 'backend.dart';
 part 'renamer.dart';

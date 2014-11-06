@@ -26,8 +26,7 @@ class GameElement extends Sprite {
   static const _popAnimationHitFrame = 12;
   static const _popExplodeAnimationOffset = const Vector(-88, -88);
   static const _dartAnimationOffset =
-      const Vector(-512 + 0.5 * SquareElement.SIZE,
-          -388 + 0.5 * SquareElement.SIZE);
+      const Vector(-512 + 0.5 * SquareElement.SIZE, -388 + 0.5 * SquareElement.SIZE);
 
   final GameRoot manager;
 
@@ -36,13 +35,17 @@ class GameElement extends Sprite {
   GameBackgroundElement _gameBackground;
   BoardElement _boardElement;
   ScoreElement _scoreElement;
-  SimpleButton _newGameButton, _logoButton;
-  Sprite _popLayer = new Sprite(), _dartLayer = new Sprite();
+  SimpleButton _newGameButton;
+  SimpleButton _logoButton;
+  Sprite _popLayer = new Sprite();
+  Sprite _dartLayer = new Sprite();
 
-  num _boardSize, _boardScale;
+  num _boardSize;
+  num _boardScale;
 
 
-  int _targetX, _targetY;
+  int _targetX;
+  int _targetY;
   TextureAtlas _animations;
 
   Game get game => manager.game;
@@ -68,8 +71,11 @@ class GameElement extends Sprite {
     var newButtonPressed =
         new Bitmap(sta.getBitmapData("button_new_game_clicked"));
 
-    _newGameButton = new SimpleButton(newButtonNormal, newButtonPressed,
-        newButtonPressed, newButtonPressed)
+    _newGameButton = new SimpleButton(
+        newButtonNormal,
+        newButtonPressed,
+        newButtonPressed,
+        newButtonPressed)
         ..x = 450
         ..y = 20
         ..onMouseClick.listen((e) {
@@ -144,13 +150,11 @@ class GameElement extends Sprite {
       } else if (ss == SquareState.revealed) {
         if (game.canReveal(x, y)) {
           // get adjacent ballons
-          final adjHidden = game.field.getAdjacentIndices(x, y)
-              .map((i) {
-                final t = game.field.getCoordinate(i);
-                return new Point(t.item1, t.item2);
-              })
-              .where((t) => game.getSquareState(t.x, t.y) == SquareState.hidden)
-              .toList();
+          final adjHidden = game.field.getAdjacentIndices(x, y).map((i) {
+            final t = game.field.getCoordinate(i);
+            return new Point(t.item1, t.item2);
+          }).where(
+              (t) => game.getSquareState(t.x, t.y) == SquareState.hidden).toList();
 
           assert(adjHidden.length > 0);
 
@@ -200,16 +204,14 @@ class GameElement extends Sprite {
   void _startPopAnimation(Point start, [Iterable<Point> reveals = null]) {
     if (reveals == null) {
       assert(game.state == GameState.lost);
-      reveals = new Iterable.generate(game.field.length)
-          .map((i) {
-            var t = game.field.getCoordinate(i);
-            var c = new Point(t.item1, t.item2);
-            return new Tuple(c, game.getSquareState(c.x, c.y));
-          })
-          .where((t2) => t2.item2 == SquareState.bomb ||
-              t2.item2 == SquareState.hidden)
-          .map((t2) => t2.item1)
-          .toList();
+      reveals = new Iterable.generate(game.field.length).map((i) {
+        var t = game.field.getCoordinate(i);
+        var c = new Point(t.item1, t.item2);
+        return new Tuple(c, game.getSquareState(c.x, c.y));
+      }).where(
+          (t2) =>
+              t2.item2 == SquareState.bomb ||
+                  t2.item2 == SquareState.hidden).map((t2) => t2.item1).toList();
     }
 
     final values = reveals.map((c) {
@@ -238,11 +240,11 @@ class GameElement extends Sprite {
       var se = _boardElement.squares.get(c.x, c.y);
       var ss = se.squareState;
 
-      var texturePrefix = ss == SquareState.bomb ?
-          'balloon_explode' : 'balloon_pop';
+      var texturePrefix =
+          ss == SquareState.bomb ? 'balloon_explode' : 'balloon_pop';
 
-      var anim = new FlipBook(_animations.getBitmapDatas(texturePrefix),
-          stage.frameRate, false)
+      var anim =
+          new FlipBook(_animations.getBitmapDatas(texturePrefix), stage.frameRate, false)
           ..x = squareOffset.x
           ..y = squareOffset.y
           ..alpha = 0
@@ -253,7 +255,8 @@ class GameElement extends Sprite {
 
       stage.juggler
           ..add(anim)
-          ..delayCall(() => _animationDelay(anim, se, ss),
+          ..delayCall(
+              () => _animationDelay(anim, se, ss),
               delay / stage.frameRate);
     }
   }
@@ -262,12 +265,12 @@ class GameElement extends Sprite {
     assert(points.length >= 1);
     GameAudio.throwDart();
     for (var point in points) {
-      var squareOffset = _dartAnimationOffset +
-          new Vector(SquareElement.SIZE * point.x,
-              SquareElement.SIZE * point.y);
+      var squareOffset =
+          _dartAnimationOffset +
+          new Vector(SquareElement.SIZE * point.x, SquareElement.SIZE * point.y);
 
-      var dart = new FlipBook(_animations.getBitmapDatas('dart'),
-          stage.frameRate, false)
+      var dart =
+          new FlipBook(_animations.getBitmapDatas('dart'), stage.frameRate, false)
           ..x = squareOffset.x
           ..y = squareOffset.y
           ..mouseEnabled = false
@@ -276,8 +279,8 @@ class GameElement extends Sprite {
 
       dart.onComplete.listen((e) => dart.removeFromParent());
 
-      var shadow = new FlipBook(_animations.getBitmapDatas('shadow'),
-          stage.frameRate, false)
+      var shadow =
+          new FlipBook(_animations.getBitmapDatas('shadow'), stage.frameRate, false)
           ..x = squareOffset.x
           ..y = squareOffset.y
           ..mouseEnabled = false

@@ -27,11 +27,8 @@ Stats _stats;
 /// If [xml] is `true`, stats output is formatted as XML with a default
 /// extension of 'xml', otherwise the output is indented text with a default
 /// extension of 'log'.
-void enableStatsOutput({CompilerOutputProvider outputProvider,
-                        bool xml: true,
-                        String name: 'stats',
-                        String extension,
-                        int examples: 10}) {
+void enableStatsOutput({CompilerOutputProvider outputProvider, bool xml: true,
+    String name: 'stats', String extension, int examples: 10}) {
   if (_stats != null) {
     throw new StateError('Stats have already been initialized.');
   }
@@ -186,8 +183,8 @@ class Stats {
   /// If [dataA] and/or [dataB] are provided, additional information on the
   /// elements are looked up in [dataA] or [dataB] using [dataA] as the primary
   /// source.
-  void dumpCorrelation(idA, Iterable a, idB, Iterable b,
-                       {Map dataA, Map dataB}) {}
+  void dumpCorrelation(idA, Iterable a, idB, Iterable b, {Map dataA,
+      Map dataB}) {}
 }
 
 /// Interface for printing output data.
@@ -239,14 +236,13 @@ abstract class StatsPrinter {
   void end(String id) {}
 
   /// Start a stat entry for [id] with additional [data].
-  void open(String id,
-            [Map<String, dynamic> data = const <String, dynamic>{}]) {}
+  void open(String id, [Map<String, dynamic> data = const <String,
+      dynamic>{}]) {}
 
   /// Create a stat entry for [id] with additional [data] and content created by
   /// [createChildContent].
-  void child(String id,
-             [Map<String, dynamic> data = const <String, dynamic>{},
-              void createChildContent()]) {
+  void child(String id, [Map<String, dynamic> data = const <String, dynamic>{},
+      void createChildContent()]) {
     open(id, data);
     if (createChildContent != null) createChildContent();
     close(id);
@@ -267,8 +263,7 @@ abstract class BasePrinter extends StatsPrinter with Indentation {
   final int examples;
   final StatsOutput output;
 
-  BasePrinter({this.output: const DebugOutput(),
-               this.examples: 10}) {
+  BasePrinter({this.output: const DebugOutput(), this.examples: 10}) {
     indentationUnit = " ";
   }
 }
@@ -277,12 +272,11 @@ abstract class BasePrinter extends StatsPrinter with Indentation {
 class ConsolePrinter extends BasePrinter {
   int extraLevel = 0;
 
-  ConsolePrinter({StatsOutput output: const DebugOutput(),
-                  int examples: 10})
+  ConsolePrinter({StatsOutput output: const DebugOutput(), int examples: 10})
       : super(output: output, examples: examples);
 
-  void open(String id,
-            [Map<String, dynamic> data = const <String, dynamic>{}]) {
+  void open(String id, [Map<String, dynamic> data = const <String,
+      dynamic>{}]) {
     if (extraLevel > 0) return;
 
     StringBuffer sb = new StringBuffer();
@@ -331,8 +325,7 @@ class XMLPrinter extends BasePrinter {
   static const HtmlEscape escape = const HtmlEscape();
   bool opened = false;
 
-  XMLPrinter({output: const DebugOutput(),
-              int examples: 10})
+  XMLPrinter({output: const DebugOutput(), int examples: 10})
       : super(output: output, examples: examples);
 
   void start(String id) {
@@ -347,8 +340,8 @@ class XMLPrinter extends BasePrinter {
     close(id);
   }
 
-  void open(String id,
-            [Map<String, dynamic> data = const <String, dynamic>{}]) {
+  void open(String id, [Map<String, dynamic> data = const <String,
+      dynamic>{}]) {
     StringBuffer sb = new StringBuffer();
     sb.write(indentation);
     sb.write('<$id');
@@ -390,9 +383,8 @@ class _StackTraceNode implements Comparable<_StackTraceNode> {
   _StackTraceNode.leaf(StackTraceLines stackTrace)
       : this(stackTrace.lines, 1, const []);
 
-  _StackTraceNode.node(List<StackTraceLine> commonPrefix,
-                       _StackTraceNode first,
-                       _StackTraceNode second)
+  _StackTraceNode.node(List<StackTraceLine> commonPrefix, _StackTraceNode first,
+      _StackTraceNode second)
       : this(commonPrefix, first.count + second.count, [first, second]);
 
   void add(StackTraceLines stackTrace) {
@@ -415,10 +407,11 @@ class _StackTraceNode implements Comparable<_StackTraceNode> {
           subtrace.commonPrefix =
               subtrace.commonPrefix.sublist(commonPrefixLength);
           subtraces.remove(subtrace);
-          subtraces.add(new _StackTraceNode.node(
-              lines.sublist(0, commonPrefixLength),
-              subtrace,
-              new _StackTraceNode.leaf(stackTrace)));
+          subtraces.add(
+              new _StackTraceNode.node(
+                  lines.sublist(0, commonPrefixLength),
+                  subtrace,
+                  new _StackTraceNode.leaf(stackTrace)));
         }
         return;
       }
@@ -427,10 +420,15 @@ class _StackTraceNode implements Comparable<_StackTraceNode> {
   }
 
   void dumpTraces(StatsPrinter printer) {
-    printer.open('trace', {'count': count, 'line': commonPrefix.first});
+    printer.open('trace', {
+      'count': count,
+      'line': commonPrefix.first
+    });
     if (commonPrefix.length > 1) {
       for (StackTraceLine line in commonPrefix.skip(1)) {
-        printer.child('trace', {'line': line});
+        printer.child('trace', {
+          'line': line
+        });
       }
     }
     dumpSubtraces(printer);
@@ -493,7 +491,8 @@ class _StackTraceTree extends _StackTraceNode {
     printer.open('trace', {
       'id': id,
       'totalCount': totalCount,
-      'sampleFrequency': sampleFrequency});
+      'sampleFrequency': sampleFrequency
+    });
     dumpSubtraces(printer);
     printer.close('trace');
   }
@@ -511,8 +510,8 @@ class ActiveStats implements Stats {
   Map<dynamic, Map> maps = {};
   Map<dynamic, Map<dynamic, List>> frequencyMaps = {};
   Map<dynamic, Map> setsMap = {};
-  Map<dynamic, Map<dynamic, List>> countersMap =
-      <dynamic, Map<dynamic, List>>{};
+  Map<dynamic, Map<dynamic, List>> countersMap = <dynamic, Map<dynamic,
+      List>>{};
   Map<dynamic, _StackTraceTree> traceMap = {};
   int stackTraceSampleFrequency = 1;
 
@@ -566,7 +565,8 @@ class ActiveStats implements Stats {
     if (sampleFrequency == null) {
       sampleFrequency = stackTraceSampleFrequency;
     }
-    traceMap.putIfAbsent(key,
+    traceMap.putIfAbsent(
+        key,
         () => new _StackTraceTree(key, sampleFrequency)).sample();
 
   }
@@ -592,8 +592,12 @@ class ActiveStats implements Stats {
   void dumpSets() {
     printer.group('sets', () {
       setsMap.forEach((k, set) {
-        dumpIterable('examples', '$k', set.keys,
-            limit: printer.examples, dataMap: set);
+        dumpIterable(
+            'examples',
+            '$k',
+            set.keys,
+            limit: printer.examples,
+            dataMap: set);
       });
     });
 
@@ -602,7 +606,9 @@ class ActiveStats implements Stats {
   void dumpFrequencies() {
     printer.group('frequencies', () {
       frequencyMaps.forEach((key, Map<dynamic, List> map) {
-        printer.child('frequency', {'title': '$key'}, () {
+        printer.child('frequency', {
+          'title': '$key'
+        }, () {
           dumpFrequency(map);
         });
       });
@@ -647,7 +653,10 @@ class ActiveStats implements Stats {
     }
     int counter = 0;
     bool hasMore = false;
-    printer.open('counter', {'title': '$id', 'count': count});
+    printer.open('counter', {
+      'title': '$id',
+      'count': count
+    });
     result.forEach((int count, Set examples) {
       if (counter == printer.examples) {
         printer.beginExtra();
@@ -655,14 +664,20 @@ class ActiveStats implements Stats {
       }
       if (examples.length == 1 &&
           (examplesLimit == 0 || !hasData(examples.first))) {
-        printer.child('examples', {'count': count, 'example': examples.first});
+        printer.child('examples', {
+          'count': count,
+          'example': examples.first
+        });
       } else {
-        printer.child('examples',
-            {'count': count, 'examples': examples.length},
-            () {
+        printer.child('examples', {
+          'count': count,
+          'examples': examples.length
+        }, () {
           examples.forEach((example) {
             dumpIterable(
-                'examples', '$example', map[example],
+                'examples',
+                '$example',
+                map[example],
                 limit: examplesLimit,
                 includeCount: false);
           });
@@ -687,23 +702,37 @@ class ActiveStats implements Stats {
     tree.dumpTraces(printer);
   }
 
-  void dumpCorrelation(keyA, Iterable a, keyB, Iterable b,
-                       {Map dataA, Map dataB}) {
-    printer.child('correlations', {'title': '$keyA vs $keyB'}, () {
+  void dumpCorrelation(keyA, Iterable a, keyB, Iterable b, {Map dataA,
+      Map dataB}) {
+    printer.child('correlations', {
+      'title': '$keyA vs $keyB'
+    }, () {
       List aAndB = a.where((e) => e != null && b.contains(e)).toList();
       List aAndNotB = a.where((e) => e != null && !b.contains(e)).toList();
       List notAandB = b.where((e) => e != null && !a.contains(e)).toList();
-      dumpIterable('correlation', '$keyA && $keyB', aAndB, dataMap: dataA,
+      dumpIterable(
+          'correlation',
+          '$keyA && $keyB',
+          aAndB,
+          dataMap: dataA,
           limit: printer.examples);
-      dumpIterable('correlation', '$keyA && !$keyB', aAndNotB, dataMap: dataA,
+      dumpIterable(
+          'correlation',
+          '$keyA && !$keyB',
+          aAndNotB,
+          dataMap: dataA,
           limit: printer.examples);
-      dumpIterable('correlation', '!$keyA && $keyB', notAandB, dataMap: dataB,
+      dumpIterable(
+          'correlation',
+          '!$keyA && $keyB',
+          notAandB,
+          dataMap: dataB,
           limit: printer.examples);
     });
   }
 
-  void dumpIterable(String tag, String title, Iterable iterable,
-                    {int limit, Map dataMap, bool includeCount: true}) {
+  void dumpIterable(String tag, String title, Iterable iterable, {int limit,
+      Map dataMap, bool includeCount: true}) {
     if (limit == 0) return;
 
     Map childData = {};
@@ -726,9 +755,14 @@ class ActiveStats implements Stats {
         }
         var data = dataMap != null ? dataMap[element] : null;
         if (data != null) {
-          printer.child('example', {'value': element, 'data': data});
+          printer.child('example', {
+            'value': element,
+            'data': data
+          });
         } else {
-          printer.child('example', {'value': element});
+          printer.child('example', {
+            'value': element
+          });
         }
         counter++;
       });
@@ -747,12 +781,12 @@ class ActiveStats implements Stats {
 ///
 /// If [isValidKey] is provided, this is used to determine with a value of [map]
 /// is a potential key of the inversion map.
-Map<dynamic, Set> inverseMap(Map map,
-                             {bool equals(key1, key2),
-                              int hashCode(key),
-                              bool isValidKey(potentialKey)}) {
+Map<dynamic, Set> inverseMap(Map map, {bool equals(key1, key2), int
+    hashCode(key), bool isValidKey(potentialKey)}) {
   Map<dynamic, Set> result = new LinkedHashMap<dynamic, Set>(
-      equals: equals, hashCode: hashCode, isValidKey: isValidKey);
+      equals: equals,
+      hashCode: hashCode,
+      isValidKey: isValidKey);
   map.forEach((k, v) {
     if (isValidKey == null || isValidKey(v)) {
       result.putIfAbsent(v, () => new Set()).add(k);
@@ -778,7 +812,7 @@ Map trySortMap(Map map) {
 
 /// Returns a new map in which the keys of [map] are sorted using [compare].
 /// If [compare] is null, the keys must be [Comparable].
-Map sortMap(Map map, [int compare(a,b)]) {
+Map sortMap(Map map, [int compare(a, b)]) {
   List keys = map.keys.toList();
   keys.sort(compare);
   Map sortedMap = new Map();

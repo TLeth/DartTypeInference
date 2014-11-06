@@ -40,7 +40,7 @@ class Tracer extends TracerUtil {
         output = TRACE_FILTER != null ? outputProvider('dart', 'cfg') : null;
 
   void traceCompilation(String methodName,
-                        ItemCompilationContext compilationContext) {
+      ItemCompilationContext compilationContext) {
     if (!isEnabled) return;
     traceActive = TRACE_FILTER.hasMatch(methodName);
     if (!traceActive) return;
@@ -56,11 +56,9 @@ class Tracer extends TracerUtil {
     if (!traceActive) return;
     if (irObject is ssa.HGraph) {
       new HTracer(output, compiler, context).traceGraph(name, irObject);
-    }
-    else if (irObject is cps_ir.FunctionDefinition) {
+    } else if (irObject is cps_ir.FunctionDefinition) {
       new IRTracer(output).traceGraph(name, irObject);
-    }
-    else if (irObject is tree_ir.FunctionDefinition) {
+    } else if (irObject is tree_ir.FunctionDefinition) {
       new TreeTracer(output).traceGraph(name, irObject);
     }
   }

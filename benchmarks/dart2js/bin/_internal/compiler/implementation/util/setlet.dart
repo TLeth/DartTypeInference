@@ -63,11 +63,15 @@ class Setlet<E> extends IterableBase<E> implements Set<E> {
     } else if (_MARKER == _extra) {
       return _contents.contains(element);
     } else {
-      for (int remaining = _extra, i = 0; remaining > 0 && i < CAPACITY; i++) {
-        var candidate = _contents[i];
-        if (_MARKER == candidate) continue;
-        if (candidate == element) return true;
-        remaining--;
+      {
+        int remaining = _extra;
+        int i = 0;
+        for ( ; remaining > 0 && i < CAPACITY; i++) {
+          var candidate = _contents[i];
+          if (_MARKER == candidate) continue;
+          if (candidate == element) return true;
+          remaining--;
+        }
       }
       return false;
     }
@@ -86,7 +90,7 @@ class Setlet<E> extends IterableBase<E> implements Set<E> {
         list[0] = _contents;
         list[1] = element;
         _contents = list;
-        _extra = 2;  // Two elements.
+        _extra = 2; // Two elements.
         return true;
       }
     } else if (_MARKER == _extra) {
@@ -94,7 +98,8 @@ class Setlet<E> extends IterableBase<E> implements Set<E> {
     } else {
       int remaining = _extra;
       int index = 0;
-      int copyTo, copyFrom;
+      int copyTo;
+      int copyFrom;
       while (remaining > 0 && index < CAPACITY) {
         var candidate = _contents[index++];
         if (_MARKER == candidate) {
@@ -130,7 +135,9 @@ class Setlet<E> extends IterableBase<E> implements Set<E> {
         // make sure we don't keep extra stuff alive.
         while (copyTo < CAPACITY) _contents[copyTo++] = null;
       } else {
-        _contents = new Set<E>()..addAll(_contents)..add(element);
+        _contents = new Set<E>()
+            ..addAll(_contents)
+            ..add(element);
         _extra = _MARKER;
       }
       return true;
@@ -147,11 +154,15 @@ class Setlet<E> extends IterableBase<E> implements Set<E> {
     } else if (_MARKER == _extra) {
       return _contents.lookup(element);
     } else {
-      for (int remaining = _extra, i = 0; remaining > 0 && i < CAPACITY; i++) {
-        var candidate = _contents[i];
-        if (_MARKER == candidate) continue;
-        if (candidate == element) return candidate;
-        remaining--;
+      {
+        int remaining = _extra;
+        int i = 0;
+        for ( ; remaining > 0 && i < CAPACITY; i++) {
+          var candidate = _contents[i];
+          if (_MARKER == candidate) continue;
+          if (candidate == element) return candidate;
+          remaining--;
+        }
       }
       return null;
     }
@@ -168,15 +179,19 @@ class Setlet<E> extends IterableBase<E> implements Set<E> {
     } else if (_MARKER == _extra) {
       return _contents.remove(element);
     } else {
-      for (int remaining = _extra, i = 0; remaining > 0 && i < CAPACITY; i++) {
-        var candidate = _contents[i];
-        if (_MARKER == candidate) continue;
-        if (candidate == element) {
-          _contents[i] = _MARKER;
-          _extra--;
-          return true;
+      {
+        int remaining = _extra;
+        int i = 0;
+        for ( ; remaining > 0 && i < CAPACITY; i++) {
+          var candidate = _contents[i];
+          if (_MARKER == candidate) continue;
+          if (candidate == element) {
+            _contents[i] = _MARKER;
+            _extra--;
+            return true;
+          }
+          remaining--;
         }
-        remaining--;
       }
       return false;
     }
@@ -194,14 +209,18 @@ class Setlet<E> extends IterableBase<E> implements Set<E> {
     } else if (_MARKER == _extra) {
       _contents.removeWhere(test);
     } else {
-      for (int remaining = _extra, i = 0; remaining > 0 && i < CAPACITY; i++) {
-        var candidate = _contents[i];
-        if (_MARKER == candidate) continue;
-        if (test(candidate)) {
-          _contents[i] = _MARKER;
-          _extra--;
+      {
+        int remaining = _extra;
+        int i = 0;
+        for ( ; remaining > 0 && i < CAPACITY; i++) {
+          var candidate = _contents[i];
+          if (_MARKER == candidate) continue;
+          if (test(candidate)) {
+            _contents[i] = _MARKER;
+            _extra--;
+          }
+          remaining--;
         }
-        remaining--;
       }
     }
   }
@@ -221,11 +240,15 @@ class Setlet<E> extends IterableBase<E> implements Set<E> {
     } else if (_MARKER == _extra) {
       _contents.forEach(action);
     } else {
-      for (int remaining = _extra, i = 0; remaining > 0 && i < CAPACITY; i++) {
-        var element = _contents[i];
-        if (_MARKER == element) continue;
-        action(element);
-        remaining--;
+      {
+        int remaining = _extra;
+        int i = 0;
+        for ( ; remaining > 0 && i < CAPACITY; i++) {
+          var element = _contents[i];
+          if (_MARKER == element) continue;
+          action(element);
+          remaining--;
+        }
       }
     }
   }
@@ -233,7 +256,8 @@ class Setlet<E> extends IterableBase<E> implements Set<E> {
   bool containsAll(Iterable<E> other) {
     for (E e in other) {
       if (!this.contains(e)) return false;
-    };
+    }
+    ;
     return true;
   }
 

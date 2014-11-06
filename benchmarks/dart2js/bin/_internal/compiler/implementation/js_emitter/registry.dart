@@ -9,8 +9,8 @@ part of dart2js.js_emitter.program_builder;
 /// Fundamentally, this class nicely encapsulates a
 /// `Map<LibraryElement, List<Element>>`.
 class Fragment {
-  final Map<LibraryElement, List<Element>> _mapping =
-      <LibraryElement, List<Element>>{};
+  final Map<LibraryElement, List<Element>> _mapping = <LibraryElement,
+      List<Element>>{};
 
   // It is very common to access the same library multiple times in a row, so
   // we cache the last access.
@@ -51,8 +51,8 @@ class Fragment {
 class Registry {
   final Compiler _compiler;
   final Map<String, Holder> _holdersMap = <String, Holder>{};
-  final Map<OutputUnit, Fragment> _deferredFragmentsMap =
-      <OutputUnit, Fragment>{};
+  final Map<OutputUnit, Fragment> _deferredFragmentsMap = <OutputUnit,
+      Fragment>{};
 
   DeferredLoadTask get _deferredLoadTask => _compiler.deferredLoadTask;
   Iterable<Holder> get holders => _holdersMap.values;
@@ -78,7 +78,8 @@ class Registry {
     if (targetUnit == _mainOutputUnit) return mainFragment;
     String name = targetUnit.name;
     return _deferredFragmentsMap.putIfAbsent(
-        targetUnit, () => new Fragment.deferred(targetUnit, name));
+        targetUnit,
+        () => new Fragment.deferred(targetUnit, name));
   }
 
   /// Adds all elements to their respective libraries in the correct fragment.

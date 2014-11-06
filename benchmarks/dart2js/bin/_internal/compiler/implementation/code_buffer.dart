@@ -60,9 +60,10 @@ class CodeBuffer implements StringBuffer {
     if (other.markers.length > 0) {
       CodeBufferMarker firstMarker = other.markers[0];
       int offsetDelta =
-          buffer.length + firstMarker.offsetDelta - lastBufferOffset;
-      markers.add(new CodeBufferMarker(offsetDelta,
-                                       firstMarker.sourcePosition));
+          buffer.length + firstMarker.offsetDelta -
+          lastBufferOffset;
+      markers.add(
+          new CodeBufferMarker(offsetDelta, firstMarker.sourcePosition));
       for (int i = 1; i < other.markers.length; ++i) {
         markers.add(other.markers[i]);
       }

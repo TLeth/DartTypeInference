@@ -56,8 +56,8 @@ class DartBackend extends Backend {
    *    or type variable bounds typedefs.
    * These restrictions can be less strict.
    */
-  bool isSafeToRemoveTypeDeclarations(
-      Map<ClassElement, Iterable<Element>> classMembers) {
+  bool isSafeToRemoveTypeDeclarations(Map<ClassElement,
+      Iterable<Element>> classMembers) {
     ClassElement typeErrorElement = compiler.coreLibrary.find('TypeError');
     if (classMembers.containsKey(typeErrorElement) ||
         compiler.resolverWorld.isChecks.any(
@@ -95,10 +95,11 @@ class DartBackend extends Backend {
         stripAsserts = strips.indexOf('asserts') != -1,
         constantCompilerTask = new DartConstantTask(compiler),
         outputter = new DartOutputter(
-            compiler, compiler.outputProvider,
-            forceStripTypes: strips.indexOf('types') != -1,
-            multiFile: multiFile,
-            enableMinification: compiler.enableMinification),
+          compiler,
+          compiler.outputProvider,
+          forceStripTypes: strips.indexOf('types') != -1,
+          multiFile: multiFile,
+          enableMinification: compiler.enableMinification),
         super(compiler) {
     resolutionCallbacks = new DartResolutionCallbacks(this);
   }
@@ -110,8 +111,12 @@ class DartBackend extends Backend {
     // Right now resolver doesn't always resolve interfaces needed
     // for literals, so force them. TODO(antonm): fix in the resolver.
     final LITERAL_TYPE_NAMES = const [
-      'Map', 'List', 'num', 'int', 'double', 'bool'
-    ];
+        'Map',
+        'List',
+        'num',
+        'int',
+        'double',
+        'bool'];
     final coreLibrary = compiler.coreLibrary;
     for (final name in LITERAL_TYPE_NAMES) {
       ClassElement classElement = coreLibrary.findLocal(name);
@@ -125,14 +130,12 @@ class DartBackend extends Backend {
     world.registerInvocation(new Selector.call("compareTo", null, 1));
   }
 
-  void codegen(CodegenWorkItem work) { }
+  void codegen(CodegenWorkItem work) {}
 
   /// Create an [ElementAst] from the CPS IR.
-  static ElementAst createElementAst(Compiler compiler,
-                                     Tracer tracer,
-                                     ConstantSystem constantSystem,
-                                     Element element,
-                                     cps_ir.FunctionDefinition function) {
+  static ElementAst createElementAst(Compiler compiler, Tracer tracer,
+      ConstantSystem constantSystem, Element element,
+      cps_ir.FunctionDefinition function) {
     // Transformations on the CPS IR.
     if (tracer != null) {
       tracer.traceCompilation(element.name, null);
@@ -174,8 +177,7 @@ class DartBackend extends Backend {
     traceGraph('Unshadow parameters', definition);
 
     TreeElementMapping treeElements = new TreeElementMapping(element);
-    backend_ast.Node backendAst =
-        backend_ast_emitter.emit(definition);
+    backend_ast.Node backendAst = backend_ast_emitter.emit(definition);
     Node frontend_ast = backend2frontend.emit(treeElements, backendAst);
     return new ElementAst.internal(frontend_ast, treeElements);
 
@@ -188,9 +190,9 @@ class DartBackend extends Backend {
   @override
   bool shouldOutput(Element element) {
     return (!element.library.isPlatformLibrary &&
-            !element.isSynthesized &&
-            element is! AbstractFieldElement)
-        || mirrorRenamer.isMirrorHelperLibrary(element.library);
+        !element.isSynthesized &&
+        element is! AbstractFieldElement) ||
+        mirrorRenamer.isMirrorHelperLibrary(element.library);
   }
 
   void assembleProgram() {
@@ -200,22 +202,24 @@ class DartBackend extends Backend {
         return new ElementAst(element);
       } else {
         cps_ir.FunctionDefinition function = compiler.irBuilder.getIr(element);
-        return createElementAst(compiler,
-            compiler.tracer, constantSystem, element, function);
+        return createElementAst(
+            compiler,
+            compiler.tracer,
+            constantSystem,
+            element,
+            function);
       }
     }
 
     // TODO(johnniwinther): Remove the need for this method.
-    void postProcessElementAst(
-        AstElement element, ElementAst elementAst,
-        newTypedefElementCallback,
-        newClassElementCallback) {
-      ReferencedElementCollector collector =
-          new ReferencedElementCollector(compiler,
-                                         element,
-                                         elementAst,
-                                         newTypedefElementCallback,
-                                         newClassElementCallback);
+    void postProcessElementAst(AstElement element, ElementAst elementAst,
+        newTypedefElementCallback, newClassElementCallback) {
+      ReferencedElementCollector collector = new ReferencedElementCollector(
+          compiler,
+          element,
+          elementAst,
+          newTypedefElementCallback,
+          newClassElementCallback);
       collector.collect();
     }
 
@@ -245,8 +249,7 @@ class DartBackend extends Backend {
   }
 
   void logResultBundleSizeInfo(Iterable<LibraryElement> userLibraries,
-                               Iterable<Element> topLevelElements,
-                               int totalOutputSize) {
+      Iterable<Element> topLevelElements, int totalOutputSize) {
     // Sum total size of scripts in each referenced library.
     int nonPlatformSize = 0;
     for (LibraryElement lib in userLibraries) {
@@ -255,8 +258,9 @@ class DartBackend extends Backend {
       }
     }
     int percentage = totalOutputSize * 100 ~/ nonPlatformSize;
-    log('Total used non-platform files size: ${nonPlatformSize} bytes, '
-        'Output total size: $totalOutputSize bytes (${percentage}%)');
+    log(
+        'Total used non-platform files size: ${nonPlatformSize} bytes, '
+            'Output total size: $totalOutputSize bytes (${percentage}%)');
   }
 
   log(String message) => compiler.log('[DartBackend] $message');
@@ -279,8 +283,8 @@ class DartBackend extends Backend {
       return compiler.libraryLoader.loadLibrary(
           compiler.translateResolvedUri(
               loadedLibraries[Compiler.DART_MIRRORS],
-              MirrorRenamerImpl.DART_MIRROR_HELPER, null)).
-          then((LibraryElement library) {
+              MirrorRenamerImpl.DART_MIRROR_HELPER,
+              null)).then((LibraryElement library) {
         mirrorRenamer = new MirrorRenamerImpl(compiler, this, library);
       });
     }
@@ -352,11 +356,8 @@ class ReferencedElementCollector extends Visitor {
   final newTypedefElementCallback;
   final newClassElementCallback;
 
-  ReferencedElementCollector(this.compiler,
-                             this.element,
-                             this.elementAst,
-                             this.newTypedefElementCallback,
-                             this.newClassElementCallback);
+  ReferencedElementCollector(this.compiler, this.element, this.elementAst,
+      this.newTypedefElementCallback, this.newClassElementCallback);
 
   visitNode(Node node) {
     node.visitChildren(this);
@@ -365,7 +366,9 @@ class ReferencedElementCollector extends Visitor {
   visitTypeAnnotation(TypeAnnotation typeAnnotation) {
     TreeElements treeElements = elementAst.treeElements;
     final DartType type = treeElements.getType(typeAnnotation);
-    assert(invariant(typeAnnotation, type != null,
+    assert(invariant(
+        typeAnnotation,
+        type != null,
         message: "Missing type for type annotation: $treeElements."));
     if (type.isTypedef) newTypedefElementCallback(type.element);
     if (type.isInterfaceType) newClassElementCallback(type.element);
@@ -400,13 +403,13 @@ List<Element> sortElements(Iterable<Element> elements) =>
 ///
 /// Since this task needs no distinction between frontend and backend constants
 /// it also serves as the [BackendConstantEnvironment].
-class DartConstantTask extends ConstantCompilerTask
-    implements BackendConstantEnvironment {
+class DartConstantTask extends ConstantCompilerTask implements
+    BackendConstantEnvironment {
   final DartConstantCompiler constantCompiler;
 
   DartConstantTask(Compiler compiler)
-    : this.constantCompiler = new DartConstantCompiler(compiler),
-      super(compiler);
+      : this.constantCompiler = new DartConstantCompiler(compiler),
+        super(compiler);
 
   String get name => 'ConstantHandler';
 
@@ -440,9 +443,8 @@ class DartConstantTask extends ConstantCompilerTask
     });
   }
 
-  ConstantExpression compileMetadata(MetadataAnnotation metadata,
-                           Node node,
-                           TreeElements elements) {
+  ConstantExpression compileMetadata(MetadataAnnotation metadata, Node node,
+      TreeElements elements) {
     return measure(() {
       return constantCompiler.compileMetadata(metadata, node, elements);
     });

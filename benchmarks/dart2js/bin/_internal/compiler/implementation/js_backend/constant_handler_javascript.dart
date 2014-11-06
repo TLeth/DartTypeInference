@@ -17,8 +17,7 @@ class JavaScriptConstantTask extends ConstantCompilerTask {
 
   JavaScriptConstantTask(Compiler compiler)
       : this.dartConstantCompiler = new DartConstantCompiler(compiler),
-        this.jsConstantCompiler =
-            new JavaScriptConstantCompiler(compiler),
+        this.jsConstantCompiler = new JavaScriptConstantCompiler(compiler),
         super(compiler);
 
   String get name => 'ConstantHandler';
@@ -50,9 +49,8 @@ class JavaScriptConstantTask extends ConstantCompilerTask {
     });
   }
 
-  ConstantExpression compileMetadata(MetadataAnnotation metadata,
-                           Node node,
-                           TreeElements elements) {
+  ConstantExpression compileMetadata(MetadataAnnotation metadata, Node node,
+      TreeElements elements) {
     return measure(() {
       ConstantExpression constant =
           dartConstantCompiler.compileMetadata(metadata, node, elements);
@@ -67,8 +65,8 @@ class JavaScriptConstantTask extends ConstantCompilerTask {
  * constants, initializations of global and static fields, and default values of
  * optional parameters for the JavaScript interpretation of constants.
  */
-class JavaScriptConstantCompiler extends ConstantCompilerBase
-    implements BackendConstantEnvironment {
+class JavaScriptConstantCompiler extends ConstantCompilerBase implements
+    BackendConstantEnvironment {
 
   /** Set of all registered compiled constants. */
   final Set<ConstantValue> compiledConstants = new Set<ConstantValue>();
@@ -89,13 +87,12 @@ class JavaScriptConstantCompiler extends ConstantCompilerBase
       : super(compiler, JAVA_SCRIPT_CONSTANT_SYSTEM);
 
   ConstantExpression compileVariableWithDefinitions(VariableElement element,
-                                          TreeElements definitions,
-                                          {bool isConst: false}) {
+      TreeElements definitions, {bool isConst: false}) {
     if (!isConst && lazyStatics.contains(element)) {
       return null;
     }
-    ConstantExpression value = super.compileVariableWithDefinitions(
-        element, definitions, isConst: isConst);
+    ConstantExpression value =
+        super.compileVariableWithDefinitions(element, definitions, isConst: isConst);
     if (!isConst && value == null) {
       lazyStatics.add(element);
     }
@@ -114,10 +111,10 @@ class JavaScriptConstantCompiler extends ConstantCompilerBase
   Iterable<VariableElement> getStaticNonFinalFieldsForEmission() {
     return initialVariableValues.keys.where((element) {
       return element.kind == ElementKind.FIELD &&
-             !element.isInstanceMember &&
-             !element.modifiers.isFinal &&
-             // The const fields are all either emitted elsewhere or inlined.
-             !element.modifiers.isConst;
+          !element.isInstanceMember &&
+          !element.modifiers.isFinal &&
+          // The const fields are all either emitted elsewhere or inlined.
+      !element.modifiers.isConst;
     });
   }
 
@@ -168,8 +165,7 @@ class JavaScriptConstantCompiler extends ConstantCompilerBase
   }
 
   ConstantExpression compileNodeWithDefinitions(Node node,
-                                      TreeElements definitions,
-                                      {bool isConst: true}) {
+      TreeElements definitions, {bool isConst: true}) {
     ConstantExpression constant = nodeConstantMap[node];
     if (constant != null) {
       return constant;
@@ -194,9 +190,8 @@ class JavaScriptConstantCompiler extends ConstantCompilerBase
     return metadataConstantMap[metadata];
   }
 
-  ConstantExpression compileMetadata(MetadataAnnotation metadata,
-                           Node node,
-                           TreeElements elements) {
+  ConstantExpression compileMetadata(MetadataAnnotation metadata, Node node,
+      TreeElements elements) {
     ConstantExpression constant =
         super.compileMetadata(metadata, node, elements);
     metadataConstantMap[metadata] = constant;
@@ -208,7 +203,8 @@ class JavaScriptConstantCompiler extends ConstantCompilerBase
     DartType constantType =
         compiler.backend.typeImplementation.computeType(compiler);
     return new TypeConstantExpression(
-        new TypeConstantValue(elementType, constantType), elementType);
+        new TypeConstantValue(elementType, constantType),
+        elementType);
   }
 
   void forgetElement(Element element) {
@@ -253,8 +249,7 @@ class ForgetConstantNodeVisitor extends Visitor {
 
     // TODO(ahe): This doesn't belong here. Rename this class and generalize.
     var closureClassMap =
-        constants.compiler.closureToClassMapper.closureMappingCache
-        .remove(node);
+        constants.compiler.closureToClassMapper.closureMappingCache.remove(node);
     if (closureClassMap != null) {
       closureClassMap.removeMyselfFrom(
           constants.compiler.enqueuer.codegen.universe);

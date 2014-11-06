@@ -42,16 +42,15 @@ const Spannable CURRENT_ELEMENT_SPANNABLE =
 /// Sentinel spannable used to mark that there might be no location for the
 /// diagnostic. Use this only when it is not an error not to have a current
 /// element.
-const Spannable NO_LOCATION_SPANNABLE =
-    const _SpannableSentinel("No location");
+const Spannable NO_LOCATION_SPANNABLE = const _SpannableSentinel("No location");
 
 class SpannableAssertionFailure {
   final Spannable node;
   final String message;
   SpannableAssertionFailure(this.node, this.message);
 
-  String toString() => 'Assertion failure'
-                       '${message != null ? ': $message' : ''}';
+  String toString() =>
+      'Assertion failure' '${message != null ? ': $message' : ''}';
 }
 
 bool equalElements(List a, List b) {
@@ -107,9 +106,9 @@ void writeJsonEscapedCharsOn(String string, buffer) {
       } else if (code == $LS) {
         // This Unicode line terminator and $PS are invalid in JS string
         // literals.
-        addCodeUnitEscaped(buffer, $LS);  // 0x2028.
+        addCodeUnitEscaped(buffer, $LS); // 0x2028.
       } else if (code == $PS) {
-        addCodeUnitEscaped(buffer, $PS);  // 0x2029.
+        addCodeUnitEscaped(buffer, $PS); // 0x2029.
       } else if (code == $BACKSLASH) {
         buffer.write(r'\\');
       } else {
@@ -134,8 +133,13 @@ void writeJsonEscapedCharsOn(String string, buffer) {
 
   for (int i = 0; i < string.length; i++) {
     int code = string.codeUnitAt(i);
-    if (code < 0x20 || code == $DEL || code == $DQ || code == $LS ||
-        code == $PS || code == $BACKSLASH || code >= 0x80) {
+    if (code < 0x20 ||
+        code == $DEL ||
+        code == $DQ ||
+        code == $LS ||
+        code == $PS ||
+        code == $BACKSLASH ||
+        code >= 0x80) {
       writeEscapedOn(string, buffer);
       return;
     }
@@ -144,20 +148,17 @@ void writeJsonEscapedCharsOn(String string, buffer) {
 }
 
 int computeHashCode(part1, [part2, part3, part4, part5]) {
-  return (part1.hashCode
-          ^ part2.hashCode
-          ^ part3.hashCode
-          ^ part4.hashCode
-          ^ part5.hashCode) & 0x3fffffff;
+  return (part1.hashCode ^
+      part2.hashCode ^
+      part3.hashCode ^
+      part4.hashCode ^
+      part5.hashCode) &
+      0x3fffffff;
 }
 
-String modifiersToString({bool isStatic: false,
-                          bool isAbstract: false,
-                          bool isFinal: false,
-                          bool isVar: false,
-                          bool isConst: false,
-                          bool isFactory: false,
-                          bool isExternal: false}) {
+String modifiersToString({bool isStatic: false, bool isAbstract: false,
+    bool isFinal: false, bool isVar: false, bool isConst: false, bool isFactory:
+    false, bool isExternal: false}) {
   LinkBuilder<String> builder = new LinkBuilder<String>();
   if (isStatic) builder.addLast('static');
   if (isAbstract) builder.addLast('abstract');

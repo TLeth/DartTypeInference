@@ -24,8 +24,7 @@ class TypeTestEmitter extends CodeEmitterHelper {
   Map<ClassElement, Set<FunctionType>> checkedGenericFunctionTypes =
       new Map<ClassElement, Set<FunctionType>>();
 
-  Set<FunctionType> checkedNonGenericFunctionTypes =
-      new Set<FunctionType>();
+  Set<FunctionType> checkedNonGenericFunctionTypes = new Set<FunctionType>();
 
   final Set<ClassElement> rtiNeededClasses = new Set<ClassElement>();
 
@@ -33,10 +32,11 @@ class TypeTestEmitter extends CodeEmitterHelper {
 
   Iterable<ClassElement> get classesUsingTypeVariableTests {
     if (cachedClassesUsingTypeVariableTests == null) {
-      cachedClassesUsingTypeVariableTests = compiler.codegenWorld.isChecks
-          .where((DartType t) => t is TypeVariableType)
-          .map((TypeVariableType v) => v.element.enclosingClass)
-          .toList();
+      cachedClassesUsingTypeVariableTests =
+          compiler.codegenWorld.isChecks.where(
+              (DartType t) =>
+                  t is TypeVariableType).map(
+                      (TypeVariableType v) => v.element.enclosingClass).toList();
     }
     return cachedClassesUsingTypeVariableTests;
   }
@@ -53,7 +53,7 @@ class TypeTestEmitter extends CodeEmitterHelper {
     }
 
     void generateFunctionTypeSignature(FunctionElement method,
-                                       FunctionType type) {
+        FunctionType type) {
       assert(method.isImplementation);
       jsAst.Expression thisAccess = new jsAst.This();
       Node node = method.node;
@@ -82,8 +82,8 @@ class TypeTestEmitter extends CodeEmitterHelper {
       RuntimeTypes rti = backend.rti;
       jsAst.Expression expression;
       bool needsNativeCheck = emitter.nativeEmitter.requiresNativeIsCheck(cls);
-      expression = rti.getSupertypeSubstitution(
-          classElement, cls, alwaysGenerateFunction: true);
+      expression =
+          rti.getSupertypeSubstitution(classElement, cls, alwaysGenerateFunction: true);
       if (expression == null && (emitNull || needsNativeCheck)) {
         expression = new jsAst.LiteralNull();
       }
@@ -92,7 +92,9 @@ class TypeTestEmitter extends CodeEmitterHelper {
       }
     }
 
-    generateIsTestsOn(classElement, generateIsTest,
+    generateIsTestsOn(
+        classElement,
+        generateIsTest,
         generateFunctionTypeSignature,
         generateSubstitution);
   }
@@ -104,10 +106,9 @@ class TypeTestEmitter extends CodeEmitterHelper {
    * they will be inherited at runtime, but we may need to generate the
    * substitutions, because they may have changed.
    */
-  void generateIsTestsOn(ClassElement cls,
-                         void emitIsTest(Element element),
-                         FunctionTypeSignatureEmitter emitFunctionTypeSignature,
-                         SubstitutionEmitter emitSubstitution) {
+  void generateIsTestsOn(ClassElement cls, void emitIsTest(Element element),
+      FunctionTypeSignatureEmitter emitFunctionTypeSignature,
+      SubstitutionEmitter emitSubstitution) {
     if (checkedClasses.contains(cls)) {
       emitIsTest(cls);
       emitSubstitution(cls);
@@ -121,7 +122,8 @@ class TypeTestEmitter extends CodeEmitterHelper {
       return backend.rti.isTrivialSubstitution(a, b);
     }
 
-    if (superclass != null && superclass != compiler.objectClass &&
+    if (superclass != null &&
+        superclass != compiler.objectClass &&
         !haveSameTypeVariables(cls, superclass)) {
       // We cannot inherit the generated substitutions, because the type
       // variable layout for this class is different.  Instead we generate
@@ -153,7 +155,8 @@ class TypeTestEmitter extends CodeEmitterHelper {
           }
         }
       }
-      void emitNothing(_, {emitNull}) {};
+      void emitNothing(_, {emitNull}) {}
+      ;
       emitSubstitution = emitNothing;
     }
 
@@ -168,55 +171,67 @@ class TypeTestEmitter extends CodeEmitterHelper {
         call = cls.lookupBackendMember(Compiler.CALL_OPERATOR_NAME);
       }
       if (call != null && call.isFunction) {
-        generateInterfacesIsTests(compiler.functionClass,
-                                  emitIsTest,
-                                  emitSubstitution,
-                                  generated);
+        generateInterfacesIsTests(
+            compiler.functionClass,
+            emitIsTest,
+            emitSubstitution,
+            generated);
         FunctionType callType = call.computeType(compiler);
         Map<FunctionType, bool> functionTypeChecks =
             getFunctionTypeChecksOn(callType);
         generateFunctionTypeTests(
-            call, callType, functionTypeChecks,
+            call,
+            callType,
+            functionTypeChecks,
             emitFunctionTypeSignature);
-     }
+      }
     }
 
     for (DartType interfaceType in cls.interfaces) {
-      generateInterfacesIsTests(interfaceType.element, emitIsTest,
-                                emitSubstitution, generated);
+      generateInterfacesIsTests(
+          interfaceType.element,
+          emitIsTest,
+          emitSubstitution,
+          generated);
     }
   }
 
   /**
    * Generate "is tests" where [cls] is being implemented.
    */
-  void generateInterfacesIsTests(ClassElement cls,
-                                 void emitIsTest(ClassElement element),
-                                 SubstitutionEmitter emitSubstitution,
-                                 Set<Element> alreadyGenerated) {
+  void generateInterfacesIsTests(ClassElement cls, void
+      emitIsTest(ClassElement element), SubstitutionEmitter emitSubstitution,
+      Set<Element> alreadyGenerated) {
     void tryEmitTest(ClassElement check) {
       if (!alreadyGenerated.contains(check) && checkedClasses.contains(check)) {
         alreadyGenerated.add(check);
         emitIsTest(check);
         emitSubstitution(check);
       }
-    };
+    }
+    ;
 
     tryEmitTest(cls);
 
     for (DartType interfaceType in cls.interfaces) {
       Element element = interfaceType.element;
       tryEmitTest(element);
-      generateInterfacesIsTests(element, emitIsTest, emitSubstitution,
-                                alreadyGenerated);
+      generateInterfacesIsTests(
+          element,
+          emitIsTest,
+          emitSubstitution,
+          alreadyGenerated);
     }
 
     // We need to also emit "is checks" for the superclass and its supertypes.
     ClassElement superclass = cls.superclass;
     if (superclass != null) {
       tryEmitTest(superclass);
-      generateInterfacesIsTests(superclass, emitIsTest, emitSubstitution,
-                                alreadyGenerated);
+      generateInterfacesIsTests(
+          superclass,
+          emitIsTest,
+          emitSubstitution,
+          alreadyGenerated);
     }
   }
 
@@ -248,9 +263,7 @@ class TypeTestEmitter extends CodeEmitterHelper {
    * Generates function type checks on [method] with type [methodType] against
    * the function type checks in [functionTypeChecks].
    */
-  void generateFunctionTypeTests(
-      Element method,
-      FunctionType methodType,
+  void generateFunctionTypeTests(Element method, FunctionType methodType,
       Map<FunctionType, bool> functionTypeChecks,
       FunctionTypeSignatureEmitter emitFunctionTypeSignature) {
 
@@ -265,7 +278,8 @@ class TypeTestEmitter extends CodeEmitterHelper {
   void registerDynamicFunctionTypeCheck(FunctionType functionType) {
     ClassElement classElement = Types.getClassContext(functionType);
     if (classElement != null) {
-      checkedGenericFunctionTypes.putIfAbsent(classElement,
+      checkedGenericFunctionTypes.putIfAbsent(
+          classElement,
           () => new Set<FunctionType>()).add(functionType);
     } else {
       checkedNonGenericFunctionTypes.add(functionType);
@@ -312,8 +326,7 @@ class TypeTestEmitter extends CodeEmitterHelper {
       }
       for (List nameAndValue in properties) {
         statements.add(
-            js.statement('#.# = #',
-                [holder, nameAndValue[0], nameAndValue[1]]));
+            js.statement('#.# = #', [holder, nameAndValue[0], nameAndValue[1]]));
       }
     }
 
@@ -349,9 +362,8 @@ class TypeTestEmitter extends CodeEmitterHelper {
   Set<ClassElement> computeRtiNeededClasses() {
     void addClassWithSuperclasses(ClassElement cls) {
       rtiNeededClasses.add(cls);
-      for (ClassElement superclass = cls.superclass;
-          superclass != null;
-          superclass = superclass.superclass) {
+      for (ClassElement superclass =
+          cls.superclass; superclass != null; superclass = superclass.superclass) {
         rtiNeededClasses.add(superclass);
       }
     }
@@ -367,8 +379,7 @@ class TypeTestEmitter extends CodeEmitterHelper {
     // TODO(karlklose): merge this case with 2 when unifying argument and
     // object checks.
     RuntimeTypes rti = backend.rti;
-    rti.getRequiredArgumentClasses(backend)
-       .forEach(addClassWithSuperclasses);
+    rti.getRequiredArgumentClasses(backend).forEach(addClassWithSuperclasses);
 
     // 2.  Add classes that are referenced by substitutions in object checks and
     //     their superclasses.
@@ -395,7 +406,8 @@ class TypeTestEmitter extends CodeEmitterHelper {
       } else if (function.isInstanceMember) {
         if (!function.enclosingClass.isClosure) {
           return compiler.codegenWorld.hasInvokedGetter(
-              function, compiler.world);
+              function,
+              compiler.world);
         }
       }
       return false;
@@ -432,8 +444,9 @@ class TypeTestEmitter extends CodeEmitterHelper {
   void computeRequiredTypeChecks() {
     assert(checkedClasses == null && checkedFunctionTypes == null);
 
-    backend.rti.addImplicitChecks(compiler.codegenWorld,
-                                  classesUsingTypeVariableTests);
+    backend.rti.addImplicitChecks(
+        compiler.codegenWorld,
+        classesUsingTypeVariableTests);
 
     checkedClasses = new Set<ClassElement>();
     checkedFunctionTypes = new Set<FunctionType>();

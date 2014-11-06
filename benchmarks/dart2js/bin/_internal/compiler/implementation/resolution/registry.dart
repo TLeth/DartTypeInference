@@ -61,7 +61,7 @@ class ResolutionRegistry extends Registry {
 
   /// Sets the target constructor [node] to be [element].
   void setRedirectingTargetConstructor(RedirectingFactoryBody node,
-                                       ConstructorElement element) {
+      ConstructorElement element) {
     useElement(node, element);
   }
 
@@ -138,21 +138,27 @@ class ResolutionRegistry extends Registry {
 
   /// Register [node] to be the declaration of [target].
   void defineTarget(Node node, JumpTarget target) {
-    assert(invariant(node, node is Statement || node is SwitchCase,
+    assert(invariant(
+        node,
+        node is Statement || node is SwitchCase,
         message: "Only statements and switch cases can define targets."));
     mapping.defineTarget(node, target);
   }
 
   /// Returns the [JumpTarget] defined by [node].
   JumpTarget getTargetDefinition(Node node) {
-    assert(invariant(node, node is Statement || node is SwitchCase,
+    assert(invariant(
+        node,
+        node is Statement || node is SwitchCase,
         message: "Only statements and switch cases can define targets."));
     return mapping.getTargetDefinition(node);
   }
 
   /// Undefine the target of [node]. This is used to cleanup unused targets.
   void undefineTarget(Node node) {
-    assert(invariant(node, node is Statement || node is SwitchCase,
+    assert(invariant(
+        node,
+        node is Statement || node is SwitchCase,
         message: "Only statements and switch cases can define targets."));
     mapping.undefineTarget(node);
   }
@@ -167,7 +173,7 @@ class ResolutionRegistry extends Registry {
   //////////////////////////////////////////////////////////////////////////////
 
   void setAccessedByClosureIn(Node contextNode, VariableElement element,
-                              Node accessNode) {
+      Node accessNode) {
     mapping.setAccessedByClosureIn(contextNode, element, accessNode);
   }
 
@@ -176,12 +182,12 @@ class ResolutionRegistry extends Registry {
   }
 
   void registerPotentialMutationInClosure(VariableElement element,
-                                           Node mutationNode) {
+      Node mutationNode) {
     mapping.registerPotentialMutationInClosure(element, mutationNode);
   }
 
   void registerPotentialMutationIn(Node contextNode, VariableElement element,
-                                    Node mutationNode) {
+      Node mutationNode) {
     mapping.registerPotentialMutationIn(contextNode, element, mutationNode);
   }
 
@@ -206,7 +212,7 @@ class ResolutionRegistry extends Registry {
   }
 
   void registerMetadataConstant(MetadataAnnotation metadata,
-                                Element annotatedElement) {
+      Element annotatedElement) {
     backend.registerMetadataConstant(metadata, annotatedElement, this);
   }
 
@@ -339,7 +345,7 @@ class ResolutionRegistry extends Registry {
   }
 
   void registerMixinUse(MixinApplicationElement mixinApplication,
-                        ClassElement mixin) {
+      ClassElement mixin) {
     universe.registerMixinUse(mixinApplication, mixin);
   }
 

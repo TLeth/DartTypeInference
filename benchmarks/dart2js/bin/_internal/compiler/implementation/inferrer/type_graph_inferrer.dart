@@ -8,44 +8,20 @@ import 'dart:collection' show Queue, IterableBase;
 
 import '../constants/expressions.dart';
 import '../constants/values.dart';
-import '../cps_ir/cps_ir_nodes.dart' as cps_ir
-    show Node;
-import '../dart_types.dart'
-    show DartType,
-         FunctionType,
-         InterfaceType,
-         TypeKind;
-import '../dart2jslib.dart'
-    show ClassWorld,
-         Compiler,
-         Constant,
-         FunctionConstant,
-         invariant,
-         TreeElementMapping;
+import '../cps_ir/cps_ir_nodes.dart' as cps_ir show Node;
+import '../dart_types.dart' show DartType, FunctionType, InterfaceType,
+    TypeKind;
+import '../dart2jslib.dart' show ClassWorld, Compiler, Constant,
+    FunctionConstant, invariant, TreeElementMapping;
 import '../elements/elements.dart';
 import '../native/native.dart' as native;
-import '../tree/tree.dart' as ast
-    show DartString,
-         Node;
-import '../types/types.dart'
-    show ContainerTypeMask,
-         DictionaryTypeMask,
-         MapTypeMask,
-         TypeMask,
-         TypesInferrer,
-         ValueTypeMask;
-import '../universe/universe.dart'
-    show Selector,
-         SideEffects,
-         TypedSelector;
-import '../util/util.dart'
-    show ImmutableEmptySet,
-         Setlet,
-         Spannable;
+import '../tree/tree.dart' as ast show DartString, Node;
+import '../types/types.dart' show ContainerTypeMask, DictionaryTypeMask,
+    MapTypeMask, TypeMask, TypesInferrer, ValueTypeMask;
+import '../universe/universe.dart' show Selector, SideEffects, TypedSelector;
+import '../util/util.dart' show ImmutableEmptySet, Setlet, Spannable;
 
-import 'inferrer_visitor.dart'
-    show ArgumentsTypes,
-         TypeSystem;
+import 'inferrer_visitor.dart' show ArgumentsTypes, TypeSystem;
 import 'simple_types_inferrer.dart';
 
 part 'closure_tracer.dart';
@@ -97,7 +73,9 @@ class TypeInformationSystem extends TypeSystem<TypeInformation> {
   MemberTypeInformation get currentMember => _currentMember;
 
   void withMember(MemberElement element, action) {
-    assert(invariant(element, _currentMember == null,
+    assert(invariant(
+        element,
+        _currentMember == null,
         message: "Already constructing graph for $_currentMember."));
     _currentMember = getInferredTypeOf(element);
     action();
@@ -223,11 +201,12 @@ class TypeInformationSystem extends TypeSystem<TypeInformation> {
 
   TypeInformation stringLiteralType(ast.DartString value) {
     return new StringLiteralTypeInformation(
-        value, compiler.typesTask.stringType);
+        value,
+        compiler.typesTask.stringType);
   }
 
   TypeInformation computeLUB(TypeInformation firstType,
-                             TypeInformation secondType) {
+      TypeInformation secondType) {
     if (firstType == null) return secondType;
     if (firstType == secondType) return firstType;
     if (firstType == nonNullEmptyType) return secondType;
@@ -239,8 +218,7 @@ class TypeInformationSystem extends TypeSystem<TypeInformation> {
         firstType.type.union(secondType.type, classWorld));
   }
 
-  bool selectorNeedsUpdate(TypeInformation info, Selector selector)
-  {
+  bool selectorNeedsUpdate(TypeInformation info, Selector selector) {
     return info.type != selector.mask;
   }
 
@@ -258,9 +236,8 @@ class TypeInformationSystem extends TypeSystem<TypeInformation> {
     return newType;
   }
 
-  TypeInformation narrowType(TypeInformation type,
-                             DartType annotation,
-                             {bool isNullable: true}) {
+  TypeInformation narrowType(TypeInformation type, DartType annotation,
+      {bool isNullable: true}) {
     if (annotation.treatAsDynamic) return type;
     if (annotation.isVoid) return nullType;
     if (annotation.element == classWorld.objectClass && isNullable) return type;
@@ -272,9 +249,9 @@ class TypeInformationSystem extends TypeSystem<TypeInformation> {
       return type;
     } else {
       assert(annotation.isInterfaceType);
-      otherType = annotation.element == classWorld.objectClass
-          ? dynamicType.type.nonNullable()
-          : new TypeMask.nonNullSubtype(annotation.element, classWorld);
+      otherType = annotation.element == classWorld.objectClass ?
+          dynamicType.type.nonNullable() :
+          new TypeMask.nonNullSubtype(annotation.element, classWorld);
     }
     if (isNullable) otherType = otherType.nullable();
     if (type.type.isExact) {
@@ -337,24 +314,27 @@ class TypeInformationSystem extends TypeSystem<TypeInformation> {
     return type == nullType;
   }
 
-  TypeInformation allocateList(TypeInformation type,
-                               ast.Node node,
-                               Element enclosing,
-                               [TypeInformation elementType, int length]) {
-    bool isTypedArray = (compiler.typedDataClass != null) &&
+  TypeInformation allocateList(TypeInformation type, ast.Node node,
+      Element enclosing, [TypeInformation elementType, int length]) {
+    bool isTypedArray =
+        (compiler.typedDataClass != null) &&
         type.type.satisfies(compiler.typedDataClass, classWorld);
     bool isConst = (type.type == compiler.typesTask.constListType);
-    bool isFixed = (type.type == compiler.typesTask.fixedListType) ||
-                   isConst ||
-                   isTypedArray;
+    bool isFixed =
+        (type.type == compiler.typesTask.fixedListType) ||
+        isConst ||
+        isTypedArray;
     bool isElementInferred = isConst || isTypedArray;
 
     int inferredLength = isFixed ? length : null;
-    TypeMask elementTypeMask = isElementInferred
-        ? elementType.type
-        : dynamicType.type;
+    TypeMask elementTypeMask =
+        isElementInferred ? elementType.type : dynamicType.type;
     ContainerTypeMask mask = new ContainerTypeMask(
-        type.type, node, enclosing, elementTypeMask, inferredLength);
+        type.type,
+        node,
+        enclosing,
+        elementTypeMask,
+        inferredLength);
     ElementInContainerTypeInformation element =
         new ElementInContainerTypeInformation(currentMember, elementType);
     element.inferred = isElementInferred;
@@ -371,28 +351,26 @@ class TypeInformationSystem extends TypeSystem<TypeInformation> {
     return result;
   }
 
-  TypeInformation allocateMap(ConcreteTypeInformation type,
-                              ast.Node node,
-                              Element element,
-                              [List<TypeInformation> keyTypes,
-                               List<TypeInformation> valueTypes]) {
+  TypeInformation allocateMap(ConcreteTypeInformation type, ast.Node node,
+      Element element, [List<TypeInformation> keyTypes,
+      List<TypeInformation> valueTypes]) {
     assert(keyTypes.length == valueTypes.length);
     bool isFixed = (type.type == compiler.typesTask.constMapType);
 
-    TypeMask keyType, valueType;
+    TypeMask keyType;
+    TypeMask valueType;
     if (isFixed) {
-      keyType = keyTypes.fold(nonNullEmptyType.type,
+      keyType = keyTypes.fold(
+          nonNullEmptyType.type,
           (type, info) => type.union(info.type, classWorld));
-      valueType = valueTypes.fold(nonNullEmptyType.type,
+      valueType = valueTypes.fold(
+          nonNullEmptyType.type,
           (type, info) => type.union(info.type, classWorld));
     } else {
       keyType = valueType = dynamicType.type;
     }
-    MapTypeMask mask = new MapTypeMask(type.type,
-                                       node,
-                                       element,
-                                       keyType,
-                                       valueType);
+    MapTypeMask mask =
+        new MapTypeMask(type.type, node, element, keyType, valueType);
 
     TypeInformation keyTypeInfo =
         new KeyInMapTypeInformation(currentMember, null);
@@ -422,13 +400,13 @@ class TypeInformationSystem extends TypeSystem<TypeInformation> {
     // Only type the selector if [info] is concrete, because the other
     // kinds of [TypeInformation] have the empty type at this point of
     // analysis.
-    return info.isConcrete
-        ? new TypedSelector(info.type, selector, classWorld)
-        : selector;
+    return info.isConcrete ?
+        new TypedSelector(info.type, selector, classWorld) :
+        selector;
   }
 
   TypeInformation allocateDiamondPhi(TypeInformation firstInput,
-                                     TypeInformation secondInput) {
+      TypeInformation secondInput) {
     PhiElementTypeInformation result =
         new PhiElementTypeInformation(currentMember, null, false, null);
     result.addAssignment(firstInput);
@@ -437,9 +415,8 @@ class TypeInformationSystem extends TypeSystem<TypeInformation> {
     return result;
   }
 
-  PhiElementTypeInformation allocatePhi(ast.Node node,
-                                        Local variable,
-                                        inputType) {
+  PhiElementTypeInformation allocatePhi(ast.Node node, Local variable,
+      inputType) {
     // Check if [inputType] is a phi for a local updated in
     // the try/catch block [node]. If it is, no need to allocate a new
     // phi.
@@ -454,16 +431,14 @@ class TypeInformationSystem extends TypeSystem<TypeInformation> {
     return result;
   }
 
-  TypeInformation simplifyPhi(ast.Node node,
-                              Local variable,
-                              PhiElementTypeInformation phiType) {
+  TypeInformation simplifyPhi(ast.Node node, Local variable,
+      PhiElementTypeInformation phiType) {
     if (phiType.assignments.length == 1) return phiType.assignments.first;
     return phiType;
   }
 
   PhiElementTypeInformation addPhiInput(Local variable,
-                                        PhiElementTypeInformation phiType,
-                                        TypeInformation newType) {
+      PhiElementTypeInformation phiType, TypeInformation newType) {
     phiType.addAssignment(newType);
     return phiType;
   }
@@ -518,12 +493,13 @@ class WorkQueue {
  * then does the inferencing on the graph.
  *
  */
-class TypeGraphInferrerEngine
-    extends InferrerEngine<TypeInformation, TypeInformationSystem> {
+class TypeGraphInferrerEngine extends InferrerEngine<TypeInformation,
+    TypeInformationSystem> {
   final Map<Element, TypeInformation> defaultTypeOfParameter =
       new Map<Element, TypeInformation>();
   final List<CallSiteTypeInformation> allocatedCalls =
-      <CallSiteTypeInformation>[];
+      <CallSiteTypeInformation>[
+      ];
   final WorkQueue workQueue = new WorkQueue();
   final Element mainElement;
   final Set<Element> analyzedElements = new Set<Element>();
@@ -537,34 +513,31 @@ class TypeGraphInferrerEngine
   int addedInGraph = 0;
 
   TypeGraphInferrerEngine(Compiler compiler, this.mainElement)
-        : super(compiler, new TypeInformationSystem(compiler));
+      : super(compiler, new TypeInformationSystem(compiler));
 
   /**
    * A set of selector names that [List] implements, that we know return
    * their element type.
    */
   final Set<Selector> _returnsListElementTypeSet = new Set<Selector>.from(
-    <Selector>[
-      new Selector.getter('first', null),
-      new Selector.getter('last', null),
-      new Selector.getter('single', null),
-      new Selector.call('singleWhere', null, 1),
-      new Selector.call('elementAt', null, 1),
-      new Selector.index(),
-      new Selector.call('removeAt', null, 1),
-      new Selector.call('removeLast', null, 0)
-    ]);
+      <Selector>[
+          new Selector.getter('first', null),
+          new Selector.getter('last', null),
+          new Selector.getter('single', null),
+          new Selector.call('singleWhere', null, 1),
+          new Selector.call('elementAt', null, 1),
+          new Selector.index(),
+          new Selector.call('removeAt', null, 1),
+          new Selector.call('removeLast', null, 0)]);
 
   bool returnsListElementType(Selector selector) {
     return (selector.mask != null) &&
-           selector.mask.isContainer &&
-           _returnsListElementTypeSet.contains(selector.asUntyped);
+        selector.mask.isContainer &&
+        _returnsListElementTypeSet.contains(selector.asUntyped);
   }
 
   bool returnsMapValueType(Selector selector) {
-    return (selector.mask != null) &&
-           selector.mask.isMap &&
-           selector.isIndex;
+    return (selector.mask != null) && selector.mask.isMap && selector.isIndex;
   }
 
   void analyzeListAndEnqueue(ListTypeInformation info) {
@@ -597,8 +570,8 @@ class TypeGraphInferrerEngine
 
     info.bailedOut = false;
     for (int i = 0; i < tracer.keyAssignments.length; ++i) {
-      TypeInformation newType = info.addEntryAssignment(
-          tracer.keyAssignments[i], tracer.valueAssignments[i]);
+      TypeInformation newType =
+          info.addEntryAssignment(tracer.keyAssignments[i], tracer.valueAssignments[i]);
       if (newType != null) workQueue.add(newType);
     }
     for (TypeInformation map in tracer.mapAssignments) {
@@ -647,24 +620,22 @@ class TypeGraphInferrerEngine
     // Trace closures to potentially infer argument types.
     types.allocatedClosures.forEach((info) {
       void trace(Iterable<FunctionElement> elements,
-                 ClosureTracerVisitor tracer) {
+          ClosureTracerVisitor tracer) {
         tracer.run();
         if (!tracer.continueAnalyzing) {
           elements.forEach((FunctionElement e) {
             compiler.world.registerMightBePassedToApply(e);
             if (_VERBOSE) print("traced closure $e as ${true} (bail)");
             e.functionSignature.forEachParameter((parameter) {
-              types.getInferredTypeOf(parameter).giveUp(
-                  this,
-                  clearAssignments: false);
+              types.getInferredTypeOf(
+                  parameter).giveUp(this, clearAssignments: false);
             });
           });
           bailedOutOn.addAll(elements);
           return;
         }
-        elements
-            .where((e) => !bailedOutOn.contains(e))
-            .forEach((FunctionElement e) {
+        elements.where(
+            (e) => !bailedOutOn.contains(e)).forEach((FunctionElement e) {
           e.functionSignature.forEachParameter((parameter) {
             var info = types.getInferredTypeOf(parameter);
             info.maybeResume();
@@ -672,10 +643,11 @@ class TypeGraphInferrerEngine
           });
           if (tracer.tracedType.mightBePassedToFunctionApply) {
             compiler.world.registerMightBePassedToApply(e);
-          };
+          }
+          ;
           if (_VERBOSE) {
-            print("traced closure $e as "
-                "${compiler.world.getMightBePassedToApply(e)}");
+            print(
+                "traced closure $e as " "${compiler.world.getMightBePassedToApply(e)}");
           }
         });
       }
@@ -686,12 +658,13 @@ class TypeGraphInferrerEngine
         // We only are interested in functions here, as other targets
         // of this closure call are not a root to trace but an intermediate
         // for some other function.
-        Iterable<FunctionElement> elements = info.callees
-            .where((e) => e.isFunction);
+        Iterable<FunctionElement> elements =
+            info.callees.where((e) => e.isFunction);
         trace(elements, new ClosureTracerVisitor(elements, info, this));
       } else {
         assert(info is ElementTypeInformation);
-        trace([info.element],
+        trace(
+            [info.element],
             new StaticTearOffClosureTracerVisitor(info.element, info, this));
       }
     });
@@ -714,24 +687,22 @@ class TypeGraphInferrerEngine
 
     if (_PRINT_SUMMARY) {
       types.allocatedLists.values.forEach((ListTypeInformation info) {
-        print('${info.type} '
-              'for ${info.originalType.allocationNode} '
-              'at ${info.originalType.allocationElement} '
-              'after ${info.refineCount}');
+        print(
+            '${info.type} ' 'for ${info.originalType.allocationNode} '
+                'at ${info.originalType.allocationElement} ' 'after ${info.refineCount}');
       });
       types.allocatedMaps.values.forEach((MapTypeInformation info) {
-        print('${info.type} '
-              'for ${info.originalType.allocationNode} '
-              'at ${info.originalType.allocationElement} '
-              'after ${info.refineCount}');
+        print(
+            '${info.type} ' 'for ${info.originalType.allocationNode} '
+                'at ${info.originalType.allocationElement} ' 'after ${info.refineCount}');
       });
       types.allocatedClosures.forEach((TypeInformation info) {
         if (info is ElementTypeInformation) {
-          print('${types.getInferredSignatureOf(info.element)} for '
-                '${info.element}');
+          print(
+              '${types.getInferredSignatureOf(info.element)} for ' '${info.element}');
         } else if (info is ClosureTypeInformation) {
-          print('${types.getInferredSignatureOf(info.element)} for '
-                '${info.element}');
+          print(
+              '${types.getInferredSignatureOf(info.element)} for ' '${info.element}');
         } else if (info is DynamicCallSiteTypeInformation) {
           for (Element target in info.targets) {
             if (target is FunctionElement) {
@@ -778,8 +749,8 @@ class TypeGraphInferrerEngine
           if (type is! ListTypeInformation && type is! MapTypeInformation) {
             // For non-container types, the constant handler does
             // constant folding that could give more precise results.
-            ConstantExpression constant = compiler.backend.constants
-                .getConstantForVariable(element);
+            ConstantExpression constant =
+                compiler.backend.constants.getConstantForVariable(element);
             if (constant != null) {
               ConstantValue value = constant.value;
               if (value.isFunction) {
@@ -831,7 +802,7 @@ class TypeGraphInferrerEngine
       if (info is StaticCallSiteTypeInformation) {
         compiler.world.addFunctionCalledInLoop(info.calledElement);
       } else if (info.selector.mask != null &&
-                 !info.selector.mask.containsAll(compiler.world)) {
+          !info.selector.mask.containsAll(compiler.world)) {
         // For instance methods, we only register a selector called in a
         // loop if it is a typed selector, to avoid marking too many
         // methods as being called from within a loop. This cuts down
@@ -884,11 +855,9 @@ class TypeGraphInferrerEngine
    * wheter assignments must be added or removed. If [init] is false,
    * parameters are added to the work queue.
    */
-  void updateParameterAssignments(TypeInformation caller,
-                                  Element callee,
-                                  ArgumentsTypes arguments,
-                                  Selector selector,
-                                  {bool remove, bool addToQueue: true}) {
+  void updateParameterAssignments(TypeInformation caller, Element callee,
+      ArgumentsTypes arguments, Selector selector, {bool remove, bool addToQueue:
+      true}) {
     if (callee.name == Compiler.NO_SUCH_METHOD) return;
     if (callee.isField) {
       if (selector.isSetter) {
@@ -935,13 +904,13 @@ class TypeGraphInferrerEngine
             parameter == signature.firstOptionalParameter) {
           visitingRequiredParameter = false;
         }
-        TypeInformation type = visitingRequiredParameter
-            ? arguments.positional[parameterIndex]
-            : signature.optionalParametersAreNamed
-              ? arguments.named[parameter.name]
-              : parameterIndex < arguments.positional.length
-                  ? arguments.positional[parameterIndex]
-                  : null;
+        TypeInformation type = visitingRequiredParameter ?
+            arguments.positional[parameterIndex] :
+            signature.optionalParametersAreNamed ?
+                arguments.named[parameter.name] :
+                parameterIndex < arguments.positional.length ?
+                    arguments.positional[parameterIndex] :
+                    null;
         if (type == null) type = getDefaultTypeOfParameter(parameter);
         TypeInformation info = types.getInferredTypeOf(parameter);
         if (remove) {
@@ -962,7 +931,7 @@ class TypeGraphInferrerEngine
    * updated.
    */
   void setDefaultTypeOfParameter(ParameterElement parameter,
-                                 TypeInformation type) {
+      TypeInformation type) {
     assert(parameter.functionDeclaration.isImplementation);
     TypeInformation existing = defaultTypeOfParameter[parameter];
     defaultTypeOfParameter[parameter] = type;
@@ -1019,20 +988,17 @@ class TypeGraphInferrerEngine
   }
 
   TypeInformation returnTypeOfElement(Element element) {
-    if (element is !FunctionElement) return types.dynamicType;
+    if (element is! FunctionElement) return types.dynamicType;
     return types.getInferredTypeOf(element);
   }
 
-  void recordTypeOfFinalField(Spannable node,
-                              Element analyzed,
-                              Element element,
-                              TypeInformation type) {
+  void recordTypeOfFinalField(Spannable node, Element analyzed, Element element,
+      TypeInformation type) {
     types.getInferredTypeOf(element).addAssignment(type);
   }
 
-  void recordTypeOfNonFinalField(Spannable node,
-                                 Element element,
-                                 TypeInformation type) {
+  void recordTypeOfNonFinalField(Spannable node, Element element,
+      TypeInformation type) {
     types.getInferredTypeOf(element).addAssignment(type);
   }
 
@@ -1052,9 +1018,8 @@ class TypeGraphInferrerEngine
     if (info.assignments.isEmpty) info.addAssignment(type);
   }
 
-  TypeInformation addReturnTypeFor(Element element,
-                                   TypeInformation unused,
-                                   TypeInformation newType) {
+  TypeInformation addReturnTypeFor(Element element, TypeInformation unused,
+      TypeInformation newType) {
     TypeInformation type = types.getInferredTypeOf(element);
     // TODO(ngeoffray): Clean up. We do this check because
     // [SimpleTypesInferrer] deals with two different inferrers.
@@ -1063,32 +1028,35 @@ class TypeGraphInferrerEngine
     return type;
   }
 
-  TypeInformation registerCalledElement(Spannable node,
-                                        Selector selector,
-                                        Element caller,
-                                        Element callee,
-                                        ArgumentsTypes arguments,
-                                        SideEffects sideEffects,
-                                        bool inLoop) {
+  TypeInformation registerCalledElement(Spannable node, Selector selector,
+      Element caller, Element callee, ArgumentsTypes arguments,
+      SideEffects sideEffects, bool inLoop) {
     CallSiteTypeInformation info = new StaticCallSiteTypeInformation(
-          types.currentMember, node, caller, callee, selector, arguments,
-          inLoop);
+        types.currentMember,
+        node,
+        caller,
+        callee,
+        selector,
+        arguments,
+        inLoop);
     info.addToGraph(this);
     allocatedCalls.add(info);
     updateSideEffects(sideEffects, selector, callee);
     return info;
   }
 
-  TypeInformation registerCalledSelector(ast.Node node,
-                                         Selector selector,
-                                         TypeInformation receiverType,
-                                         Element caller,
-                                         ArgumentsTypes arguments,
-                                         SideEffects sideEffects,
-                                         bool inLoop) {
+  TypeInformation registerCalledSelector(ast.Node node, Selector selector,
+      TypeInformation receiverType, Element caller, ArgumentsTypes arguments,
+      SideEffects sideEffects, bool inLoop) {
     if (selector.isClosureCall) {
       return registerCalledClosure(
-          node, selector, receiverType, caller, arguments, sideEffects, inLoop);
+          node,
+          selector,
+          receiverType,
+          caller,
+          arguments,
+          sideEffects,
+          inLoop);
     }
 
     compiler.world.allFunctions.filter(selector).forEach((callee) {
@@ -1096,26 +1064,32 @@ class TypeGraphInferrerEngine
     });
 
     CallSiteTypeInformation info = new DynamicCallSiteTypeInformation(
-          types.currentMember, node, caller, selector, receiverType, arguments,
-          inLoop);
+        types.currentMember,
+        node,
+        caller,
+        selector,
+        receiverType,
+        arguments,
+        inLoop);
 
     info.addToGraph(this);
     allocatedCalls.add(info);
     return info;
   }
 
-  TypeInformation registerCalledClosure(ast.Node node,
-                                        Selector selector,
-                                        TypeInformation closure,
-                                        Element caller,
-                                        ArgumentsTypes arguments,
-                                        SideEffects sideEffects,
-                                        bool inLoop) {
+  TypeInformation registerCalledClosure(ast.Node node, Selector selector,
+      TypeInformation closure, Element caller, ArgumentsTypes arguments,
+      SideEffects sideEffects, bool inLoop) {
     sideEffects.setDependsOnSomething();
     sideEffects.setAllSideEffects();
     CallSiteTypeInformation info = new ClosureCallSiteTypeInformation(
-          types.currentMember, node, caller, selector, closure, arguments,
-          inLoop);
+        types.currentMember,
+        node,
+        caller,
+        selector,
+        closure,
+        arguments,
+        inLoop);
     info.addToGraph(this);
     allocatedCalls.add(info);
     return info;
@@ -1128,27 +1102,28 @@ class TypeGraphInferrerEngine
     int max = 0;
     Map<int, Setlet<Element>> methodSizes = new Map<int, Setlet<Element>>();
     compiler.enqueuer.resolution.resolvedElements.forEach((AstElement element) {
-        // TODO(ngeoffray): Not sure why the resolver would put a null
-        // mapping.
-        if (!compiler.enqueuer.resolution.hasBeenResolved(element)) return;
-        TreeElementMapping mapping = element.resolvedAst.elements;
-        element = element.implementation;
-        if (element.impliesType) return;
-        assert(invariant(element,
-            element.isField ||
-            element.isFunction ||
-            element.isGenerativeConstructor ||
-            element.isGetter ||
-            element.isSetter,
-            message: 'Unexpected element kind: ${element.kind}'));
-        if (element.isAbstract) return;
-        // Put the other operators in buckets by length, later to be added in
-        // length order.
-        int length = mapping.getSelectorCount();
-        max = length > max ? length : max;
-        Setlet<Element> set = methodSizes.putIfAbsent(
-            length, () => new Setlet<Element>());
-        set.add(element);
+      // TODO(ngeoffray): Not sure why the resolver would put a null
+      // mapping.
+      if (!compiler.enqueuer.resolution.hasBeenResolved(element)) return;
+      TreeElementMapping mapping = element.resolvedAst.elements;
+      element = element.implementation;
+      if (element.impliesType) return;
+      assert(invariant(
+          element,
+          element.isField ||
+              element.isFunction ||
+              element.isGenerativeConstructor ||
+              element.isGetter ||
+              element.isSetter,
+          message: 'Unexpected element kind: ${element.kind}'));
+      if (element.isAbstract) return;
+      // Put the other operators in buckets by length, later to be added in
+      // length order.
+      int length = mapping.getSelectorCount();
+      max = length > max ? length : max;
+      Setlet<Element> set =
+          methodSizes.putIfAbsent(length, () => new Setlet<Element>());
+      set.add(element);
     });
 
     List<Element> result = <Element>[];
@@ -1183,7 +1158,7 @@ class TypeGraphInferrerEngine
    * Returns the type of [element] when being called with [selector].
    */
   TypeInformation typeOfElementWithSelector(Element element,
-                                            Selector selector) {
+      Selector selector) {
     if (element.name == Compiler.NO_SUCH_METHOD &&
         selector.name != element.name) {
       // An invocation can resolve to a [noSuchMethod], in which case
@@ -1192,9 +1167,9 @@ class TypeGraphInferrerEngine
     } else if (selector.isGetter) {
       if (element.isFunction) {
         // [functionType] is null if the inferrer did not run.
-        return types.functionType == null
-            ? types.dynamicType
-            : types.functionType;
+        return types.functionType == null ?
+            types.dynamicType :
+            types.functionType;
       } else if (element.isField) {
         return typeOfElement(element);
       } else if (Elements.isUnresolved(element)) {
@@ -1270,8 +1245,7 @@ class TypeGraphInferrer implements TypesInferrer {
     if (inferrer.returnsMapValueType(selector)) {
       MapTypeMask mask = selector.mask;
       TypeMask valueType = mask.valueType;
-      return valueType == null ? compiler.typesTask.dynamicType
-                               : valueType;
+      return valueType == null ? compiler.typesTask.dynamicType : valueType;
     }
 
     TypeMask result = const TypeMask.nonNullEmpty();

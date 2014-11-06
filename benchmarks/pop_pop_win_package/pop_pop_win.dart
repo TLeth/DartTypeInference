@@ -18,21 +18,23 @@ const String _ASSET_DIR = 'packages/pop_pop_win/assets';
 Future startGame(PlatformTarget platform) {
   initPlatform(platform);
 
-  var stage = new Stage(querySelector('#gameCanvas'), webGL: true,
-      color: 0xb4ad7f, frameRate: 60);
+  var stage = new Stage(
+      querySelector('#gameCanvas'),
+      webGL: true,
+      color: 0xb4ad7f,
+      frameRate: 60);
 
-  var renderLoop = new RenderLoop()
-      ..addStage(stage);
+  var renderLoop = new RenderLoop()..addStage(stage);
 
   BitmapData.defaultLoadOptions.webp = true;
 
   //have to load the loading bar first...
-  var resourceManager = new ResourceManager()
-      ..addTextureAtlas("static", '$_ASSET_DIR/images/static.json',
-          TextureAtlasFormat.JSON);
+  var resourceManager = new ResourceManager()..addTextureAtlas(
+      "static",
+      '$_ASSET_DIR/images/static.json',
+      TextureAtlasFormat.JSON);
 
-  return resourceManager.load()
-      .then((resMan) => _initialLoad(resMan, stage));
+  return resourceManager.load().then((resMan) => _initialLoad(resMan, stage));
 }
 
 void _initialLoad(ResourceManager resourceManager, Stage stage) {
@@ -58,20 +60,24 @@ void _initialLoad(ResourceManager resourceManager, Stage stage) {
       ..addTo(stage);
 
   resourceManager
-      ..addTextureAtlas('opaque', '$_ASSET_DIR/images/opaque.json',
+      ..addTextureAtlas(
+          'opaque',
+          '$_ASSET_DIR/images/opaque.json',
           TextureAtlasFormat.JSON)
-      ..addTextureAtlas('animated', '$_ASSET_DIR/images/animated.json',
+      ..addTextureAtlas(
+          'animated',
+          '$_ASSET_DIR/images/animated.json',
           TextureAtlasFormat.JSON);
 
   resourceManager.addSoundSprite('audio', '$_ASSET_DIR/audio/audio.json');
 
   resourceManager.onProgress.listen((e) {
-    bar.ratio = resourceManager.finishedResources.length /
-        resourceManager.resources.length;
+    bar.ratio =
+        resourceManager.finishedResources.length / resourceManager.resources.length;
   });
 
-  resourceManager.load().then((resMan) =>
-      _secondaryLoad(resMan, stage, loadingSprite));
+  resourceManager.load().then(
+      (resMan) => _secondaryLoad(resMan, stage, loadingSprite));
 }
 
 void _secondaryLoad(ResourceManager resourceManager, Stage stage,

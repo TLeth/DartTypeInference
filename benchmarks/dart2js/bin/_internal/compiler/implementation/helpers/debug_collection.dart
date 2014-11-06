@@ -85,8 +85,8 @@ class DebugIterable<E> implements Iterable<E> {
 
   E reduce(E combine(E value, E element)) => iterable.reduce(combine);
 
-  dynamic fold(var initialValue,
-               dynamic combine(var previousValue, E element)) {
+  dynamic fold(var initialValue, dynamic combine(var previousValue,
+      E element)) {
     return iterable.fold(initialValue, combine);
   }
 
@@ -96,7 +96,7 @@ class DebugIterable<E> implements Iterable<E> {
 
   bool any(bool test(E element)) => iterable.any(test);
 
-  List<E> toList({ bool growable: true }) {
+  List<E> toList({bool growable: true}) {
     return iterable.toList(growable: growable);
   }
 
@@ -122,7 +122,7 @@ class DebugIterable<E> implements Iterable<E> {
 
   E get single => iterable.single;
 
-  E firstWhere(bool test(E element), { E orElse() }) {
+  E firstWhere(bool test(E element), {E orElse()}) {
     return iterable.firstWhere(test, orElse: orElse);
   }
 
@@ -267,11 +267,10 @@ class DebugSet<E> extends DebugIterable<E> implements Set<E> {
 /// at the call site by running test programs and adding to [runtimeTypes] when
 /// new type are found.
 void assertType(String name, List<String> runtimeTypes, var object,
-                {bool showObjects: false}) {
+    {bool showObjects: false}) {
   String runtimeType = '${object.runtimeType}';
   if (runtimeTypes != null && runtimeTypes.contains(runtimeType)) return;
-  throw '$name: $runtimeType'
-        '${showObjects ? ' ($object)' : ''}';
+  throw '$name: $runtimeType' '${showObjects ? ' ($object)' : ''}';
 }
 
 /// Callback for the [addCallback] of [DebugMap] that throws an exception if
@@ -285,8 +284,8 @@ class MapTypeAsserter {
   final Map<String, List<String>> runtimeTypes;
   final bool showObjects;
 
-  const MapTypeAsserter(this.name, this.runtimeTypes,
-                       {bool this.showObjects: false});
+  const MapTypeAsserter(this.name, this.runtimeTypes, {bool this.showObjects:
+      false});
 
   void call(String methodName, var key, var value) {
     check(key, value, '$methodName: ');
@@ -298,7 +297,7 @@ class MapTypeAsserter {
     List<String> valuesTypes = runtimeTypes[keyType];
     if (valuesTypes != null && valuesTypes.contains(valueType)) return;
     throw '$name: $text$keyType => $valueType'
-          '${showObjects ? ' ($key => $value)' : ''}';
+        '${showObjects ? ' ($key => $value)' : ''}';
   }
 }
 
@@ -313,8 +312,8 @@ class CollectionTypeAsserter {
   final List<String> runtimeTypes;
   final bool showObjects;
 
-  const CollectionTypeAsserter(this.name, this.runtimeTypes,
-                       {bool this.showObjects: false});
+  const CollectionTypeAsserter(this.name, this.runtimeTypes, {bool
+      this.showObjects: false});
 
   void call(String methodName, var element, _) {
     check(element, '$methodName: ');
@@ -323,7 +322,6 @@ class CollectionTypeAsserter {
   void check(var element, [String text = '']) {
     String elementType = '${element.runtimeType}';
     if (runtimeTypes.contains(elementType)) return;
-    throw '$name: $text$elementType'
-          '${showObjects ? ' ($element)' : ''}';
+    throw '$name: $text$elementType' '${showObjects ? ' ($element)' : ''}';
   }
 }

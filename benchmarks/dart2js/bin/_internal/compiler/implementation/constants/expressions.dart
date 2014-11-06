@@ -6,9 +6,7 @@ library dart2js.constants.expressions;
 
 import '../dart2jslib.dart' show assertDebugMode;
 import '../dart_types.dart';
-import '../elements/elements.dart' show
-    Element,
-    FunctionElement,
+import '../elements/elements.dart' show Element, FunctionElement,
     VariableElement;
 import '../universe/universe.dart' show Selector;
 import 'values.dart';
@@ -39,8 +37,8 @@ abstract class ConstantExpression {
   }
 
   String toString() {
-    assertDebugMode('Use ConstantExpression.getText() instead of '
-                    'ConstantExpression.toString()');
+    assertDebugMode(
+        'Use ConstantExpression.getText() instead of ' 'ConstantExpression.toString()');
     return getText();
   }
 }
@@ -87,11 +85,8 @@ class ConstructedConstantExpresssion extends ConstantExpression {
   final Selector selector;
   final List<ConstantExpression> arguments;
 
-  ConstructedConstantExpresssion(this.value,
-                      this.type,
-                      this.target,
-                      this.selector,
-                      this.arguments) {
+  ConstructedConstantExpresssion(this.value, this.type, this.target,
+      this.selector, this.arguments) {
     assert(type.element == target.enclosingClass);
   }
 
@@ -219,10 +214,8 @@ class ConditionalConstantExpression extends ConstantExpression {
   final ConstantExpression trueExp;
   final ConstantExpression falseExp;
 
-  ConditionalConstantExpression(this.value,
-                                this.condition,
-                                this.trueExp,
-                                this.falseExp);
+  ConditionalConstantExpression(this.value, this.condition, this.trueExp,
+      this.falseExp);
 
   accept(ConstantExpressionVisitor visitor) => visitor.visitConditional(this);
 
@@ -258,9 +251,8 @@ class ConstDeclaration {
 class ConstExpPrinter extends ConstantExpressionVisitor {
   final StringBuffer sb = new StringBuffer();
 
-  write(ConstantExpression parent,
-        ConstantExpression child,
-        {bool leftAssociative: true}) {
+  write(ConstantExpression parent, ConstantExpression child,
+      {bool leftAssociative: true}) {
     if (child.precedence < parent.precedence ||
         !leftAssociative && child.precedence == parent.precedence) {
       sb.write('(');

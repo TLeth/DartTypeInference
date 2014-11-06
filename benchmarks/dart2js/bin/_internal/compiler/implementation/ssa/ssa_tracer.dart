@@ -58,10 +58,9 @@ class HTracer extends HGraphVisitor with TracerUtil {
   }
 
   void addInstructions(HInstructionStringifier stringifier,
-                       HInstructionList list) {
-    for (HInstruction instruction = list.first;
-         instruction != null;
-         instruction = instruction.next) {
+      HInstructionList list) {
+    for (HInstruction instruction =
+        list.first; instruction != null; instruction = instruction.next) {
       int bci = 0;
       int uses = instruction.usedBy.length;
       String changes = instruction.sideEffects.hasSideEffects() ? '!' : ' ';
@@ -160,7 +159,7 @@ class HInstructionStringifier implements HVisitor<String> {
 
   String handleInvokeBinary(HInvokeBinary node, String op) {
     String left = temporaryId(node.left);
-    String right= temporaryId(node.right);
+    String right = temporaryId(node.right);
     return '$left $op $right';
   }
 
@@ -263,7 +262,7 @@ class HInstructionStringifier implements HVisitor<String> {
   }
 
   String visitGenericInvoke(String invokeType, String functionName,
-                            List<HInstruction> arguments) {
+      List<HInstruction> arguments) {
     StringBuffer argumentsString = new StringBuffer();
     for (int i = 0; i < arguments.length; i++) {
       if (i != 0) argumentsString.write(", ");
@@ -295,8 +294,8 @@ class HInstructionStringifier implements HVisitor<String> {
     return "Intercept: $value";
   }
 
-  String visitInvokeClosure(HInvokeClosure node)
-      => visitInvokeDynamic(node, "closure");
+  String visitInvokeClosure(HInvokeClosure node) =>
+      visitInvokeDynamic(node, "closure");
 
   String visitInvokeDynamic(HInvokeDynamic invoke, String kind) {
     String receiver = temporaryId(invoke.receiver);
@@ -308,12 +307,12 @@ class HInstructionStringifier implements HVisitor<String> {
         "(${invoke.selector.mask})";
   }
 
-  String visitInvokeDynamicMethod(HInvokeDynamicMethod node)
-      => visitInvokeDynamic(node, "method");
-  String visitInvokeDynamicGetter(HInvokeDynamicGetter node)
-      => visitInvokeDynamic(node, "get");
-  String visitInvokeDynamicSetter(HInvokeDynamicSetter node)
-      => visitInvokeDynamic(node, "set");
+  String visitInvokeDynamicMethod(HInvokeDynamicMethod node) =>
+      visitInvokeDynamic(node, "method");
+  String visitInvokeDynamicGetter(HInvokeDynamicGetter node) =>
+      visitInvokeDynamic(node, "get");
+  String visitInvokeDynamicSetter(HInvokeDynamicSetter node) =>
+      visitInvokeDynamic(node, "set");
 
   String visitInvokeStatic(HInvokeStatic invoke) {
     String target = invoke.element.name;
@@ -331,13 +330,14 @@ class HInstructionStringifier implements HVisitor<String> {
   }
 
   String visitForeign(HForeign foreign) {
-    return visitGenericInvoke("Foreign", "${foreign.codeTemplate.ast}", foreign.inputs);
+    return visitGenericInvoke(
+        "Foreign",
+        "${foreign.codeTemplate.ast}",
+        foreign.inputs);
   }
 
   String visitForeignNew(HForeignNew node) {
-    return visitGenericInvoke("New",
-                              "${node.element.name}",
-                              node.inputs);
+    return visitGenericInvoke("New", "${node.element.name}", node.inputs);
   }
 
   String visitLess(HLess node) => handleInvokeBinary(node, '<');
@@ -392,14 +392,12 @@ class HInstructionStringifier implements HVisitor<String> {
   String visitShiftLeft(HShiftLeft node) => handleInvokeBinary(node, '<<');
   String visitShiftRight(HShiftRight node) => handleInvokeBinary(node, '>>');
 
-  String visitStatic(HStatic node)
-      => "Static ${node.element.name}";
+  String visitStatic(HStatic node) => "Static ${node.element.name}";
 
-  String visitLazyStatic(HLazyStatic node)
-      => "LazyStatic ${node.element.name}";
+  String visitLazyStatic(HLazyStatic node) => "LazyStatic ${node.element.name}";
 
-  String visitOneShotInterceptor(HOneShotInterceptor node)
-      => visitInvokeDynamic(node, "one shot interceptor");
+  String visitOneShotInterceptor(HOneShotInterceptor node) =>
+      visitInvokeDynamic(node, "one shot interceptor");
 
   String visitStaticStore(HStaticStore node) {
     String lhs = node.element.name;
@@ -479,11 +477,10 @@ class HInstructionStringifier implements HVisitor<String> {
 
   String visitTypeConversion(HTypeConversion node) {
     assert(node.inputs.length <= 2);
-    String otherInput = (node.inputs.length == 2)
-        ? temporaryId(node.inputs[1])
-        : '';
+    String otherInput =
+        (node.inputs.length == 2) ? temporaryId(node.inputs[1]) : '';
     return "TypeConversion: ${temporaryId(node.checkedInput)} to "
-      "${node.instructionType} $otherInput";
+        "${node.instructionType} $otherInput";
   }
 
   String visitTypeKnown(HTypeKnown node) {

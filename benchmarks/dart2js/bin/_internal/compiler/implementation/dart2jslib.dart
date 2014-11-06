@@ -6,8 +6,7 @@ library dart2js;
 
 import 'dart:async';
 import 'dart:collection' show Queue;
-import 'dart:profiler' show
-    UserTag;
+import 'dart:profiler' show UserTag;
 
 import '../compiler.dart' as api;
 import 'cache_strategy.dart';
@@ -20,21 +19,13 @@ import 'dart_types.dart';
 import 'deferred_load.dart' show DeferredLoadTask, OutputUnit;
 import 'dump_info.dart';
 import 'elements/elements.dart';
-import 'elements/modelx.dart'
-    show ErroneousElementX,
-         ClassElementX,
-         CompilationUnitElementX,
-         LibraryElementX,
-         PrefixElementX,
-         VoidElementX,
-         AnalyzableElement,
-         DeferredLoaderGetterElementX;
-import 'helpers/helpers.dart';  // Included for debug helpers.
+import 'elements/modelx.dart' show ErroneousElementX, ClassElementX,
+    CompilationUnitElementX, LibraryElementX, PrefixElementX, VoidElementX,
+    AnalyzableElement, DeferredLoaderGetterElementX;
+import 'helpers/helpers.dart'; // Included for debug helpers.
 import 'js/js.dart' as js;
 import 'js_backend/js_backend.dart' as js_backend;
-import 'library_loader.dart'
-    show LibraryLoader,
-         LibraryLoaderTask;
+import 'library_loader.dart' show LibraryLoader, LibraryLoaderTask;
 import 'mirrors_used.dart' show MirrorUsageAnalyzerTask;
 import 'native/native.dart' as native;
 import 'ordered_typeset.dart';
@@ -53,16 +44,11 @@ import 'util/util.dart';
 
 export 'helpers/helpers.dart';
 export 'resolution/resolution.dart' show TreeElements, TreeElementMapping;
-export 'scanner/scannerlib.dart' show isUserDefinableOperator,
-                                      isUnaryOperator,
-                                      isBinaryOperator,
-                                      isTernaryOperator,
-                                      isMinusOperator;
+export 'scanner/scannerlib.dart' show isUserDefinableOperator, isUnaryOperator,
+    isBinaryOperator, isTernaryOperator, isMinusOperator;
 export 'universe/universe.dart' show Selector, TypedSelector;
-export 'util/util.dart'
-    show Spannable,
-         CURRENT_ELEMENT_SPANNABLE,
-         NO_LOCATION_SPANNABLE;
+export 'util/util.dart' show Spannable, CURRENT_ELEMENT_SPANNABLE,
+    NO_LOCATION_SPANNABLE;
 
 part 'code_buffer.dart';
 part 'compile_time_constants.dart';

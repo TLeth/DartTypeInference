@@ -114,8 +114,7 @@ class IRTracer extends TracerUtil implements cps_ir.Visitor {
     String callName = node.selector.name;
     String args = node.arguments.map(formatReference).join(', ');
     String kont = formatReference(node.continuation);
-    printStmt(dummy,
-        "InvokeMethod $receiver $callName ($args) $kont");
+    printStmt(dummy, "InvokeMethod $receiver $callName ($args) $kont");
   }
 
   visitInvokeSuperMethod(cps_ir.InvokeSuperMethod node) {
@@ -123,8 +122,7 @@ class IRTracer extends TracerUtil implements cps_ir.Visitor {
     String callName = node.selector.name;
     String args = node.arguments.map(formatReference).join(', ');
     String kont = formatReference(node.continuation);
-    printStmt(dummy,
-        "InvokeSuperMethod $callName ($args) $kont");
+    printStmt(dummy, "InvokeSuperMethod $callName ($args) $kont");
   }
 
   visitInvokeConstructor(cps_ir.InvokeConstructor node) {
@@ -307,8 +305,8 @@ class Block {
 
 class BlockCollector extends cps_ir.Visitor {
   Block entry;
-  final Map<cps_ir.Continuation, Block> cont2block =
-      <cps_ir.Continuation, Block>{};
+  final Map<cps_ir.Continuation, Block> cont2block = <cps_ir.Continuation,
+      Block>{};
   Block current_block;
 
   Names names;

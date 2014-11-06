@@ -60,7 +60,7 @@ class CopyPropagator extends RecursiveVisitor {
     function.parameters.forEach(visitVariable);
 
     // Now do the propagation.
-    for (int i=0; i<function.parameters.length; i++) {
+    for (int i = 0; i < function.parameters.length; i++) {
       Variable param = function.parameters[i];
       Variable replacement = copyPropagateVariable(param);
       replacement.element = param.element; // Preserve parameter name.
@@ -133,8 +133,7 @@ class CopyPropagator extends RecursiveVisitor {
     // is from an outer function scope.
     if (node.definition is Variable) {
       Variable def = node.definition;
-      if (def.readCount == 1 &&
-          node.variable.host.element == functionElement) {
+      if (def.readCount == 1 && node.variable.host.element == functionElement) {
         move[node.definition] = node;
         inverseMove[node.variable] = node;
       }

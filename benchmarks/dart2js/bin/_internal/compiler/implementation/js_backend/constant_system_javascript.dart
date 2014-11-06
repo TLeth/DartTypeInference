@@ -15,8 +15,8 @@ class JavaScriptBitNotOperation extends BitNotOperation {
       if (constant.isMinusZero) constant = DART_CONSTANT_SYSTEM.createInt(0);
       IntConstantValue intConstant = constant;
       // We convert the result of bit-operations to 32 bit unsigned integers.
-      return
-          JAVA_SCRIPT_CONSTANT_SYSTEM.createInt32(~intConstant.primitiveValue);
+      return JAVA_SCRIPT_CONSTANT_SYSTEM.createInt32(
+          ~intConstant.primitiveValue);
     }
     return null;
   }
@@ -172,8 +172,8 @@ class JavaScriptConstantSystem extends ConstantSystem {
   final shiftRight = const JavaScriptShiftRightOperation();
   final subtract =
       const JavaScriptBinaryArithmeticOperation(const SubtractOperation());
-  final truncatingDivide = const JavaScriptBinaryArithmeticOperation(
-      const TruncatingDivideOperation());
+  final truncatingDivide =
+      const JavaScriptBinaryArithmeticOperation(const TruncatingDivideOperation());
 
   const JavaScriptConstantSystem();
 
@@ -202,7 +202,8 @@ class JavaScriptConstantSystem extends ConstantSystem {
     } else if (constant.isDouble) {
       DoubleConstantValue doubleResult = constant;
       double doubleValue = doubleResult.primitiveValue;
-      if (!doubleValue.isInfinite && !doubleValue.isNaN &&
+      if (!doubleValue.isInfinite &&
+          !doubleValue.isNaN &&
           !constant.isMinusZero) {
         int intValue = doubleValue.truncate();
         if (intValue == doubleValue) {
@@ -213,11 +214,11 @@ class JavaScriptConstantSystem extends ConstantSystem {
     return constant;
   }
 
-  NumConstantValue createInt(int i)
-      => convertToJavaScriptConstant(new IntConstantValue(i));
+  NumConstantValue createInt(int i) =>
+      convertToJavaScriptConstant(new IntConstantValue(i));
   NumConstantValue createInt32(int i) => new IntConstantValue(i & BITS32);
-  NumConstantValue createDouble(double d)
-      => convertToJavaScriptConstant(new DoubleConstantValue(d));
+  NumConstantValue createDouble(double d) =>
+      convertToJavaScriptConstant(new DoubleConstantValue(d));
   StringConstantValue createString(DartString string) {
     return new StringConstantValue(string);
   }
@@ -226,8 +227,8 @@ class JavaScriptConstantSystem extends ConstantSystem {
 
   // Integer checks don't verify that the number is not -0.0.
   bool isInt(ConstantValue constant) => constant.isInt || constant.isMinusZero;
-  bool isDouble(ConstantValue constant)
-      => constant.isDouble && !constant.isMinusZero;
+  bool isDouble(ConstantValue constant) =>
+      constant.isDouble && !constant.isMinusZero;
   bool isString(ConstantValue constant) => constant.isString;
   bool isBool(ConstantValue constant) => constant.isBool;
   bool isNull(ConstantValue constant) => constant.isNull;
@@ -243,15 +244,13 @@ class JavaScriptConstantSystem extends ConstantSystem {
     return compiler.types.isSubtype(s, t);
   }
 
-  MapConstantValue createMap(Compiler compiler,
-                        InterfaceType sourceType,
-                        List<ConstantValue> keys,
-                        List<ConstantValue> values) {
+  MapConstantValue createMap(Compiler compiler, InterfaceType sourceType,
+      List<ConstantValue> keys, List<ConstantValue> values) {
     JavaScriptBackend backend = compiler.backend;
 
     bool onlyStringKeys = true;
     ConstantValue protoValue = null;
-    for (int i = 0; i < keys.length ; i++) {
+    for (int i = 0; i < keys.length; i++) {
       var key = keys[i];
       if (key.isString) {
         if (key.primitiveValue == JavaScriptMapConstant.PROTO_PROPERTY) {
@@ -274,10 +273,11 @@ class JavaScriptConstantSystem extends ConstantSystem {
       keysType = new InterfaceType(compiler.listClass, arguments);
     }
     ListConstantValue keysList = new ListConstantValue(keysType, keys);
-    String className = onlyStringKeys
-        ? (hasProtoKey ? JavaScriptMapConstant.DART_PROTO_CLASS
-                       : JavaScriptMapConstant.DART_STRING_CLASS)
-        : JavaScriptMapConstant.DART_GENERAL_CLASS;
+    String className = onlyStringKeys ?
+        (hasProtoKey ?
+            JavaScriptMapConstant.DART_PROTO_CLASS :
+            JavaScriptMapConstant.DART_STRING_CLASS) :
+        JavaScriptMapConstant.DART_GENERAL_CLASS;
     ClassElement classElement = backend.jsHelperLibrary.find(className);
     classElement.ensureResolved(compiler);
     List<DartType> typeArgument = sourceType.typeArguments;
@@ -288,7 +288,11 @@ class JavaScriptConstantSystem extends ConstantSystem {
       type = new InterfaceType(classElement, typeArgument);
     }
     return new JavaScriptMapConstant(
-        type, keysList, values, protoValue, onlyStringKeys);
+        type,
+        keysList,
+        values,
+        protoValue,
+        onlyStringKeys);
 
   }
 }
@@ -316,11 +320,8 @@ class JavaScriptMapConstant extends MapConstantValue {
   final ConstantValue protoValue;
   final bool onlyStringKeys;
 
-  JavaScriptMapConstant(InterfaceType type,
-                        ListConstantValue keyList,
-                        List<ConstantValue> values,
-                        this.protoValue,
-                        this.onlyStringKeys)
+  JavaScriptMapConstant(InterfaceType type, ListConstantValue keyList,
+      List<ConstantValue> values, this.protoValue, this.onlyStringKeys)
       : this.keyList = keyList,
         super(type, keyList.entries, values);
   bool get isMap => true;

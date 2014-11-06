@@ -25,12 +25,12 @@ class Indentation {
   /// The indentation unit, defaulting to two spaces. May be overwritten.
   String _indentationUnit = "  ";
   String get indentationUnit => _indentationUnit;
-         set indentationUnit(String value) {
-           if (value != _indentationUnit) {
-             _indentationUnit = value;
-             _indentList = <String>[""];
-           }
-         }
+  set indentationUnit(String value) {
+    if (value != _indentationUnit) {
+      _indentationUnit = value;
+      _indentList = <String>[""];
+    }
+  }
 
   /// Increases the current level of indentation.
   void indentMore() {

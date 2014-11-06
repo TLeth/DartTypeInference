@@ -4,16 +4,9 @@
 
 part of type_graph_inferrer;
 
-Set<String> okMapSelectorsSet = new Set.from(
-    const <String>[
-      // From Object.
-      "==",
-      "hashCode",
-      "toString",
-      "noSuchMethod",
-      "runtimeType",
-      // From Map
-      "[]",
+Set<String> okMapSelectorsSet = new Set.from(const <String>[// From Object.
+  "==", "hashCode", "toString", "noSuchMethod", "runtimeType", // From Map
+  "[]",
       "isEmpty",
       "isNotEmpty",
       "keys",
@@ -116,7 +109,7 @@ class MapTracerVisitor extends TracerVisitor<MapTypeInformation> {
         }
       }
     } else if (selector.isCall &&
-               !info.targets.every((element) => element.isFunction)) {
+        !info.targets.every((element) => element.isFunction)) {
       bailout('Passed to a closure');
       return;
     }

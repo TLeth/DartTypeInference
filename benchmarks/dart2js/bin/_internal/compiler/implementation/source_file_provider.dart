@@ -55,7 +55,7 @@ abstract class SourceFileProvider {
     } on FileSystemException catch (ex) {
       return new Future.error(
           "Error reading '${relativize(cwd, resourceUri, isWindows)}' "
-          "(${ex.osError})");
+              "(${ex.osError})");
     }
     dartCharactersRead += source.length;
     sourceFiles[resourceUri.toString()] =
@@ -66,35 +66,35 @@ abstract class SourceFileProvider {
   Future<List<int>> _readFromHttp(Uri resourceUri) {
     assert(resourceUri.scheme == 'http');
     HttpClient client = new HttpClient();
-    return client.getUrl(resourceUri)
-        .then((HttpClientRequest request) => request.close())
-        .then((HttpClientResponse response) {
-          if (response.statusCode != HttpStatus.OK) {
-            String msg = 'Failure getting $resourceUri: '
-                      '${response.statusCode} ${response.reasonPhrase}';
-            throw msg;
-          }
-          return response.toList();
-        })
-        .then((List<List<int>> splitContent) {
-           int totalLength = splitContent.fold(0, (int old, List list) {
-             return old + list.length;
-           });
-           Uint8List result = new Uint8List(totalLength);
-           int offset = 0;
-           for (List<int> contentPart in splitContent) {
-             result.setRange(
-                 offset, offset + contentPart.length, contentPart);
-             offset += contentPart.length;
-           }
-           dartCharactersRead += totalLength;
-           sourceFiles[resourceUri.toString()] =
-               new CachingUtf8BytesSourceFile(resourceUri.toString(), result);
-           return result;
-         });
+    return client.getUrl(
+        resourceUri).then(
+            (HttpClientRequest request) =>
+                request.close()).then((HttpClientResponse response) {
+      if (response.statusCode != HttpStatus.OK) {
+        String msg =
+            'Failure getting $resourceUri: '
+                '${response.statusCode} ${response.reasonPhrase}';
+        throw msg;
+      }
+      return response.toList();
+    }).then((List<List<int>> splitContent) {
+      int totalLength = splitContent.fold(0, (int old, List list) {
+        return old + list.length;
+      });
+      Uint8List result = new Uint8List(totalLength);
+      int offset = 0;
+      for (List<int> contentPart in splitContent) {
+        result.setRange(offset, offset + contentPart.length, contentPart);
+        offset += contentPart.length;
+      }
+      dartCharactersRead += totalLength;
+      sourceFiles[resourceUri.toString()] =
+          new CachingUtf8BytesSourceFile(resourceUri.toString(), result);
+      return result;
+    });
   }
 
-  Future/*<List<int> | String>*/ call(Uri resourceUri);
+  Future /*<List<int> | String>*/ call(Uri resourceUri);
 
   relativizeUri(Uri uri) => relativize(cwd, uri, isWindows);
 }
@@ -117,11 +117,13 @@ class FormattingDiagnosticHandler {
 
   final int FATAL = api.Diagnostic.CRASH.ordinal | api.Diagnostic.ERROR.ordinal;
   final int INFO =
-      api.Diagnostic.INFO.ordinal | api.Diagnostic.VERBOSE_INFO.ordinal;
+      api.Diagnostic.INFO.ordinal |
+      api.Diagnostic.VERBOSE_INFO.ordinal;
 
   FormattingDiagnosticHandler([SourceFileProvider provider])
-      : this.provider =
-          (provider == null) ? new CompilerSourceFileProvider() : provider;
+      : this.provider = (provider == null) ?
+          new CompilerSourceFileProvider() :
+          provider;
 
   void info(var message, [api.Diagnostic kind = api.Diagnostic.VERBOSE_INFO]) {
     if (!verbose && kind == api.Diagnostic.VERBOSE_INFO) return;
@@ -151,7 +153,7 @@ class FormattingDiagnosticHandler {
   }
 
   void diagnosticHandler(Uri uri, int begin, int end, String message,
-                         api.Diagnostic kind) {
+      api.Diagnostic kind) {
     // TODO(ahe): Remove this when source map is handled differently.
     if (identical(kind.name, 'source map')) return;
 
@@ -200,11 +202,12 @@ class FormattingDiagnosticHandler {
     } else {
       SourceFile file = provider.sourceFiles[uri.toString()];
       if (file != null) {
-        print(file.getLocationMessage(
-          color(message), begin, end, colorize: color));
+        print(
+            file.getLocationMessage(color(message), begin, end, colorize: color));
       } else {
-        print('${provider.relativizeUri(uri)}@$begin+${end - begin}:'
-              ' [$kind] ${color(message)}');
+        print(
+            '${provider.relativizeUri(uri)}@$begin+${end - begin}:'
+                ' [$kind] ${color(message)}');
       }
     }
     if (fatal && ++fatalCount >= throwOnErrorCount && throwOnError) {
@@ -229,10 +232,8 @@ class RandomAccessFileOutputProvider {
   int totalCharactersWritten = 0;
   List<String> allOutputFiles = new List<String>();
 
-  RandomAccessFileOutputProvider(this.out,
-                                 this.sourceMapOut,
-                                 {this.onInfo,
-                                  this.onFailure});
+  RandomAccessFileOutputProvider(this.out, this.sourceMapOut, {this.onInfo,
+      this.onFailure});
 
   static Uri computePrecompiledUri(Uri out) {
     String extension = 'precompiled.js';
@@ -257,8 +258,9 @@ class RandomAccessFileOutputProvider {
             sourceMapOut.path.substring(sourceMapOut.path.lastIndexOf('/') + 1);
       } else if (extension == 'precompiled.js') {
         uri = computePrecompiledUri(out);
-        onInfo("File ($uri) is compatible with header"
-               " \"Content-Security-Policy: script-src 'self'\"");
+        onInfo(
+            "File ($uri) is compatible with header"
+                " \"Content-Security-Policy: script-src 'self'\"");
       } else if (extension == 'js.map' || extension == 'dart.map') {
         uri = sourceMapOut;
       } else if (extension == 'info.html' || extension == "info.json") {
@@ -278,7 +280,7 @@ class RandomAccessFileOutputProvider {
     RandomAccessFile output;
     try {
       output = new File(uri.toFilePath()).openSync(mode: FileMode.WRITE);
-    } on FileSystemException catch(e) {
+    } on FileSystemException catch (e) {
       onFailure('$e');
     }
 
@@ -288,7 +290,7 @@ class RandomAccessFileOutputProvider {
 
     writeStringSync(String data) {
       // Write the data in chunks of 8kb, otherwise we risk running OOM.
-      int chunkSize = 8*1024;
+      int chunkSize = 8 * 1024;
 
       int offset = 0;
       while (offset < data.length) {
@@ -311,7 +313,8 @@ class RandomAccessFileOutputProvider {
 }
 
 class EventSinkWrapper extends EventSink<String> {
-  var onAdd, onClose;
+  var onAdd;
+  var onClose;
 
   EventSinkWrapper(this.onAdd, this.onClose);
 

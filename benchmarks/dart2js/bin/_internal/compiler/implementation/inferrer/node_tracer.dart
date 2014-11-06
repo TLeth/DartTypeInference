@@ -6,68 +6,50 @@ part of type_graph_inferrer;
 
 // A set of selectors we know do not escape the elements inside the
 // list.
-Set<String> doesNotEscapeListSet = new Set<String>.from(
-  const <String>[
-    // From Object.
-    '==',
-    'hashCode',
-    'toString',
-    'noSuchMethod',
-    'runtimeType',
+Set<String> doesNotEscapeListSet =
+    new Set<String>.from(const <String>[// From Object.
+  '==', 'hashCode', 'toString', 'noSuchMethod', 'runtimeType', // From Iterable.
+  'isEmpty',
+      'isNotEmpty',
+      'length',
+      'any',
+      'contains',
+      'every',
+      'join',
+      // From List.
+  'add',
+      'addAll',
+      'clear',
+      'fillRange',
+      'indexOf',
+      'insert',
+      'insertAll',
+      'lastIndexOf',
+      'remove',
+      'removeRange',
+      'replaceRange',
+      'setAll',
+      'setRange',
+      'shuffle',
+      '[]=',
+      // From JSArray.
+  'checkMutable', 'checkGrowable',]);
 
-    // From Iterable.
-    'isEmpty',
-    'isNotEmpty',
-    'length',
-    'any',
-    'contains',
-    'every',
-    'join',
+Set<String> doesNotEscapeMapSet =
+    new Set<String>.from(const <String>[// From Object.
+  '==', 'hashCode', 'toString', 'noSuchMethod', 'runtimeType', // from Map.
+  'isEmpty',
+      'isNotEmpty',
+      'length',
+      'clear',
+      'containsKey',
+      'containsValue',
+      '[]=',
+      // [keys] only allows key values to escape, which we do not track.
+  'keys']);
 
-    // From List.
-    'add',
-    'addAll',
-    'clear',
-    'fillRange',
-    'indexOf',
-    'insert',
-    'insertAll',
-    'lastIndexOf',
-    'remove',
-    'removeRange',
-    'replaceRange',
-    'setAll',
-    'setRange',
-    'shuffle',
-    '[]=',
-
-    // From JSArray.
-    'checkMutable',
-    'checkGrowable',
-  ]);
-
-Set<String> doesNotEscapeMapSet = new Set<String>.from(
-  const <String>[
-    // From Object.
-    '==',
-    'hashCode',
-    'toString',
-    'noSuchMethod',
-    'runtimeType',
-    // from Map.
-    'isEmpty',
-    'isNotEmpty',
-    'length',
-    'clear',
-    'containsKey',
-    'containsValue',
-    '[]=',
-    // [keys] only allows key values to escape, which we do not track.
-    'keys'
-  ]);
-
-abstract class TracerVisitor<T extends TypeInformation>
-    implements TypeInformationVisitor {
+abstract class TracerVisitor<T extends TypeInformation> implements
+    TypeInformationVisitor {
   final T tracedType;
   final TypeGraphInferrerEngine inferrer;
   final Compiler compiler;
@@ -76,7 +58,8 @@ abstract class TracerVisitor<T extends TypeInformation>
   final Setlet<Element> analyzedElements = new Setlet<Element>();
 
   TracerVisitor(this.tracedType, inferrer)
-      : this.inferrer = inferrer, this.compiler = inferrer.compiler;
+      : this.inferrer = inferrer,
+        this.compiler = inferrer.compiler;
 
   // Work list that gets populated with [TypeInformation] that could
   // contain the container.
@@ -85,8 +68,7 @@ abstract class TracerVisitor<T extends TypeInformation>
   // Work list of lists to analyze after analyzing the users of a
   // [TypeInformation]. We know the [tracedType] has been stored in these
   // lists and we must check how it escapes from these lists.
-  final List<ListTypeInformation> listsToAnalyze =
-      <ListTypeInformation>[];
+  final List<ListTypeInformation> listsToAnalyze = <ListTypeInformation>[];
   // Work list of maps to analyze after analyzing the users of a
   // [TypeInformation]. We know the [tracedType] has been stored in these
   // maps and we must check how it escapes from these maps.
@@ -144,8 +126,8 @@ abstract class TracerVisitor<T extends TypeInformation>
     addNewEscapeInformation(info);
   }
 
-  void visitElementInContainerTypeInformation(
-      ElementInContainerTypeInformation info) {
+  void
+      visitElementInContainerTypeInformation(ElementInContainerTypeInformation info) {
     addNewEscapeInformation(info);
   }
 
@@ -171,8 +153,8 @@ abstract class TracerVisitor<T extends TypeInformation>
 
   void visitClosureTypeInformation(ClosureTypeInformation info) {}
 
-  void visitClosureCallSiteTypeInformation(
-      ClosureCallSiteTypeInformation info) {}
+  void
+      visitClosureCallSiteTypeInformation(ClosureCallSiteTypeInformation info) {}
 
   visitStaticCallSiteTypeInformation(StaticCallSiteTypeInformation info) {
     Element called = info.calledElement;
@@ -188,7 +170,7 @@ abstract class TracerVisitor<T extends TypeInformation>
     } else {
       list.flowsInto.forEach((flow) {
         flow.users.forEach((user) {
-          if (user is !DynamicCallSiteTypeInformation) return;
+          if (user is! DynamicCallSiteTypeInformation) return;
           if (user.receiver != flow) return;
           if (inferrer._returnsListElementTypeSet.contains(user.selector)) {
             addNewEscapeInformation(user);
@@ -207,7 +189,7 @@ abstract class TracerVisitor<T extends TypeInformation>
     } else {
       map.flowsInto.forEach((flow) {
         flow.users.forEach((user) {
-          if (user is !DynamicCallSiteTypeInformation) return;
+          if (user is! DynamicCallSiteTypeInformation) return;
           if (user.receiver != flow) return;
           if (user.selector.isIndex) {
             addNewEscapeInformation(user);
@@ -230,9 +212,9 @@ abstract class TracerVisitor<T extends TypeInformation>
     if (!receiverType.isContainer) return false;
     String selectorName = info.selector.name;
     List<TypeInformation> arguments = info.arguments.positional;
-    return (selectorName == '[]=' && currentUser == arguments[1])
-        || (selectorName == 'insert' && currentUser == arguments[1])
-        || (selectorName == 'add' && currentUser == arguments[0]);
+    return (selectorName == '[]=' && currentUser == arguments[1]) ||
+        (selectorName == 'insert' && currentUser == arguments[1]) ||
+        (selectorName == 'add' && currentUser == arguments[0]);
   }
 
   bool isIndexSetOnMap(DynamicCallSiteTypeInformation info) {
@@ -248,8 +230,7 @@ abstract class TracerVisitor<T extends TypeInformation>
    * [isParameterOfMapAddingMethod].
    */
   bool isValueAddedToMap(DynamicCallSiteTypeInformation info) {
-     return isIndexSetOnMap(info) &&
-         currentUser == info.arguments.positional[1];
+    return isIndexSetOnMap(info) && currentUser == info.arguments.positional[1];
   }
 
   /**
@@ -258,12 +239,11 @@ abstract class TracerVisitor<T extends TypeInformation>
    * [isParameterOfMapAddingMethod].
    */
   bool isKeyAddedToMap(DynamicCallSiteTypeInformation info) {
-    return isIndexSetOnMap(info) &&
-        currentUser == info.arguments.positional[0];
+    return isIndexSetOnMap(info) && currentUser == info.arguments.positional[0];
   }
 
-  void visitDynamicCallSiteTypeInformation(
-      DynamicCallSiteTypeInformation info) {
+  void
+      visitDynamicCallSiteTypeInformation(DynamicCallSiteTypeInformation info) {
     if (isAddedToContainer(info)) {
       ContainerTypeMask mask = info.receiver.type;
 
@@ -318,9 +298,9 @@ abstract class TracerVisitor<T extends TypeInformation>
       return false;
     }
     Element method = element.enclosingElement;
-    return (method.name == '[]=')
-        || (method.name == 'add')
-        || (method.name == 'insert');
+    return (method.name == '[]=') ||
+        (method.name == 'add') ||
+        (method.name == 'insert');
   }
 
   /**
@@ -360,8 +340,8 @@ abstract class TracerVisitor<T extends TypeInformation>
     if (isClosure(info.element)) {
       bailout('Returned from a closure');
     }
-    if (!inferrer.compiler.backend
-        .canBeUsedForGlobalOptimizations(info.element)) {
+    if (!inferrer.compiler.backend.canBeUsedForGlobalOptimizations(
+        info.element)) {
       bailout('Escape to code that has special backend treatment');
     }
     addNewEscapeInformation(info);
@@ -372,8 +352,8 @@ abstract class TracerVisitor<T extends TypeInformation>
     if (inferrer.isNativeElement(element.functionDeclaration)) {
       bailout('Passed to a native method');
     }
-    if (!inferrer.compiler.backend
-        .canBeUsedForGlobalOptimizations(info.element)) {
+    if (!inferrer.compiler.backend.canBeUsedForGlobalOptimizations(
+        info.element)) {
       bailout('Escape to code that has special backend treatment');
     }
     if (isParameterOfListAddingMethod(info.element) ||

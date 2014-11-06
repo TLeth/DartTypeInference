@@ -6,13 +6,13 @@ part of native;
 
 /// This class is a temporary work-around until we get a more powerful DartType.
 class SpecialType {
-final String name;
-const SpecialType._(this.name);
+  final String name;
+  const SpecialType._(this.name);
 
 /// The type Object, but no subtypes:
-static const JsObject = const SpecialType._('=Object');
+  static const JsObject = const SpecialType._('=Object');
 
-int get hashCode => name.hashCode;
+  int get hashCode => name.hashCode;
 }
 
 /**
@@ -80,20 +80,16 @@ class NativeBehavior {
   /// [nullType] define the types for `Object` and `Null`, respectively. The
   /// latter is used for the type strings of the form '' and 'var'.
   // TODO(johnniwinther): Use ';' as a separator instead of a terminator.
-  static void processSpecString(
-      DiagnosticListener listener,
-      Spannable spannable,
-      String specString,
-      {dynamic resolveType(String typeString),
-       List typesReturned, List typesInstantiated,
-       objectType, nullType}) {
+  static void processSpecString(DiagnosticListener listener,
+      Spannable spannable, String specString, {dynamic resolveType(String typeString),
+      List typesReturned, List typesInstantiated, objectType, nullType}) {
 
     /// Resolve a type string of one of the three forms:
     /// *  'void' - in which case [onVoid] is called,
     /// *  '' or 'var' - in which case [onVar] is called,
     /// *  'T1|...|Tn' - in which case [onType] is called for each Ti.
-    void resolveTypesString(String typesString,
-                            {onVoid(), onVar(), onType(type)}) {
+    void resolveTypesString(String typesString, {onVoid(), onVar(),
+        onType(type)}) {
       // Various things that are not in fact types.
       if (typesString == 'void') {
         if (onVoid != null) {
@@ -123,8 +119,9 @@ class NativeBehavior {
         if (endPos == -1) return null;
         String typeString =
             specString.substring(startPos + marker.length, endPos);
-        specString = '${specString.substring(0, startPos)}'
-                     '${specString.substring(endPos + 1)}'.trim();
+        specString =
+            '${specString.substring(0, startPos)}'
+                '${specString.substring(endPos + 1)}'.trim();
         return typeString;
       }
 
@@ -141,10 +138,12 @@ class NativeBehavior {
       String creates = getTypesString('creates');
       if (creates != null) {
         resolveTypesString(creates, onVoid: () {
-          listener.internalError(spannable,
+          listener.internalError(
+              spannable,
               "Invalid type string 'creates:$creates'");
         }, onVar: () {
-          listener.internalError(spannable,
+          listener.internalError(
+              spannable,
               "Invalid type string 'creates:$creates'");
         }, onType: (type) {
           typesInstantiated.add(type);
@@ -178,7 +177,7 @@ class NativeBehavior {
     }
 
     var code = argNodes.tail.head;
-    if (code is !StringNode || code.isInterpolation) {
+    if (code is! StringNode || code.isInterpolation) {
       compiler.internalError(code, 'JS code must be a string literal.');
     }
 
@@ -192,8 +191,8 @@ class NativeBehavior {
     NativeBehavior behavior = new NativeBehavior();
     behavior.codeTemplate =
         js.js.parseForeignJS(code.dartString.slowToString());
-    new SideEffectsVisitor(behavior.sideEffects)
-        .visit(behavior.codeTemplate.ast);
+    new SideEffectsVisitor(
+        behavior.sideEffects).visit(behavior.codeTemplate.ast);
 
     String specString = specLiteral.dartString.slowToString();
 
@@ -205,20 +204,21 @@ class NativeBehavior {
           jsCall);
     }
 
-    processSpecString(compiler, jsCall,
-                      specString,
-                      resolveType: resolveType,
-                      typesReturned: behavior.typesReturned,
-                      typesInstantiated: behavior.typesInstantiated,
-                      objectType: compiler.objectClass.computeType(compiler),
-                      nullType: compiler.nullClass.computeType(compiler));
+    processSpecString(
+        compiler,
+        jsCall,
+        specString,
+        resolveType: resolveType,
+        typesReturned: behavior.typesReturned,
+        typesInstantiated: behavior.typesInstantiated,
+        objectType: compiler.objectClass.computeType(compiler),
+        nullType: compiler.nullClass.computeType(compiler));
 
     return behavior;
   }
 
   static NativeBehavior ofJsEmbeddedGlobalCall(Send jsGlobalCall,
-                                               Compiler compiler,
-                                               resolver) {
+      Compiler compiler, resolver) {
     // The first argument of a JS-embedded global call is a string encoding
     // the type of the code.
     //
@@ -227,7 +227,8 @@ class NativeBehavior {
 
     Link<Node> argNodes = jsGlobalCall.arguments;
     if (argNodes.isEmpty) {
-      compiler.internalError(jsGlobalCall,
+      compiler.internalError(
+          jsGlobalCall,
           "JS embedded global expression has no type.");
     }
 
@@ -238,7 +239,8 @@ class NativeBehavior {
     }
 
     if (!argNodes.tail.tail.isEmpty) {
-      compiler.internalError(argNodes.tail.tail.head,
+      compiler.internalError(
+          argNodes.tail.tail.head,
           'Embedded Global has more than 2 arguments');
     }
 
@@ -261,13 +263,15 @@ class NativeBehavior {
           jsGlobalCall);
     }
 
-    processSpecString(compiler, jsGlobalCall,
-                      specString,
-                      resolveType: resolveType,
-                      typesReturned: behavior.typesReturned,
-                      typesInstantiated: behavior.typesInstantiated,
-                      objectType: compiler.objectClass.computeType(compiler),
-                      nullType: compiler.nullClass.computeType(compiler));
+    processSpecString(
+        compiler,
+        jsGlobalCall,
+        specString,
+        resolveType: resolveType,
+        typesReturned: behavior.typesReturned,
+        typesInstantiated: behavior.typesInstantiated,
+        objectType: compiler.objectClass.computeType(compiler),
+        nullType: compiler.nullClass.computeType(compiler));
 
     return behavior;
   }
@@ -287,8 +291,8 @@ class NativeBehavior {
     // removed.
     method.functionSignature.forEachOptionalParameter(
         (ParameterElement parameter) {
-          behavior._escape(parameter.type, compiler);
-        });
+      behavior._escape(parameter.type, compiler);
+    });
 
     behavior._overrideWithAnnotations(method, compiler);
     return behavior;
@@ -327,16 +331,20 @@ class NativeBehavior {
     }
 
     NativeEnqueuer enqueuer = compiler.enqueuer.resolution.nativeEnqueuer;
-    var creates = _collect(element, compiler, enqueuer.annotationCreatesClass,
-                           lookup);
-    var returns = _collect(element, compiler, enqueuer.annotationReturnsClass,
-                           lookup);
+    var creates =
+        _collect(element, compiler, enqueuer.annotationCreatesClass, lookup);
+    var returns =
+        _collect(element, compiler, enqueuer.annotationReturnsClass, lookup);
 
     if (creates != null) {
-      typesInstantiated..clear()..addAll(creates);
+      typesInstantiated
+          ..clear()
+          ..addAll(creates);
     }
     if (returns != null) {
-      typesReturned..clear()..addAll(returns);
+      typesReturned
+          ..clear()
+          ..addAll(returns);
     }
   }
 
@@ -346,11 +354,10 @@ class NativeBehavior {
    * Returns `null` if no constraints.
    */
   static _collect(Element element, Compiler compiler, Element annotationClass,
-                  lookup(str)) {
+      lookup(str)) {
     var types = null;
-    for (Link<MetadataAnnotation> link = element.metadata;
-         !link.isEmpty;
-         link = link.tail) {
+    for (Link<MetadataAnnotation> link =
+        element.metadata; !link.isEmpty; link = link.tail) {
       MetadataAnnotation annotation = link.head.ensureResolved(compiler);
       ConstantValue value = annotation.constant.value;
       if (!value.isConstructedObject) continue;
@@ -361,7 +368,8 @@ class NativeBehavior {
       // TODO(sra): Better validation of the constant.
       if (fields.length != 1 || !fields[0].isString) {
         PartialMetadataAnnotation partial = annotation;
-        compiler.internalError(annotation,
+        compiler.internalError(
+            annotation,
             'Annotations needs one string: ${partial.parseNode(compiler)}');
       }
       StringConstantValue specStringConstant = fields[0];
@@ -406,8 +414,8 @@ class NativeBehavior {
     }
   }
 
-  static _parseType(String typeString, Compiler compiler,
-      lookup(name), locationNodeOrElement) {
+  static _parseType(String typeString, Compiler compiler, lookup(name),
+      locationNodeOrElement) {
     if (typeString == '=Object') return SpecialType.JsObject;
     if (typeString == 'dynamic') {
       return const DynamicType();
@@ -422,7 +430,7 @@ class NativeBehavior {
           "Type '$typeString' not found.");
     }
     type = lookup(typeString.substring(0, index));
-    if (type != null)  {
+    if (type != null) {
       // TODO(sra): Parse type parameters.
       return type;
     }

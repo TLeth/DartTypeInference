@@ -181,7 +181,8 @@ class TreeTracer extends TracerUtil with StatementVisitor {
       });
       tag("HIR", () {
         if (block.label != null) {
-          printStatement(null,
+          printStatement(
+              null,
               "Label ${block.name}, useCount=${block.label.useCount}");
         }
         block.statements.forEach(visitBlockMember);
@@ -228,7 +229,8 @@ class TreeTracer extends TracerUtil with StatementVisitor {
   }
 
   visitContinue(Continue node) {
-    printStatement(null,
+    printStatement(
+        null,
         "continue ${collector.continueTargets[node.target].name}");
   }
 
@@ -248,7 +250,7 @@ class TreeTracer extends TracerUtil with StatementVisitor {
     String nextTarget = collector.ifTargets[node.next].name;
     printStatement(null, "while ${expr(node.condition)}");
     printStatement(null, "do $bodyTarget");
-    printStatement(null, "then $nextTarget" );
+    printStatement(null, "then $nextTarget");
   }
 
   visitExpressionStatement(ExpressionStatement node) {

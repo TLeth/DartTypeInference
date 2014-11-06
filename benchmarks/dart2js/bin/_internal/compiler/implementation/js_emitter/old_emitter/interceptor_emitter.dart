@@ -13,18 +13,19 @@ class InterceptorEmitter extends CodeEmitterHelper {
     }
   }
 
-  void emitGetInterceptorMethod(CodeBuffer buffer,
-                                String key,
-                                Set<ClassElement> classes) {
+  void emitGetInterceptorMethod(CodeBuffer buffer, String key,
+      Set<ClassElement> classes) {
     InterceptorStubGenerator stubGenerator =
         new InterceptorStubGenerator(compiler, namer, backend);
     jsAst.Expression function =
         stubGenerator.generateGetInterceptorMethod(classes);
 
-    buffer.write(jsAst.prettyPrint(
-        js('${namer.globalObjectFor(backend.interceptorsLibrary)}.# = #',
-           [key, function]),
-        compiler));
+    buffer.write(
+        jsAst.prettyPrint(
+            js(
+                '${namer.globalObjectFor(backend.interceptorsLibrary)}.# = #',
+                [key, function]),
+            compiler));
     buffer.write(N);
   }
 
@@ -78,11 +79,11 @@ class InterceptorEmitter extends CodeEmitterHelper {
 
     int index = 0;
     var invocationNames = interceptorInvocationNames.toList()..sort();
-    List<jsAst.ArrayElement> elements = invocationNames.map(
-      (String invocationName) {
-        jsAst.Literal str = js.string(invocationName);
-        return new jsAst.ArrayElement(index++, str);
-      }).toList();
+    List<jsAst.ArrayElement> elements =
+        invocationNames.map((String invocationName) {
+      jsAst.Literal str = js.string(invocationName);
+      return new jsAst.ArrayElement(index++, str);
+    }).toList();
     jsAst.ArrayInitializer array =
         new jsAst.ArrayInitializer(invocationNames.length, elements);
 

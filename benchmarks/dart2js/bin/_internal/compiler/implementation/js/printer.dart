@@ -20,19 +20,21 @@ class Printer extends Indentation implements NodeVisitor {
   static final expressionContinuationRegExp = new RegExp(r'^[-+([]');
 
   Printer(leg.Compiler compiler, DumpInfoTask monitor,
-          { allowVariableMinification: true })
+      {allowVariableMinification: true})
       : shouldCompressOutput = compiler.enableMinification,
         monitor = monitor,
         this.compiler = compiler,
         outBuffer = new leg.CodeBuffer(),
         danglingElseVisitor = new DanglingElseVisitor(compiler),
-        localNamer = determineRenamer(compiler.enableMinification,
-                                      allowVariableMinification);
+        localNamer = determineRenamer(
+          compiler.enableMinification,
+          allowVariableMinification);
 
   static LocalNamer determineRenamer(bool shouldCompressOutput,
-                                     bool allowVariableMinification) {
-    return (shouldCompressOutput && allowVariableMinification)
-        ? new MinifyRenamer() : new IdentityNamer();
+      bool allowVariableMinification) {
+    return (shouldCompressOutput && allowVariableMinification) ?
+        new MinifyRenamer() :
+        new IdentityNamer();
   }
 
   /// Always emit a newline, even under `enableMinification`.
@@ -103,8 +105,14 @@ class Printer extends Indentation implements NodeVisitor {
     }
   }
 
-  void outIndent(String str) { indent(); out(str); }
-  void outIndentLn(String str) { indent(); outLn(str); }
+  void outIndent(String str) {
+    indent();
+    out(str);
+  }
+  void outIndentLn(String str) {
+    indent();
+    outLn(str);
+  }
   void indent() {
     if (!shouldCompressOutput) {
       out(indentation);
@@ -137,17 +145,19 @@ class Printer extends Indentation implements NodeVisitor {
     endSourceRange(node);
   }
 
-  visitCommaSeparated(List<Node> nodes, int hasRequiredType,
-                      {bool newInForInit, bool newAtStatementBegin}) {
+  visitCommaSeparated(List<Node> nodes, int hasRequiredType, {bool newInForInit,
+      bool newAtStatementBegin}) {
     for (int i = 0; i < nodes.length; i++) {
       if (i != 0) {
         atStatementBegin = false;
         out(",");
         spaceOut();
       }
-      visitNestedExpression(nodes[i], hasRequiredType,
-                            newInForInit: newInForInit,
-                            newAtStatementBegin: newAtStatementBegin);
+      visitNestedExpression(
+          nodes[i],
+          hasRequiredType,
+          newInForInit: newInForInit,
+          newAtStatementBegin: newAtStatementBegin);
     }
   }
 
@@ -209,8 +219,11 @@ class Printer extends Indentation implements NodeVisitor {
 
   visitExpressionStatement(ExpressionStatement expressionStatement) {
     indent();
-    visitNestedExpression(expressionStatement.expression, EXPRESSION,
-                          newInForInit: false, newAtStatementBegin: true);
+    visitNestedExpression(
+        expressionStatement.expression,
+        EXPRESSION,
+        newInForInit: false,
+        newAtStatementBegin: true);
     outSemicolonLn();
   }
 
@@ -236,8 +249,11 @@ class Printer extends Indentation implements NodeVisitor {
     out("if");
     spaceOut();
     out("(");
-    visitNestedExpression(node.condition, EXPRESSION,
-                          newInForInit: false, newAtStatementBegin: false);
+    visitNestedExpression(
+        node.condition,
+        EXPRESSION,
+        newInForInit: false,
+        newAtStatementBegin: false);
     out(")");
     bool thenWasBlock =
         blockBody(then, needsSeparation: false, needsNewline: !hasElse);
@@ -266,20 +282,29 @@ class Printer extends Indentation implements NodeVisitor {
     spaceOut();
     out("(");
     if (loop.init != null) {
-      visitNestedExpression(loop.init, EXPRESSION,
-                            newInForInit: true, newAtStatementBegin: false);
+      visitNestedExpression(
+          loop.init,
+          EXPRESSION,
+          newInForInit: true,
+          newAtStatementBegin: false);
     }
     out(";");
     if (loop.condition != null) {
       spaceOut();
-      visitNestedExpression(loop.condition, EXPRESSION,
-                            newInForInit: false, newAtStatementBegin: false);
+      visitNestedExpression(
+          loop.condition,
+          EXPRESSION,
+          newInForInit: false,
+          newAtStatementBegin: false);
     }
     out(";");
     if (loop.update != null) {
       spaceOut();
-      visitNestedExpression(loop.update, EXPRESSION,
-                            newInForInit: false, newAtStatementBegin: false);
+      visitNestedExpression(
+          loop.update,
+          EXPRESSION,
+          newInForInit: false,
+          newAtStatementBegin: false);
     }
     out(")");
     blockBody(loop.body, needsSeparation: false, needsNewline: true);
@@ -289,12 +314,18 @@ class Printer extends Indentation implements NodeVisitor {
     outIndent("for");
     spaceOut();
     out("(");
-    visitNestedExpression(loop.leftHandSide, EXPRESSION,
-                          newInForInit: true, newAtStatementBegin: false);
+    visitNestedExpression(
+        loop.leftHandSide,
+        EXPRESSION,
+        newInForInit: true,
+        newAtStatementBegin: false);
     out(" in");
     pendingSpace = true;
-    visitNestedExpression(loop.object, EXPRESSION,
-                          newInForInit: false, newAtStatementBegin: false);
+    visitNestedExpression(
+        loop.object,
+        EXPRESSION,
+        newInForInit: false,
+        newAtStatementBegin: false);
     out(")");
     blockBody(loop.body, needsSeparation: false, needsNewline: true);
   }
@@ -303,8 +334,11 @@ class Printer extends Indentation implements NodeVisitor {
     outIndent("while");
     spaceOut();
     out("(");
-    visitNestedExpression(loop.condition, EXPRESSION,
-                          newInForInit: false, newAtStatementBegin: false);
+    visitNestedExpression(
+        loop.condition,
+        EXPRESSION,
+        newInForInit: false,
+        newAtStatementBegin: false);
     out(")");
     blockBody(loop.body, needsSeparation: false, needsNewline: true);
   }
@@ -319,8 +353,11 @@ class Printer extends Indentation implements NodeVisitor {
     out("while");
     spaceOut();
     out("(");
-    visitNestedExpression(loop.condition, EXPRESSION,
-                          newInForInit: false, newAtStatementBegin: false);
+    visitNestedExpression(
+        loop.condition,
+        EXPRESSION,
+        newInForInit: false,
+        newAtStatementBegin: false);
     out(")");
     outSemicolonLn();
   }
@@ -349,8 +386,11 @@ class Printer extends Indentation implements NodeVisitor {
     } else {
       outIndent("return");
       pendingSpace = true;
-      visitNestedExpression(node.value, EXPRESSION,
-                            newInForInit: false, newAtStatementBegin: false);
+      visitNestedExpression(
+          node.value,
+          EXPRESSION,
+          newInForInit: false,
+          newAtStatementBegin: false);
     }
     outSemicolonLn();
   }
@@ -358,8 +398,11 @@ class Printer extends Indentation implements NodeVisitor {
   visitThrow(Throw node) {
     outIndent("throw");
     pendingSpace = true;
-    visitNestedExpression(node.expression, EXPRESSION,
-                          newInForInit: false, newAtStatementBegin: false);
+    visitNestedExpression(
+        node.expression,
+        EXPRESSION,
+        newInForInit: false,
+        newAtStatementBegin: false);
     outSemicolonLn();
   }
 
@@ -383,8 +426,11 @@ class Printer extends Indentation implements NodeVisitor {
     out("catch");
     spaceOut();
     out("(");
-    visitNestedExpression(node.declaration, EXPRESSION,
-                          newInForInit: false, newAtStatementBegin: false);
+    visitNestedExpression(
+        node.declaration,
+        EXPRESSION,
+        newInForInit: false,
+        newAtStatementBegin: false);
     out(")");
     blockBody(node.body, needsSeparation: false, needsNewline: true);
   }
@@ -393,8 +439,11 @@ class Printer extends Indentation implements NodeVisitor {
     outIndent("switch");
     spaceOut();
     out("(");
-    visitNestedExpression(node.key, EXPRESSION,
-                          newInForInit: false, newAtStatementBegin: false);
+    visitNestedExpression(
+        node.key,
+        EXPRESSION,
+        newInForInit: false,
+        newAtStatementBegin: false);
     out(")");
     spaceOut();
     outLn("{");
@@ -405,8 +454,11 @@ class Printer extends Indentation implements NodeVisitor {
   visitCase(Case node) {
     outIndent("case");
     pendingSpace = true;
-    visitNestedExpression(node.expression, EXPRESSION,
-                          newInForInit: false, newAtStatementBegin: false);
+    visitNestedExpression(
+        node.expression,
+        EXPRESSION,
+        newInForInit: false,
+        newAtStatementBegin: false);
     outLn(":");
     if (!node.body.statements.isEmpty) {
       indentBlock(() => blockOutWithoutBraces(node.body));
@@ -430,14 +482,20 @@ class Printer extends Indentation implements NodeVisitor {
     if (name != null) {
       out(" ");
       // Name must be a [Decl]. Therefore only test for primary expressions.
-      visitNestedExpression(name, PRIMARY,
-                            newInForInit: false, newAtStatementBegin: false);
+      visitNestedExpression(
+          name,
+          PRIMARY,
+          newInForInit: false,
+          newAtStatementBegin: false);
     }
     localNamer.enterScope(vars);
     out("(");
     if (fun.params != null) {
-      visitCommaSeparated(fun.params, PRIMARY,
-                          newInForInit: false, newAtStatementBegin: false);
+      visitCommaSeparated(
+          fun.params,
+          PRIMARY,
+          newInForInit: false,
+          newAtStatementBegin: false);
     }
     out(")");
     blockBody(fun.body, needsSeparation: false, needsNewline: false);
@@ -453,18 +511,16 @@ class Printer extends Indentation implements NodeVisitor {
   }
 
   visitNestedExpression(Expression node, int requiredPrecedence,
-                        {bool newInForInit, bool newAtStatementBegin}) {
-    bool needsParentheses =
-        // a - (b + c).
-        (requiredPrecedence != EXPRESSION &&
-         node.precedenceLevel < requiredPrecedence) ||
+      {bool newInForInit, bool newAtStatementBegin}) {
+    bool needsParentheses = // a - (b + c).
+    (requiredPrecedence != EXPRESSION &&
+        node.precedenceLevel < requiredPrecedence) ||
         // for (a = (x in o); ... ; ... ) { ... }
-        (newInForInit && node is Binary && node.op == "in") ||
+    (newInForInit && node is Binary && node.op == "in") ||
         // (function() { ... })().
-        // ({a: 2, b: 3}.toString()).
-        (newAtStatementBegin && (node is NamedFunction ||
-                                 node is Fun ||
-                                 node is ObjectInitializer));
+    // ({a: 2, b: 3}.toString()).
+    (newAtStatementBegin &&
+        (node is NamedFunction || node is Fun || node is ObjectInitializer));
     if (needsParentheses) {
       inForInit = false;
       atStatementBegin = false;
@@ -480,23 +536,30 @@ class Printer extends Indentation implements NodeVisitor {
 
   visitVariableDeclarationList(VariableDeclarationList list) {
     out("var ");
-    visitCommaSeparated(list.declarations, ASSIGNMENT,
-                        newInForInit: inForInit, newAtStatementBegin: false);
+    visitCommaSeparated(
+        list.declarations,
+        ASSIGNMENT,
+        newInForInit: inForInit,
+        newAtStatementBegin: false);
   }
 
   visitAssignment(Assignment assignment) {
-    visitNestedExpression(assignment.leftHandSide, LEFT_HAND_SIDE,
-                          newInForInit: inForInit,
-                          newAtStatementBegin: atStatementBegin);
+    visitNestedExpression(
+        assignment.leftHandSide,
+        LEFT_HAND_SIDE,
+        newInForInit: inForInit,
+        newAtStatementBegin: atStatementBegin);
     if (assignment.value != null) {
       spaceOut();
       String op = assignment.op;
       if (op != null) out(op);
       out("=");
       spaceOut();
-      visitNestedExpression(assignment.value, ASSIGNMENT,
-                            newInForInit: inForInit,
-                            newAtStatementBegin: false);
+      visitNestedExpression(
+          assignment.value,
+          ASSIGNMENT,
+          newInForInit: inForInit,
+          newAtStatementBegin: false);
     }
   }
 
@@ -505,39 +568,58 @@ class Printer extends Indentation implements NodeVisitor {
   }
 
   visitConditional(Conditional cond) {
-    visitNestedExpression(cond.condition, LOGICAL_OR,
-                          newInForInit: inForInit,
-                          newAtStatementBegin: atStatementBegin);
+    visitNestedExpression(
+        cond.condition,
+        LOGICAL_OR,
+        newInForInit: inForInit,
+        newAtStatementBegin: atStatementBegin);
     spaceOut();
     out("?");
     spaceOut();
     // The then part is allowed to have an 'in'.
-    visitNestedExpression(cond.then, ASSIGNMENT,
-                          newInForInit: false, newAtStatementBegin: false);
+    visitNestedExpression(
+        cond.then,
+        ASSIGNMENT,
+        newInForInit: false,
+        newAtStatementBegin: false);
     spaceOut();
     out(":");
     spaceOut();
-    visitNestedExpression(cond.otherwise, ASSIGNMENT,
-                          newInForInit: inForInit, newAtStatementBegin: false);
+    visitNestedExpression(
+        cond.otherwise,
+        ASSIGNMENT,
+        newInForInit: inForInit,
+        newAtStatementBegin: false);
   }
 
   visitNew(New node) {
     out("new ");
-    visitNestedExpression(node.target, CALL,
-                          newInForInit: inForInit, newAtStatementBegin: false);
+    visitNestedExpression(
+        node.target,
+        CALL,
+        newInForInit: inForInit,
+        newAtStatementBegin: false);
     out("(");
-    visitCommaSeparated(node.arguments, ASSIGNMENT,
-                        newInForInit: false, newAtStatementBegin: false);
+    visitCommaSeparated(
+        node.arguments,
+        ASSIGNMENT,
+        newInForInit: false,
+        newAtStatementBegin: false);
     out(")");
   }
 
   visitCall(Call call) {
-    visitNestedExpression(call.target, LEFT_HAND_SIDE,
-                          newInForInit: inForInit,
-                          newAtStatementBegin: atStatementBegin);
+    visitNestedExpression(
+        call.target,
+        LEFT_HAND_SIDE,
+        newInForInit: inForInit,
+        newAtStatementBegin: atStatementBegin);
     out("(");
-    visitCommaSeparated(call.arguments, ASSIGNMENT,
-                        newInForInit: false, newAtStatementBegin: false);
+    visitCommaSeparated(
+        call.arguments,
+        ASSIGNMENT,
+        newInForInit: false,
+        newAtStatementBegin: false);
     out(")");
   }
 
@@ -547,7 +629,7 @@ class Printer extends Indentation implements NodeVisitor {
     String op = binary.op;
     int leftPrecedenceRequirement;
     int rightPrecedenceRequirement;
-    bool leftSpace = true;   // left<HERE>op right
+    bool leftSpace = true; // left<HERE>op right
     switch (op) {
       case ',':
         //  x, (y, z) <=> (x, y), z.
@@ -623,9 +705,11 @@ class Printer extends Indentation implements NodeVisitor {
         compiler.internalError(NO_LOCATION_SPANNABLE, "Forgot operator: $op");
     }
 
-    visitNestedExpression(left, leftPrecedenceRequirement,
-                          newInForInit: inForInit,
-                          newAtStatementBegin: atStatementBegin);
+    visitNestedExpression(
+        left,
+        leftPrecedenceRequirement,
+        newInForInit: inForInit,
+        newAtStatementBegin: atStatementBegin);
 
     if (op == "in" || op == "instanceof") {
       // There are cases where the space is not required but without further
@@ -638,9 +722,11 @@ class Printer extends Indentation implements NodeVisitor {
       out(op);
       spaceOut();
     }
-    visitNestedExpression(right, rightPrecedenceRequirement,
-                          newInForInit: inForInit,
-                          newAtStatementBegin: false);
+    visitNestedExpression(
+        right,
+        rightPrecedenceRequirement,
+        newInForInit: inForInit,
+        newAtStatementBegin: false);
   }
 
   visitPrefix(Prefix unary) {
@@ -667,14 +753,19 @@ class Printer extends Indentation implements NodeVisitor {
       default:
         out(op);
     }
-    visitNestedExpression(unary.argument, UNARY,
-                          newInForInit: inForInit, newAtStatementBegin: false);
+    visitNestedExpression(
+        unary.argument,
+        UNARY,
+        newInForInit: inForInit,
+        newAtStatementBegin: false);
   }
 
   visitPostfix(Postfix postfix) {
-    visitNestedExpression(postfix.argument, LEFT_HAND_SIDE,
-                          newInForInit: inForInit,
-                          newAtStatementBegin: atStatementBegin);
+    visitNestedExpression(
+        postfix.argument,
+        LEFT_HAND_SIDE,
+        newInForInit: inForInit,
+        newAtStatementBegin: atStatementBegin);
     out(postfix.op);
   }
 
@@ -705,10 +796,10 @@ class Printer extends Indentation implements NodeVisitor {
       // TODO(floitsch): allow more characters.
       int charCode = field.codeUnitAt(i);
       if (!(charCodes.$a <= charCode && charCode <= charCodes.$z ||
-            charCodes.$A <= charCode && charCode <= charCodes.$Z ||
-            charCode == charCodes.$$ ||
-            charCode == charCodes.$_ ||
-            i != 1 && isDigit(charCode))) {
+          charCodes.$A <= charCode && charCode <= charCodes.$Z ||
+          charCode == charCodes.$$ ||
+          charCode == charCodes.$_ ||
+          i != 1 && isDigit(charCode))) {
         return false;
       }
     }
@@ -720,9 +811,11 @@ class Printer extends Indentation implements NodeVisitor {
   }
 
   visitAccess(PropertyAccess access) {
-    visitNestedExpression(access.receiver, CALL,
-                          newInForInit: inForInit,
-                          newAtStatementBegin: atStatementBegin);
+    visitNestedExpression(
+        access.receiver,
+        CALL,
+        newInForInit: inForInit,
+        newAtStatementBegin: atStatementBegin);
     Node selector = access.selector;
     if (selector is LiteralString) {
       LiteralString selectorString = selector;
@@ -735,8 +828,11 @@ class Printer extends Indentation implements NodeVisitor {
       }
     }
     out("[");
-    visitNestedExpression(selector, EXPRESSION,
-                          newInForInit: false, newAtStatementBegin: false);
+    visitNestedExpression(
+        selector,
+        EXPRESSION,
+        newInForInit: false,
+        newAtStatementBegin: false);
     out("]");
   }
 
@@ -777,10 +873,12 @@ class Printer extends Indentation implements NodeVisitor {
     List<ArrayElement> elements = node.elements;
     int elementIndex = 0;
     for (int i = 0; i < node.length; i++) {
-      if (elementIndex < elements.length &&
-          elements[elementIndex].index == i) {
-        visitNestedExpression(elements[elementIndex].value, ASSIGNMENT,
-                              newInForInit: false, newAtStatementBegin: false);
+      if (elementIndex < elements.length && elements[elementIndex].index == i) {
+        visitNestedExpression(
+            elements[elementIndex].value,
+            ASSIGNMENT,
+            newInForInit: false,
+            newAtStatementBegin: false);
         elementIndex++;
         // We can avoid a trailing "," if there was an element just before. So
         // `[1]` and `[1,]` are the same, but `[,]` and `[]` are not.
@@ -842,8 +940,11 @@ class Printer extends Indentation implements NodeVisitor {
     }
     out(":");
     spaceOut();
-    visitNestedExpression(node.value, ASSIGNMENT,
-                          newInForInit: false, newAtStatementBegin: false);
+    visitNestedExpression(
+        node.value,
+        ASSIGNMENT,
+        newInForInit: false,
+        newAtStatementBegin: false);
   }
 
   visitRegExpLiteral(RegExpLiteral node) {
@@ -857,7 +958,8 @@ class Printer extends Indentation implements NodeVisitor {
     List<String> parts = template.split('#');
     int inputsLength = inputs == null ? 0 : inputs.length;
     if (parts.length != inputsLength + 1) {
-      compiler.internalError(NO_LOCATION_SPANNABLE,
+      compiler.internalError(
+          NO_LOCATION_SPANNABLE,
           'Wrong number of arguments for JS: $template');
     }
     // Code that uses JS must take care of operator precedences, and
@@ -912,7 +1014,9 @@ class OrderedSet<T> {
   final Set<T> set;
   final List<T> list;
 
-  OrderedSet() : set = new Set<T>(), list = <T>[];
+  OrderedSet()
+      : set = new Set<T>(),
+        list = <T>[];
 
   void add(T x) {
     if (!set.contains(x)) {
@@ -933,9 +1037,10 @@ class VarCollector extends BaseVisitor {
   final OrderedSet<String> vars;
   final OrderedSet<String> params;
 
-  VarCollector() : nested = false,
-                   vars = new OrderedSet<String>(),
-                   params = new OrderedSet<String>();
+  VarCollector()
+      : nested = false,
+        vars = new OrderedSet<String>(),
+        params = new OrderedSet<String>();
 
   void forEachVar(void fn(String v)) => vars.forEach(fn);
   void forEachParam(void fn(String p)) => params.forEach(fn);
@@ -1018,8 +1123,7 @@ class DanglingElseVisitor extends BaseVisitor<bool> {
   bool visitCase(Case node) => false;
   bool visitDefault(Default node) => false;
   bool visitFunctionDeclaration(FunctionDeclaration node) => false;
-  bool visitLabeledStatement(LabeledStatement node)
-      => node.body.accept(this);
+  bool visitLabeledStatement(LabeledStatement node) => node.body.accept(this);
   bool visitLiteralStatement(LiteralStatement node) => true;
 
   bool visitExpression(Expression node) => false;
@@ -1027,11 +1131,11 @@ class DanglingElseVisitor extends BaseVisitor<bool> {
 
 
 leg.CodeBuffer prettyPrint(Node node, leg.Compiler compiler,
-                           {DumpInfoTask monitor,
-                            allowVariableMinification: true}) {
-  Printer printer =
-      new Printer(compiler, monitor,
-                  allowVariableMinification: allowVariableMinification);
+    {DumpInfoTask monitor, allowVariableMinification: true}) {
+  Printer printer = new Printer(
+      compiler,
+      monitor,
+      allowVariableMinification: allowVariableMinification);
   printer.visit(node);
   return printer.outBuffer;
 }
@@ -1094,8 +1198,8 @@ class MinifyRenamer implements LocalNamer {
 
   static int nthLetter(int n) {
     return (n < LOWER_CASE_LETTERS) ?
-           charCodes.$a + n :
-           charCodes.$A + n - LOWER_CASE_LETTERS;
+        charCodes.$a + n :
+        charCodes.$A + n - LOWER_CASE_LETTERS;
   }
 
   // Parameters go from a to z and variables go from z to a.  This makes each

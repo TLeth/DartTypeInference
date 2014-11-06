@@ -17,8 +17,9 @@ abstract class Scope {
   Element lookup(String name);
 
   static Scope buildEnclosingScope(Element element) {
-    return element.enclosingElement != null
-        ? element.enclosingElement.buildScope() : element.buildScope();
+    return element.enclosingElement != null ?
+        element.enclosingElement.buildScope() :
+        element.buildScope();
   }
 }
 
@@ -85,8 +86,7 @@ class TypeDeclarationScope extends NestedScope {
 
   Element localLookup(String name) => lookupTypeVariable(name);
 
-  String toString() =>
-      'TypeDeclarationScope($element)';
+  String toString() => 'TypeDeclarationScope($element)';
 }
 
 abstract class MutableScope extends NestedScope {
@@ -133,7 +133,7 @@ class ClassScope extends TypeDeclarationScope {
   ClassElement get element => super.element;
 
   ClassScope(Scope parentScope, ClassElement element)
-      : super(parentScope, element)  {
+      : super(parentScope, element) {
     assert(parent != null);
   }
 

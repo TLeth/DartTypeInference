@@ -38,7 +38,7 @@ class ShrinkingReducer implements Pass {
   /// Removes the given node from the CPS graph, replacing it with its body
   /// and marking it as deleted. The node's parent must be a [[InteriorNode]].
   void _removeNode(InteriorNode node) {
-    Node body           = node.body;
+    Node body = node.body;
     InteriorNode parent = node.parent;
     assert(parent.body == node);
 
@@ -77,7 +77,8 @@ class ShrinkingReducer implements Pass {
     assert(_isDeadVal(task.node));
 
     // Remove dead primitive.
-    LetPrim letPrim = task.node;;
+    LetPrim letPrim = task.node;
+    ;
     _removeNode(letPrim);
 
     // Perform bookkeeping on removed body and scan for new redexes.
@@ -148,7 +149,7 @@ class ShrinkingReducer implements Pass {
     }
 
     // Remove the continuation.
-    LetCont letCont   = task.node;
+    LetCont letCont = task.node;
     Continuation cont = letCont.continuation;
     _removeNode(letCont);
 
@@ -247,7 +248,7 @@ class _RedexVisitor extends RecursiveVisitor {
       worklist.add(new _ReductionTask(_ReductionKind.DEAD_CONT, node));
     } else if (_isEtaCont(node)) {
       worklist.add(new _ReductionTask(_ReductionKind.ETA_CONT, node));
-    } else if (_isBetaContLin(node)){
+    } else if (_isBetaContLin(node)) {
       worklist.add(new _ReductionTask(_ReductionKind.BETA_CONT_LIN, node));
     }
   }
@@ -423,7 +424,7 @@ class _ReductionTask {
     assert(node is LetCont || node is LetPrim);
   }
 
-  bool operator==(_ReductionTask that) {
+  bool operator ==(_ReductionTask that) {
     return (that.kind == this.kind && that.node == this.node);
   }
 

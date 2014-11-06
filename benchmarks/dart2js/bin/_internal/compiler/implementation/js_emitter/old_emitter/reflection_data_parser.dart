@@ -16,7 +16,7 @@ const bool VALIDATE_DATA = false;
 
 // TODO(ahe): This code should be integrated in CodeEmitterTask.finishClasses.
 jsAst.Expression getReflectionDataParser(String classesCollector,
-                                        JavaScriptBackend backend) {
+    JavaScriptBackend backend) {
   Namer namer = backend.namer;
   Compiler compiler = backend.compiler;
   CodeEmitterTask emitter = backend.emitter;
@@ -33,9 +33,9 @@ jsAst.Expression getReflectionDataParser(String classesCollector,
   String methodsWithOptionalArgumentsField =
       namer.methodsWithOptionalArgumentsField;
 
-  String unmangledNameIndex = backend.mustRetainMetadata
-      ? ' 3 * optionalParameterCount + 2 * requiredParameterCount + 3'
-      : ' 2 * optionalParameterCount + requiredParameterCount + 3';
+  String unmangledNameIndex = backend.mustRetainMetadata ?
+      ' 3 * optionalParameterCount + 2 * requiredParameterCount + 3' :
+      ' 2 * optionalParameterCount + requiredParameterCount + 3';
 
   jsAst.Expression typeInformationAccess =
       emitter.generateEmbeddedGlobalAccess(embeddedNames.TYPE_INFORMATION);
@@ -214,8 +214,12 @@ jsAst.Expression getReflectionDataParser(String classesCollector,
       if (optionalParameterCount) descriptor[unmangledName + "*"] = funcs[0];
     }
   }
-''', [globalFunctionsAccess, interceptedNamesAccess,
-      mangledGlobalNamesAccess, mangledNamesAccess]);
+''',
+      [
+          globalFunctionsAccess,
+          interceptedNamesAccess,
+          mangledGlobalNamesAccess,
+          mangledNamesAccess]);
 
   List<jsAst.Statement> tearOffCode = buildTearOffCode(backend);
 
@@ -263,16 +267,25 @@ jsAst.Expression getReflectionDataParser(String classesCollector,
     libraries.push([name, uri, classes, functions, metadata, fields, isRoot,
                     globalObject]);
   }
-}''', [librariesAccess, librariesAccess,
-       mangledNamesAccess, mangledNamesAccess,
-       mangledGlobalNamesAccess, mangledGlobalNamesAccess,
-       staticsAccess, staticsAccess,
-       typeInformationAccess, typeInformationAccess,
-       globalFunctionsAccess, globalFunctionsAccess,
-       interceptedNamesAccess, interceptedNamesAccess,
-       librariesAccess,
-       mangledNamesAccess,
-       mangledGlobalNamesAccess]);
+}''',
+      [
+          librariesAccess,
+          librariesAccess,
+          mangledNamesAccess,
+          mangledNamesAccess,
+          mangledGlobalNamesAccess,
+          mangledGlobalNamesAccess,
+          staticsAccess,
+          staticsAccess,
+          typeInformationAccess,
+          typeInformationAccess,
+          globalFunctionsAccess,
+          globalFunctionsAccess,
+          interceptedNamesAccess,
+          interceptedNamesAccess,
+          librariesAccess,
+          mangledNamesAccess,
+          mangledGlobalNamesAccess]);
 
   return js('''
 (function (reflectionData) {
@@ -301,8 +314,8 @@ List<jsAst.Statement> buildTearOffCode(JavaScriptBackend backend) {
     tearOffAccessExpression = namer.elementAccess(closureFromTearOff);
     tearOffAccessText =
         jsAst.prettyPrint(tearOffAccessExpression, compiler).getText();
-    tearOffGlobalObjectName = tearOffGlobalObject =
-        namer.globalObjectFor(closureFromTearOff);
+    tearOffGlobalObjectName =
+        tearOffGlobalObject = namer.globalObjectFor(closureFromTearOff);
   } else {
     // Default values for mocked-up test libraries.
     tearOffAccessText =
@@ -369,28 +382,34 @@ List<jsAst.Statement> buildTearOffCode(JavaScriptBackend backend) {
 
 String readString(String array, String index) {
   return readChecked(
-      array, index, 'result != null && typeof result != "string"', 'string');
+      array,
+      index,
+      'result != null && typeof result != "string"',
+      'string');
 }
 
 String readInt(String array, String index) {
   return readChecked(
-      array, index,
+      array,
+      index,
       'result != null && (typeof result != "number" || (result|0) !== result)',
       'int');
 }
 
 String readFunction(String array, String index) {
   return readChecked(
-      array, index, 'result != null && typeof result != "function"',
+      array,
+      index,
+      'result != null && typeof result != "function"',
       'function');
 }
 
 String readFunctionType(String array, String index) {
   return readChecked(
-      array, index,
-      'result != null && '
-      '(typeof result != "number" || (result|0) !== result) && '
-      'typeof result != "function"',
+      array,
+      index,
+      'result != null && ' '(typeof result != "number" || (result|0) !== result) && '
+          'typeof result != "function"',
       'function or int');
 }
 

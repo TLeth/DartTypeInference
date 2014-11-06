@@ -14,13 +14,13 @@ class InvokeDynamicSpecializer {
   const InvokeDynamicSpecializer();
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     Selector selector = instruction.selector;
     return TypeMaskFactory.inferredTypeForSelector(selector, compiler);
   }
 
   HInstruction tryConvertToBuiltin(HInvokeDynamic instruction,
-                                   Compiler compiler) {
+      Compiler compiler) {
     return null;
   }
 
@@ -28,9 +28,9 @@ class InvokeDynamicSpecializer {
 
   static InvokeDynamicSpecializer lookupSpecializer(Selector selector) {
     if (selector.kind == SelectorKind.INDEX) {
-      return selector.name == '[]'
-          ? const IndexSpecializer()
-          : const IndexAssignSpecializer();
+      return selector.name == '[]' ?
+          const IndexSpecializer() :
+          const IndexAssignSpecializer();
     } else if (selector.kind == SelectorKind.OPERATOR) {
       if (selector.name == 'unary-') {
         return const UnaryNegateSpecializer();
@@ -78,17 +78,18 @@ class IndexAssignSpecializer extends InvokeDynamicSpecializer {
   const IndexAssignSpecializer();
 
   HInstruction tryConvertToBuiltin(HInvokeDynamic instruction,
-                                   Compiler compiler) {
+      Compiler compiler) {
     if (instruction.inputs[1].isMutableIndexable(compiler)) {
-      if (!instruction.inputs[2].isInteger(compiler)
-          && compiler.enableTypeAssertions) {
+      if (!instruction.inputs[2].isInteger(compiler) &&
+          compiler.enableTypeAssertions) {
         // We want the right checked mode error.
         return null;
       }
-      return new HIndexAssign(instruction.inputs[1],
-                              instruction.inputs[2],
-                              instruction.inputs[3],
-                              instruction.selector);
+      return new HIndexAssign(
+          instruction.inputs[1],
+          instruction.inputs[2],
+          instruction.inputs[3],
+          instruction.selector);
     }
     return null;
   }
@@ -98,21 +99,23 @@ class IndexSpecializer extends InvokeDynamicSpecializer {
   const IndexSpecializer();
 
   HInstruction tryConvertToBuiltin(HInvokeDynamic instruction,
-                                   Compiler compiler) {
+      Compiler compiler) {
     if (!instruction.inputs[1].isIndexablePrimitive(compiler)) return null;
-    if (!instruction.inputs[2].isInteger(compiler)
-        && compiler.enableTypeAssertions) {
+    if (!instruction.inputs[2].isInteger(compiler) &&
+        compiler.enableTypeAssertions) {
       // We want the right checked mode error.
       return null;
     }
     TypeMask receiverType =
         instruction.getDartReceiver(compiler).instructionType;
-    Selector refined = new TypedSelector(receiverType, instruction.selector,
-        compiler.world);
+    Selector refined =
+        new TypedSelector(receiverType, instruction.selector, compiler.world);
     TypeMask type = TypeMaskFactory.inferredTypeForSelector(refined, compiler);
     return new HIndex(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, type);
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        type);
   }
 }
 
@@ -124,7 +127,7 @@ class BitNotSpecializer extends InvokeDynamicSpecializer {
   }
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     // All bitwise operations on primitive types either produce an
     // integer or throw an error.
     JavaScriptBackend backend = compiler.backend;
@@ -135,12 +138,14 @@ class BitNotSpecializer extends InvokeDynamicSpecializer {
   }
 
   HInstruction tryConvertToBuiltin(HInvokeDynamic instruction,
-                                   Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     HInstruction input = instruction.inputs[1];
     if (input.isNumber(compiler)) {
-      return new HBitNot(input, instruction.selector,
-                         computeTypeFromInputTypes(instruction, compiler));
+      return new HBitNot(
+          input,
+          instruction.selector,
+          computeTypeFromInputTypes(instruction, compiler));
     }
     return null;
   }
@@ -154,14 +159,14 @@ class UnaryNegateSpecializer extends InvokeDynamicSpecializer {
   }
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     TypeMask operandType = instruction.inputs[1].instructionType;
     if (instruction.inputs[1].isNumberOrNull(compiler)) return operandType;
     return super.computeTypeFromInputTypes(instruction, compiler);
   }
 
   HInstruction tryConvertToBuiltin(HInvokeDynamic instruction,
-                                   Compiler compiler) {
+      Compiler compiler) {
     HInstruction input = instruction.inputs[1];
     if (input.isNumber(compiler)) {
       return new HNegate(input, instruction.selector, input.instructionType);
@@ -174,7 +179,7 @@ abstract class BinaryArithmeticSpecializer extends InvokeDynamicSpecializer {
   const BinaryArithmeticSpecializer();
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     HInstruction left = instruction.inputs[1];
     HInstruction right = instruction.inputs[2];
     JavaScriptBackend backend = compiler.backend;
@@ -191,12 +196,12 @@ abstract class BinaryArithmeticSpecializer extends InvokeDynamicSpecializer {
   }
 
   bool isBuiltin(HInvokeDynamic instruction, Compiler compiler) {
-    return instruction.inputs[1].isNumber(compiler)
-        && instruction.inputs[2].isNumber(compiler);
+    return instruction.inputs[1].isNumber(compiler) &&
+        instruction.inputs[2].isNumber(compiler);
   }
 
   HInstruction tryConvertToBuiltin(HInvokeDynamic instruction,
-                                   Compiler compiler) {
+      Compiler compiler) {
     if (isBuiltin(instruction, compiler)) {
       HInstruction builtin = newBuiltinVariant(instruction, compiler);
       if (builtin != null) return builtin;
@@ -218,23 +223,24 @@ abstract class BinaryArithmeticSpecializer extends InvokeDynamicSpecializer {
     HInstruction left = instruction.inputs[1];
     HInstruction right = instruction.inputs[2];
     JavaScriptBackend backend = compiler.backend;
-    return left.isPositiveIntegerOrNull(compiler)
-        && right.isPositiveIntegerOrNull(compiler);
+    return left.isPositiveIntegerOrNull(compiler) &&
+        right.isPositiveIntegerOrNull(compiler);
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction, Compiler compiler);
 
-  Selector renameToOptimizedSelector(String name,
-                                     Selector selector,
-                                     Compiler compiler) {
+  Selector renameToOptimizedSelector(String name, Selector selector,
+      Compiler compiler) {
     if (selector.name == name) return selector;
     JavaScriptBackend backend = compiler.backend;
     Selector newSelector = new Selector(
-        SelectorKind.CALL, name, backend.interceptorsLibrary,
+        SelectorKind.CALL,
+        name,
+        backend.interceptorsLibrary,
         selector.argumentCount);
-    return selector.mask == null
-        ? newSelector
-        : new TypedSelector(selector.mask, newSelector, compiler.world);
+    return selector.mask == null ?
+        newSelector :
+        new TypedSelector(selector.mask, newSelector, compiler.world);
   }
 }
 
@@ -242,7 +248,7 @@ class AddSpecializer extends BinaryArithmeticSpecializer {
   const AddSpecializer();
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     if (inputsArePositiveIntegers(instruction, compiler)) {
       JavaScriptBackend backend = compiler.backend;
       return backend.positiveIntType;
@@ -255,10 +261,12 @@ class AddSpecializer extends BinaryArithmeticSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     return new HAdd(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, computeTypeFromInputTypes(instruction, compiler));
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        computeTypeFromInputTypes(instruction, compiler));
   }
 }
 
@@ -270,7 +278,7 @@ class DivideSpecializer extends BinaryArithmeticSpecializer {
   }
 
   TypeMask computeTypeFromInputTypes(HInstruction instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     HInstruction left = instruction.inputs[1];
     JavaScriptBackend backend = compiler.backend;
     if (left.isNumberOrNull(compiler)) {
@@ -280,11 +288,13 @@ class DivideSpecializer extends BinaryArithmeticSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     return new HDivide(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, backend.doubleType);
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        backend.doubleType);
   }
 }
 
@@ -292,7 +302,7 @@ class ModuloSpecializer extends BinaryArithmeticSpecializer {
   const ModuloSpecializer();
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     if (inputsArePositiveIntegers(instruction, compiler)) {
       JavaScriptBackend backend = compiler.backend;
       return backend.positiveIntType;
@@ -305,7 +315,7 @@ class ModuloSpecializer extends BinaryArithmeticSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     // Modulo cannot be mapped to the native operator (different semantics).
     return null;
   }
@@ -319,7 +329,7 @@ class MultiplySpecializer extends BinaryArithmeticSpecializer {
   }
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     if (inputsArePositiveIntegers(instruction, compiler)) {
       JavaScriptBackend backend = compiler.backend;
       return backend.positiveIntType;
@@ -328,10 +338,12 @@ class MultiplySpecializer extends BinaryArithmeticSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     return new HMultiply(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, computeTypeFromInputTypes(instruction, compiler));
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        computeTypeFromInputTypes(instruction, compiler));
   }
 }
 
@@ -343,10 +355,12 @@ class SubtractSpecializer extends BinaryArithmeticSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     return new HSubtract(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, computeTypeFromInputTypes(instruction, compiler));
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        computeTypeFromInputTypes(instruction, compiler));
   }
 }
 
@@ -358,7 +372,7 @@ class TruncatingDivideSpecializer extends BinaryArithmeticSpecializer {
   }
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     if (inputsArePositiveIntegers(instruction, compiler)) {
       JavaScriptBackend backend = compiler.backend;
       return backend.positiveIntType;
@@ -375,7 +389,7 @@ class TruncatingDivideSpecializer extends BinaryArithmeticSpecializer {
   }
 
   HInstruction tryConvertToBuiltin(HInvokeDynamic instruction,
-                                   Compiler compiler) {
+      Compiler compiler) {
     HInstruction left = instruction.inputs[1];
     HInstruction right = instruction.inputs[2];
     if (isBuiltin(instruction, compiler)) {
@@ -385,8 +399,8 @@ class TruncatingDivideSpecializer extends BinaryArithmeticSpecializer {
         }
         // We can call _tdivFast because the rhs is a 32bit integer
         // and not 0, nor -1.
-        instruction.selector = renameToOptimizedSelector(
-            '_tdivFast', instruction.selector, compiler);
+        instruction.selector =
+            renameToOptimizedSelector('_tdivFast', instruction.selector, compiler);
       }
       clearAllSideEffects(instruction);
     }
@@ -394,10 +408,12 @@ class TruncatingDivideSpecializer extends BinaryArithmeticSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     return new HTruncatingDivide(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, computeTypeFromInputTypes(instruction, compiler));
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        computeTypeFromInputTypes(instruction, compiler));
   }
 }
 
@@ -405,7 +421,7 @@ abstract class BinaryBitOpSpecializer extends BinaryArithmeticSpecializer {
   const BinaryBitOpSpecializer();
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     // All bitwise operations on primitive types either produce an
     // integer or throw an error.
     HInstruction left = instruction.inputs[1];
@@ -439,7 +455,7 @@ class ShiftLeftSpecializer extends BinaryBitOpSpecializer {
   }
 
   HInstruction tryConvertToBuiltin(HInvokeDynamic instruction,
-                                   Compiler compiler) {
+      Compiler compiler) {
     HInstruction left = instruction.inputs[1];
     HInstruction right = instruction.inputs[2];
     if (left.isNumber(compiler)) {
@@ -452,19 +468,21 @@ class ShiftLeftSpecializer extends BinaryBitOpSpecializer {
       clearAllSideEffects(instruction);
       Selector selector = instruction.selector;
       if (isPositive(right, compiler)) {
-        instruction.selector = renameToOptimizedSelector(
-            '_shlPositive', instruction.selector, compiler);
+        instruction.selector =
+            renameToOptimizedSelector('_shlPositive', instruction.selector, compiler);
       }
     }
     return null;
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     return new HShiftLeft(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, computeTypeFromInputTypes(instruction, compiler));
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        computeTypeFromInputTypes(instruction, compiler));
   }
 }
 
@@ -472,7 +490,7 @@ class ShiftRightSpecializer extends BinaryBitOpSpecializer {
   const ShiftRightSpecializer();
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     HInstruction left = instruction.inputs[1];
     HInstruction right = instruction.inputs[2];
     JavaScriptBackend backend = compiler.backend;
@@ -481,7 +499,7 @@ class ShiftRightSpecializer extends BinaryBitOpSpecializer {
   }
 
   HInstruction tryConvertToBuiltin(HInvokeDynamic instruction,
-                                   Compiler compiler) {
+      Compiler compiler) {
     HInstruction left = instruction.inputs[1];
     HInstruction right = instruction.inputs[2];
     if (left.isNumber(compiler)) {
@@ -493,25 +511,29 @@ class ShiftRightSpecializer extends BinaryBitOpSpecializer {
       // can be GVN'ed.
       clearAllSideEffects(instruction);
       if (isPositive(right, compiler) && isPositive(left, compiler)) {
-        instruction.selector = renameToOptimizedSelector(
-            '_shrBothPositive', instruction.selector, compiler);
+        instruction.selector =
+            renameToOptimizedSelector('_shrBothPositive', instruction.selector, compiler);
       } else if (isPositive(left, compiler) && right.isNumber(compiler)) {
         instruction.selector = renameToOptimizedSelector(
-            '_shrReceiverPositive', instruction.selector, compiler);
+            '_shrReceiverPositive',
+            instruction.selector,
+            compiler);
       } else if (isPositive(right, compiler)) {
-        instruction.selector = renameToOptimizedSelector(
-            '_shrOtherPositive', instruction.selector, compiler);
+        instruction.selector =
+            renameToOptimizedSelector('_shrOtherPositive', instruction.selector, compiler);
       }
     }
     return null;
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     return new HShiftRight(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, computeTypeFromInputTypes(instruction, compiler));
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        computeTypeFromInputTypes(instruction, compiler));
   }
 
   BinaryOperation operation(ConstantSystem constantSystem) {
@@ -527,7 +549,7 @@ class BitOrSpecializer extends BinaryBitOpSpecializer {
   }
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     HInstruction left = instruction.inputs[1];
     HInstruction right = instruction.inputs[2];
     JavaScriptBackend backend = compiler.backend;
@@ -538,11 +560,13 @@ class BitOrSpecializer extends BinaryBitOpSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     return new HBitOr(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, computeTypeFromInputTypes(instruction, compiler));
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        computeTypeFromInputTypes(instruction, compiler));
   }
 }
 
@@ -554,7 +578,7 @@ class BitAndSpecializer extends BinaryBitOpSpecializer {
   }
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     HInstruction left = instruction.inputs[1];
     HInstruction right = instruction.inputs[2];
     JavaScriptBackend backend = compiler.backend;
@@ -565,11 +589,13 @@ class BitAndSpecializer extends BinaryBitOpSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     return new HBitAnd(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, computeTypeFromInputTypes(instruction, compiler));
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        computeTypeFromInputTypes(instruction, compiler));
   }
 }
 
@@ -581,7 +607,7 @@ class BitXorSpecializer extends BinaryBitOpSpecializer {
   }
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     HInstruction left = instruction.inputs[1];
     HInstruction right = instruction.inputs[2];
     JavaScriptBackend backend = compiler.backend;
@@ -592,11 +618,13 @@ class BitXorSpecializer extends BinaryBitOpSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     return new HBitXor(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, computeTypeFromInputTypes(instruction, compiler));
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        computeTypeFromInputTypes(instruction, compiler));
   }
 }
 
@@ -604,7 +632,7 @@ abstract class RelationalSpecializer extends InvokeDynamicSpecializer {
   const RelationalSpecializer();
 
   TypeMask computeTypeFromInputTypes(HInvokeDynamic instruction,
-                                     Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     if (instruction.inputs[1].isPrimitiveOrNull(compiler)) {
       return backend.boolType;
@@ -613,7 +641,7 @@ abstract class RelationalSpecializer extends InvokeDynamicSpecializer {
   }
 
   HInstruction tryConvertToBuiltin(HInvokeDynamic instruction,
-                                   Compiler compiler) {
+      Compiler compiler) {
     HInstruction left = instruction.inputs[1];
     HInstruction right = instruction.inputs[2];
     if (left.isNumber(compiler) && right.isNumber(compiler)) {
@@ -629,7 +657,7 @@ class EqualsSpecializer extends RelationalSpecializer {
   const EqualsSpecializer();
 
   HInstruction tryConvertToBuiltin(HInvokeDynamic instruction,
-                                   Compiler compiler) {
+      Compiler compiler) {
     HInstruction left = instruction.inputs[1];
     HInstruction right = instruction.inputs[2];
     TypeMask instructionType = left.instructionType;
@@ -655,11 +683,13 @@ class EqualsSpecializer extends RelationalSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     return new HIdentity(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, backend.boolType);
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        backend.boolType);
   }
 }
 
@@ -671,11 +701,13 @@ class LessSpecializer extends RelationalSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     return new HLess(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, backend.boolType);
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        backend.boolType);
   }
 }
 
@@ -687,11 +719,13 @@ class GreaterSpecializer extends RelationalSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     return new HGreater(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, backend.boolType);
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        backend.boolType);
   }
 }
 
@@ -703,11 +737,13 @@ class GreaterEqualSpecializer extends RelationalSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     return new HGreaterEqual(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, backend.boolType);
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        backend.boolType);
   }
 }
 
@@ -719,10 +755,12 @@ class LessEqualSpecializer extends RelationalSpecializer {
   }
 
   HInstruction newBuiltinVariant(HInvokeDynamic instruction,
-                                 Compiler compiler) {
+      Compiler compiler) {
     JavaScriptBackend backend = compiler.backend;
     return new HLessEqual(
-        instruction.inputs[1], instruction.inputs[2],
-        instruction.selector, backend.boolType);
+        instruction.inputs[1],
+        instruction.inputs[2],
+        instruction.selector,
+        backend.boolType);
   }
 }

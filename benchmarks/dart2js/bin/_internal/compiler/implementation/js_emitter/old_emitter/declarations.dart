@@ -35,16 +35,13 @@ typedef jsAst.Property AddPropertyFunction(String name, jsAst.Expression value);
  * case, [needsSetter] is always false. [needsCheckedSetter] is only true when
  * type assertions are enabled (checked mode).
  */
-typedef void AcceptField(VariableElement member,
-                         String name,
-                         String accessorName,
-                         bool needsGetter,
-                         bool needsSetter,
-                         bool needsCheckedSetter);
+typedef void AcceptField(VariableElement member, String name,
+    String accessorName, bool needsGetter, bool needsSetter,
+    bool needsCheckedSetter);
 
 // Function signatures used in the generation of runtime type information.
 typedef void FunctionTypeSignatureEmitter(Element method,
-                                          FunctionType methodType);
+    FunctionType methodType);
 
 typedef void SubstitutionEmitter(Element element, {bool emitNull});
 
@@ -80,9 +77,9 @@ const String HOOKS_API_USAGE = """
 const FIELD_CODE_CHARACTERS = r"<=>?@{|}~%&'()*";
 const NO_FIELD_CODE = 0;
 const FIRST_FIELD_CODE = 1;
-const RANGE1_FIRST = 0x3c;   //  <=>?@    encodes 1..5
+const RANGE1_FIRST = 0x3c; //  <=>?@    encodes 1..5
 const RANGE1_LAST = 0x40;
-const RANGE2_FIRST = 0x7b;   //  {|}~     encodes 6..9
+const RANGE2_FIRST = 0x7b; //  {|}~     encodes 6..9
 const RANGE2_LAST = 0x7e;
-const RANGE3_FIRST = 0x25;   //  %&'()*+  encodes 10..16
+const RANGE3_FIRST = 0x25; //  %&'()*+  encodes 10..16
 const RANGE3_LAST = 0x2b;

@@ -255,7 +255,7 @@ class LogicalRewriter extends Visitor<Statement, Expression> {
     // x ? y : false ==> x && y  (if y is known to be a boolean)
     if (isBooleanValued(node.thenExpression) && isFalse(node.elseExpression)) {
       return new LogicalOperator.and(
-          makeCondition(node.condition, true, liftNots:false),
+          makeCondition(node.condition, true, liftNots: false),
           putInBooleanContext(node.thenExpression));
     }
     // x ? y : true ==> !x || y  (if y is known to be a boolean)
@@ -316,10 +316,7 @@ class LogicalRewriter extends Visitor<Statement, Expression> {
 
   /// Forces a boolean conversion of the given expression.
   Expression toBoolean(Expression e) {
-    if (isBooleanValued(e))
-      return e;
-    else
-      return new Not(new Not(e));
+    if (isBooleanValued(e)) return e; else return new Not(new Not(e));
   }
 
   /// Creates an equivalent boolean expression. The expression must occur in a
@@ -327,7 +324,7 @@ class LogicalRewriter extends Visitor<Statement, Expression> {
   /// If [polarity] if false, the negated condition will be created instead.
   /// If [liftNots] is true (default) then Not expressions will be lifted toward
   /// the root the condition so they can be eliminated by the caller.
-  Expression makeCondition(Expression e, bool polarity, {bool liftNots:true}) {
+  Expression makeCondition(Expression e, bool polarity, {bool liftNots: true}) {
     if (e is Not) {
       // !!E ==> E
       return makeCondition(e.operand, !polarity, liftNots: liftNots);
@@ -365,27 +362,31 @@ class LogicalRewriter extends Visitor<Statement, Expression> {
       }
       // x ? true : y  ==> x || y
       if (isTrue(e.thenExpression)) {
-        return makeOr(makeCondition(e.condition, true),
-                      e.elseExpression,
-                      liftNots: liftNots);
+        return makeOr(
+            makeCondition(e.condition, true),
+            e.elseExpression,
+            liftNots: liftNots);
       }
       // x ? false : y  ==> !x && y
       if (isFalse(e.thenExpression)) {
-        return makeAnd(makeCondition(e.condition, false),
-                       e.elseExpression,
-                       liftNots: liftNots);
+        return makeAnd(
+            makeCondition(e.condition, false),
+            e.elseExpression,
+            liftNots: liftNots);
       }
       // x ? y : true  ==> !x || y
       if (isTrue(e.elseExpression)) {
-        return makeOr(makeCondition(e.condition, false),
-                      e.thenExpression,
-                      liftNots: liftNots);
+        return makeOr(
+            makeCondition(e.condition, false),
+            e.thenExpression,
+            liftNots: liftNots);
       }
       // x ? y : false  ==> x && y
       if (isFalse(e.elseExpression)) {
-        return makeAnd(makeCondition(e.condition, true),
-                       e.thenExpression,
-                       liftNots: liftNots);
+        return makeAnd(
+            makeCondition(e.condition, true),
+            e.thenExpression,
+            liftNots: liftNots);
       }
 
       e.condition = makeCondition(e.condition, true);

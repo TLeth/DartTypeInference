@@ -32,9 +32,8 @@ class OrderedTypeSet {
   final Link<DartType> types;
   final Link<DartType> _supertypes;
 
-  OrderedTypeSet._internal(List<Link<DartType>> this._levels,
-                           Link<DartType> this.types,
-                           Link<DartType> this._supertypes);
+  OrderedTypeSet._internal(List<Link<DartType>> this._levels, Link<DartType>
+      this.types, Link<DartType> this._supertypes);
 
   factory OrderedTypeSet.singleton(DartType type) {
     Link<DartType> types =
@@ -48,18 +47,21 @@ class OrderedTypeSet {
   /// class which this set represents. This is for instance used to create the
   /// type set for [ClosureClassElement] which extends [Closure].
   OrderedTypeSet extendClass(InterfaceType type) {
-    assert(invariant(type.element, types.head.treatAsRaw,
+    assert(invariant(
+        type.element,
+        types.head.treatAsRaw,
         message: 'Cannot extend generic class ${types.head} using '
-                 'OrderedTypeSet.extendClass'));
-    Link<DartType> extendedTypes =
-        new LinkEntry<DartType>(type, types);
+            'OrderedTypeSet.extendClass'));
+    Link<DartType> extendedTypes = new LinkEntry<DartType>(type, types);
     List<Link<DartType>> list = new List<Link<DartType>>(levels + 1);
     for (int i = 0; i < levels; i++) {
       list[i] = _levels[i];
     }
     list[levels] = extendedTypes;
     return new OrderedTypeSet._internal(
-        list, extendedTypes, _supertypes.prepend(types.head));
+        list,
+        extendedTypes,
+        _supertypes.prepend(types.head));
   }
 
   Link<DartType> get supertypes => _supertypes;
@@ -155,11 +157,11 @@ class OrderedTypeSetBuilder {
       DartType existingType = link.head;
       if (existingType == type) return;
       if (existingType.element == type.element) {
-        compiler.reportError(cls,
-            MessageKind.MULTI_INHERITANCE,
-            {'thisType': cls.thisType,
-             'firstType': existingType,
-             'secondType': type});
+        compiler.reportError(cls, MessageKind.MULTI_INHERITANCE, {
+          'thisType': cls.thisType,
+          'firstType': existingType,
+          'secondType': type
+        });
         return;
       }
       prev = link;
@@ -181,7 +183,9 @@ class OrderedTypeSetBuilder {
     List<Link<DartType>> levels = new List<Link<DartType>>(maxDepth + 1);
     if (maxDepth < 0) {
       return new OrderedTypeSet._internal(
-          levels, const Link<DartType>(), const Link<DartType>());
+          levels,
+          const Link<DartType>(),
+          const Link<DartType>());
     }
     Link<DartType> next = const Link<DartType>();
     for (int depth = 0; depth <= maxDepth; depth++) {
@@ -199,7 +203,9 @@ class OrderedTypeSetBuilder {
       }
     }
     return new OrderedTypeSet._internal(
-        levels, levels.last, allSupertypes.toLink());
+        levels,
+        levels.last,
+        allSupertypes.toLink());
   }
 
   String toString() {

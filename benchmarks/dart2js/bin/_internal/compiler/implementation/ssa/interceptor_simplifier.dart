@@ -21,8 +21,8 @@ part of ssa;
  * an intercepted call a candidate for being generated at use site.
  *
  */
-class SsaSimplifyInterceptors extends HBaseVisitor
-    implements OptimizationPhase {
+class SsaSimplifyInterceptors extends HBaseVisitor implements OptimizationPhase
+    {
   final String name = "SsaSimplifyInterceptors";
   final ConstantSystem constantSystem;
   final Compiler compiler;
@@ -57,7 +57,8 @@ class SsaSimplifyInterceptors extends HBaseVisitor
     var interceptor = invoke.inputs[0];
     if (interceptor is! HInterceptor) return false;
     HInstruction constant = tryComputeConstantInterceptor(
-        invoke.inputs[1], interceptor.interceptedClasses);
+        invoke.inputs[1],
+        interceptor.interceptedClasses);
     if (constant != null) {
       invoke.changeUse(interceptor, constant);
     }
@@ -65,7 +66,7 @@ class SsaSimplifyInterceptors extends HBaseVisitor
   }
 
   bool canUseSelfForInterceptor(HInstruction receiver,
-                                Set<ClassElement> interceptedClasses) {
+      Set<ClassElement> interceptedClasses) {
     JavaScriptBackend backend = compiler.backend;
     ClassWorld classWorld = compiler.world;
 
@@ -81,13 +82,12 @@ class SsaSimplifyInterceptors extends HBaseVisitor
 
     // All intercepted classes extend `Interceptor`, so if the receiver can't be
     // a class extending `Interceptor` then it can be called directly.
-    return new TypeMask.nonNullSubclass(backend.jsInterceptorClass, classWorld)
-        .intersection(receiver.instructionType, classWorld)
-        .isEmpty;
+    return new TypeMask.nonNullSubclass(
+        backend.jsInterceptorClass,
+        classWorld).intersection(receiver.instructionType, classWorld).isEmpty;
   }
 
-  HInstruction tryComputeConstantInterceptor(
-      HInstruction input,
+  HInstruction tryComputeConstantInterceptor(HInstruction input,
       Set<ClassElement> interceptedClasses) {
     if (input == graph.explicitReceiverParameter) {
       // If `explicitReceiverParameter` is set it means the current method is an
@@ -178,13 +178,13 @@ class SsaSimplifyInterceptors extends HBaseVisitor
         dominator.isCallOnInterceptor(compiler) &&
         node == dominator.receiver) {
       interceptedClasses =
-            backend.getInterceptedClassesOn(dominator.selector.name);
+          backend.getInterceptedClassesOn(dominator.selector.name);
 
       // If we found that we need number, we must still go through all
       // uses to check if they require int, or double.
       if (interceptedClasses.contains(backend.jsNumberClass) &&
           !(interceptedClasses.contains(backend.jsDoubleClass) ||
-            interceptedClasses.contains(backend.jsIntClass))) {
+              interceptedClasses.contains(backend.jsIntClass))) {
         for (HInstruction user in node.usedBy) {
           if (user is! HInvoke) continue;
           Set<ClassElement> intercepted =
@@ -231,7 +231,7 @@ class SsaSimplifyInterceptors extends HBaseVisitor
 
     // Try creating a one-shot interceptor.
     if (node.usedBy.length != 1) return false;
-    if (node.usedBy[0] is !HInvokeDynamic) return false;
+    if (node.usedBy[0] is! HInvokeDynamic) return false;
 
     HInvokeDynamic user = node.usedBy[0];
 
@@ -243,7 +243,10 @@ class SsaSimplifyInterceptors extends HBaseVisitor
     List<HInstruction> inputs = new List<HInstruction>.from(user.inputs);
     inputs[0] = nullConstant;
     HOneShotInterceptor interceptor = new HOneShotInterceptor(
-        user.selector, inputs, user.instructionType, node.interceptedClasses);
+        user.selector,
+        inputs,
+        user.instructionType,
+        node.interceptedClasses);
     interceptor.sourcePosition = user.sourcePosition;
     interceptor.sourceElement = user.sourceElement;
 
@@ -271,8 +274,8 @@ class SsaSimplifyInterceptors extends HBaseVisitor
   }
 
   bool visitOneShotInterceptor(HOneShotInterceptor node) {
-    HInstruction constant = tryComputeConstantInterceptor(
-        node.inputs[1], node.interceptedClasses);
+    HInstruction constant =
+        tryComputeConstantInterceptor(node.inputs[1], node.interceptedClasses);
 
     if (constant == null) return false;
 
@@ -293,8 +296,8 @@ class SsaSimplifyInterceptors extends HBaseVisitor
     } else {
       List<HInstruction> inputs = new List<HInstruction>.from(node.inputs);
       inputs[0] = constant;
-      instruction = new HInvokeDynamicMethod(
-          selector, inputs, node.instructionType, true);
+      instruction =
+          new HInvokeDynamicMethod(selector, inputs, node.instructionType, true);
     }
 
     HBasicBlock block = node.block;

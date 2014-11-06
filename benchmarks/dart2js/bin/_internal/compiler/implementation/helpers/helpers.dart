@@ -90,6 +90,7 @@ ReportHere get reportHere {
 
 /// Implementation of [reportHere]
 _reportHere(Compiler compiler, Spannable node, String debugMessage) {
-  compiler.reportInfo(node,
-      MessageKind.GENERIC, {'text': 'HERE: $debugMessage'});
+  compiler.reportInfo(node, MessageKind.GENERIC, {
+    'text': 'HERE: $debugMessage'
+  });
 }

@@ -49,9 +49,8 @@ class CodeEmitterTask extends CompilerTask {
       : super(compiler),
         this.namer = namer {
     oldEmitter = new OldEmitter(compiler, namer, generateSourceMap, this);
-    emitter = USE_NEW_EMITTER
-        ? new new_js_emitter.Emitter(compiler, namer)
-        : oldEmitter;
+    emitter =
+        USE_NEW_EMITTER ? new new_js_emitter.Emitter(compiler, namer) : oldEmitter;
     nativeEmitter = new NativeEmitter(this);
     typeTestEmitter.emitter = this.oldEmitter;
     // TODO(18886): Remove this call (and the show in the import) once the
@@ -102,17 +101,16 @@ class CodeEmitterTask extends CompilerTask {
     Set<ClassElement> needed = new Set<ClassElement>();
     backend.specializedGetInterceptors.forEach(
         (_, Iterable<ClassElement> elements) {
-          needed.addAll(elements);
-        }
-    );
+      needed.addAll(elements);
+    });
 
     // Add interceptors referenced by constants.
     needed.addAll(interceptorsReferencedFromConstants());
 
     // Add unneeded interceptors to the [unneededClasses] set.
     for (ClassElement interceptor in backend.interceptedClasses) {
-      if (!needed.contains(interceptor)
-          && interceptor != compiler.objectClass) {
+      if (!needed.contains(interceptor) &&
+          interceptor != compiler.objectClass) {
         unneededClasses.add(interceptor);
       }
     }
@@ -151,13 +149,11 @@ class CodeEmitterTask extends CompilerTask {
         final onlyForRti = typeTestEmitter.rtiNeededClasses.contains(cls);
         if (!onlyForRti) {
           backend.retainMetadataOf(cls);
-          oldEmitter.classEmitter.visitFields(cls, false,
-              (Element member,
-               String name,
-               String accessorName,
-               bool needsGetter,
-               bool needsSetter,
-               bool needsCheckedSetter) {
+          oldEmitter.classEmitter.visitFields(
+              cls,
+              false,
+              (Element member, String name, String accessorName, bool needsGetter,
+                  bool needsSetter, bool needsCheckedSetter) {
             bool needsAccessor = needsGetter || needsSetter;
             if (needsAccessor && backend.isAccessibleByReflection(member)) {
               backend.retainMetadataOf(member);
@@ -185,7 +181,8 @@ class CodeEmitterTask extends CompilerTask {
         constantUnit = compiler.deferredLoadTask.mainOutputUnit;
       }
       outputConstantLists.putIfAbsent(
-          constantUnit, () => new List<ConstantValue>()).add(constant);
+          constantUnit,
+          () => new List<ConstantValue>()).add(constant);
     }
   }
 
@@ -193,20 +190,17 @@ class CodeEmitterTask extends CompilerTask {
   void computeNeededDeclarations() {
     // Compute needed typedefs.
     typedefsNeededForReflection = Elements.sortedByPosition(
-        compiler.world.allTypedefs
-            .where(backend.isAccessibleByReflection)
-            .toList());
+        compiler.world.allTypedefs.where(backend.isAccessibleByReflection).toList());
 
     // Compute needed classes.
     Set<ClassElement> instantiatedClasses =
-        compiler.codegenWorld.directlyInstantiatedClasses
-            .where(computeClassFilter()).toSet();
+        compiler.codegenWorld.directlyInstantiatedClasses.where(
+            computeClassFilter()).toSet();
 
     void addClassWithSuperclasses(ClassElement cls) {
       neededClasses.add(cls);
-      for (ClassElement superclass = cls.superclass;
-          superclass != null;
-          superclass = superclass.superclass) {
+      for (ClassElement superclass =
+          cls.superclass; superclass != null; superclass = superclass.superclass) {
         neededClasses.add(superclass);
       }
     }
@@ -221,10 +215,9 @@ class CodeEmitterTask extends CompilerTask {
     addClassesWithSuperclasses(instantiatedClasses);
 
     // 2. Add all classes used as mixins.
-    Set<ClassElement> mixinClasses = neededClasses
-        .where((ClassElement element) => element.isMixinApplication)
-        .map(computeMixinClass)
-        .toSet();
+    Set<ClassElement> mixinClasses = neededClasses.where(
+        (ClassElement element) =>
+            element.isMixinApplication).map(computeMixinClass).toSet();
     neededClasses.addAll(mixinClasses);
 
     // 3. If we need noSuchMethod support, we run through all needed
@@ -285,16 +278,17 @@ class CodeEmitterTask extends CompilerTask {
         // For now, native classes and related classes cannot be deferred.
         nativeClasses.add(element);
         if (!element.isNative) {
-          assert(invariant(element,
-                           !compiler.deferredLoadTask.isDeferred(element)));
-          outputClassLists.putIfAbsent(compiler.deferredLoadTask.mainOutputUnit,
+          assert(invariant(
+              element,
+              !compiler.deferredLoadTask.isDeferred(element)));
+          outputClassLists.putIfAbsent(
+              compiler.deferredLoadTask.mainOutputUnit,
               () => new List<ClassElement>()).add(element);
         }
       } else {
         outputClassLists.putIfAbsent(
             compiler.deferredLoadTask.outputUnitForElement(element),
-            () => new List<ClassElement>())
-            .add(element);
+            () => new List<ClassElement>()).add(element);
       }
     }
   }
@@ -309,8 +303,7 @@ class CodeEmitterTask extends CompilerTask {
     for (Element element in Elements.sortedByPosition(elements)) {
       outputStaticLists.putIfAbsent(
           compiler.deferredLoadTask.outputUnitForElement(element),
-          () => new List<Element>())
-          .add(element);
+          () => new List<Element>()).add(element);
     }
   }
 
@@ -318,13 +311,14 @@ class CodeEmitterTask extends CompilerTask {
     void addSurroundingLibraryToSet(Element element) {
       OutputUnit unit = compiler.deferredLoadTask.outputUnitForElement(element);
       LibraryElement library = element.library;
-      outputLibraryLists.putIfAbsent(unit, () => new Set<LibraryElement>())
-          .add(library);
+      outputLibraryLists.putIfAbsent(
+          unit,
+          () => new Set<LibraryElement>()).add(library);
     }
 
     backend.generatedCode.keys.forEach(addSurroundingLibraryToSet);
     neededClasses.forEach(addSurroundingLibraryToSet);
-}
+  }
 
   void assembleProgram() {
     measure(() {

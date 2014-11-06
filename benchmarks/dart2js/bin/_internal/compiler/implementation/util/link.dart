@@ -19,7 +19,7 @@ class Link<T> {
   void printOn(StringBuffer buffer, [separatedBy]) {
   }
 
-  List<T> toList({ bool growable: true }) {
+  List<T> toList({bool growable: true}) {
     List<T> result;
     if (!growable) {
       result = new List<T>(slowLength());
@@ -36,12 +36,12 @@ class Link<T> {
 
   /// Lazily maps over this linked list, returning an [Iterable].
   Iterable map(dynamic fn(T item)) {
-    return new MappedLinkIterable<T,dynamic>(this, fn);
+    return new MappedLinkIterable<T, dynamic>(this, fn);
   }
 
   /// Invokes `fn` for every item in the linked list and returns the results
   /// in a [List].
-  List mapToList(dynamic fn(T item), { bool growable: true }) {
+  List mapToList(dynamic fn(T item), {bool growable: true}) {
     List result;
     if (!growable) {
       result = new List(slowLength());
@@ -83,7 +83,7 @@ class Link<T> {
   void forEach(void f(T element)) {}
 
   bool operator ==(other) {
-    if (other is !Link<T>) return false;
+    if (other is! Link<T>) return false;
     return other.isEmpty;
   }
 
@@ -122,7 +122,7 @@ class Link<T> {
   ///
   /// Returns true for the empty list.
   bool every(bool f(T)) {
-    for (Link<T> link = this; !link.isEmpty; link = link.tail){
+    for (Link<T> link = this; !link.isEmpty; link = link.tail) {
       if (!f(link.head)) return false;
     }
     return true;

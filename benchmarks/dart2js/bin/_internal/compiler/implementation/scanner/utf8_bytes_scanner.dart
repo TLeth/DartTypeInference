@@ -88,7 +88,7 @@ class Utf8BytesScanner extends ArrayBasedScanner {
   void ensureZeroTermination() {
     if (bytes.isEmpty || bytes[bytes.length - 1] != 0) {
       // TODO(lry): abort instead of copying the array, or warn?
-      var newBytes =  new Uint8List(bytes.length + 1);
+      var newBytes = new Uint8List(bytes.length + 1);
       for (int i = 0; i < bytes.length; i++) {
         newBytes[i] = bytes[i];
       }
@@ -203,9 +203,14 @@ class Utf8BytesScanner extends ArrayBasedScanner {
   Token previousToken() => tail;
 
   void appendSubstringToken(PrecedenceInfo info, int start, bool asciiOnly,
-                            [int extraOffset = 0]) {
+      [int extraOffset = 0]) {
     tail.next = new StringToken.fromUtf8Bytes(
-        info, bytes, start, byteOffset + extraOffset, asciiOnly, tokenStart);
+        info,
+        bytes,
+        start,
+        byteOffset + extraOffset,
+        asciiOnly,
+        tokenStart);
     tail = tail.next;
   }
 

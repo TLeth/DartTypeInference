@@ -69,7 +69,7 @@ abstract class BinaryBitOperation implements BinaryOperation {
 class BitOrOperation extends BinaryBitOperation {
   final String name = '|';
   const BitOrOperation();
-  int foldInts(int left, int right)  => left | right;
+  int foldInts(int left, int right) => left | right;
   apply(left, right) => left | right;
 }
 
@@ -153,8 +153,7 @@ abstract class ArithmeticNumOperation implements BinaryOperation {
       }
       // A division by 0 means that we might not have a folded value.
       if (foldedValue == null) return null;
-      if (left.isInt && right.isInt && !isDivide() ||
-          isTruncatingDivide()) {
+      if (left.isInt && right.isInt && !isDivide() || isTruncatingDivide()) {
         assert(foldedValue is int);
         return DART_CONSTANT_SYSTEM.createInt(foldedValue);
       } else {
@@ -357,10 +356,8 @@ class DartConstantSystem extends ConstantSystem {
   }
   BoolConstantValue createBool(bool value) => new BoolConstantValue(value);
   NullConstantValue createNull() => new NullConstantValue();
-  MapConstantValue createMap(Compiler compiler,
-                             InterfaceType type,
-                             List<ConstantValue> keys,
-                             List<ConstantValue> values) {
+  MapConstantValue createMap(Compiler compiler, InterfaceType type,
+      List<ConstantValue> keys, List<ConstantValue> values) {
     return new MapConstantValue(type, keys, values);
   }
 

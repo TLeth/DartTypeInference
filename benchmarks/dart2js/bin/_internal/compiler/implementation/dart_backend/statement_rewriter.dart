@@ -307,7 +307,7 @@ class StatementRewriter extends Visitor<Statement, Expression> {
     Statement reduced = combineStatementsWithSubexpressions(
         node.thenStatement,
         node.elseStatement,
-        (t,f) => new Conditional(node.condition, t, f)..processed = true);
+        (t, f) => new Conditional(node.condition, t, f)..processed = true);
     if (reduced != null) {
       if (reduced.next is Break) {
         // In case the break can now be inlined.
@@ -401,9 +401,7 @@ class StatementRewriter extends Visitor<Statement, Expression> {
   ///
   /// If non-null is returned, the caller MUST discard [s] and [t] and use
   /// the returned statement instead.
-  static Statement combineStatementsWithSubexpressions(
-      Statement s,
-      Statement t,
+  static Statement combineStatementsWithSubexpressions(Statement s, Statement t,
       Expression combine(Expression s, Expression t)) {
     if (s is Return && t is Return) {
       return new Return(combine(s.value, t.value));
@@ -412,16 +410,18 @@ class StatementRewriter extends Visitor<Statement, Expression> {
       Statement next = combineStatements(s.next, t.next);
       if (next != null) {
         --t.variable.writeCount; // Two assignments become one.
-        return new Assign(s.variable,
-                          combine(s.definition, t.definition),
-                          next);
+        return new Assign(
+            s.variable,
+            combine(s.definition, t.definition),
+            next);
       }
     }
     if (s is ExpressionStatement && t is ExpressionStatement) {
       Statement next = combineStatements(s.next, t.next);
       if (next != null) {
-        return new ExpressionStatement(combine(s.expression, t.expression),
-                                       next);
+        return new ExpressionStatement(
+            combine(s.expression, t.expression),
+            next);
       }
     }
     return null;

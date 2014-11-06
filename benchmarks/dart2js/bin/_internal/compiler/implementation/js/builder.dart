@@ -264,7 +264,10 @@ class JsBuilder {
     MiniJsParser parser = new MiniJsParser(source);
     Expression expression = parser.expression();
     return new Template(
-        source, expression, isExpression: true, forceCopy: false);
+        source,
+        expression,
+        isExpression: true,
+        forceCopy: false);
   }
 
   /**
@@ -274,7 +277,10 @@ class JsBuilder {
     MiniJsParser parser = new MiniJsParser(source);
     Statement statement = parser.statement();
     return new Template(
-        source, statement, isExpression: false, forceCopy: false);
+        source,
+        statement,
+        isExpression: false,
+        forceCopy: false);
   }
 
   /**
@@ -292,18 +298,24 @@ class JsBuilder {
 
   /// Creates a literal js string from [value].
   LiteralString escapedString(String value) {
-   // Start by escaping the backslashes.
+    // Start by escaping the backslashes.
     String escaped = value.replaceAll('\\', '\\\\');
     // Do not escape unicode characters and ' because they are allowed in the
     // string literal anyway.
     escaped = escaped.replaceAllMapped(new RegExp('\n|"|\b|\t|\v'), (match) {
       switch (match.group(0)) {
-        case "\n" : return r"\n";
-        case "\"" : return r'\"';
-        case "\b" : return r"\b";
-        case "\t" : return r"\t";
-        case "\f" : return r"\f";
-        case "\v" : return r"\v";
+        case "\n":
+          return r"\n";
+        case "\"":
+          return r'\"';
+        case "\b":
+          return r"\b";
+        case "\t":
+          return r"\t";
+        case "\f":
+          return r"\f";
+        case "\v":
+          return r"\v";
       }
     });
     LiteralString result = string(escaped);
@@ -338,7 +350,7 @@ ArrayInitializer numArray(Iterable<int> list) => js.numArray(list);
 ArrayInitializer stringArray(Iterable<String> list) => js.stringArray(list);
 
 class MiniJsParserError {
-  MiniJsParserError(this.parser, this.message) { }
+  MiniJsParserError(this.parser, this.message) {}
 
   final MiniJsParser parser;
   final String message;
@@ -400,7 +412,7 @@ class MiniJsParser {
   String lastToken = null;
   int lastPosition = 0;
   int position = 0;
-  bool skippedNewline = false;  // skipped newline in last getToken?
+  bool skippedNewline = false; // skipped newline in last getToken?
   final String src;
   final List<InterpolatedNode> interpolatedValues = <InterpolatedNode>[];
 
@@ -430,68 +442,121 @@ class MiniJsParser {
 
   static String categoryToString(int cat) {
     switch (cat) {
-      case NONE: return "NONE";
-      case ALPHA: return "ALPHA";
-      case NUMERIC: return "NUMERIC";
-      case SYMBOL: return "SYMBOL";
-      case ASSIGNMENT: return "ASSIGNMENT";
-      case DOT: return "DOT";
-      case LPAREN: return "LPAREN";
-      case RPAREN: return "RPAREN";
-      case LBRACE: return "LBRACE";
-      case RBRACE: return "RBRACE";
-      case LSQUARE: return "LSQUARE";
-      case RSQUARE: return "RSQUARE";
-      case STRING: return "STRING";
-      case COMMA: return "COMMA";
-      case QUERY: return "QUERY";
-      case COLON: return "COLON";
-      case SEMICOLON: return "SEMICOLON";
-      case HASH: return "HASH";
-      case WHITESPACE: return "WHITESPACE";
-      case OTHER: return "OTHER";
+      case NONE:
+        return "NONE";
+      case ALPHA:
+        return "ALPHA";
+      case NUMERIC:
+        return "NUMERIC";
+      case SYMBOL:
+        return "SYMBOL";
+      case ASSIGNMENT:
+        return "ASSIGNMENT";
+      case DOT:
+        return "DOT";
+      case LPAREN:
+        return "LPAREN";
+      case RPAREN:
+        return "RPAREN";
+      case LBRACE:
+        return "LBRACE";
+      case RBRACE:
+        return "RBRACE";
+      case LSQUARE:
+        return "LSQUARE";
+      case RSQUARE:
+        return "RSQUARE";
+      case STRING:
+        return "STRING";
+      case COMMA:
+        return "COMMA";
+      case QUERY:
+        return "QUERY";
+      case COLON:
+        return "COLON";
+      case SEMICOLON:
+        return "SEMICOLON";
+      case HASH:
+        return "HASH";
+      case WHITESPACE:
+        return "WHITESPACE";
+      case OTHER:
+        return "OTHER";
     }
     return "Unknown: $cat";
   }
 
   static const CATEGORIES = const <int>[
-      OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER,       // 0-7
-      OTHER, WHITESPACE, WHITESPACE, OTHER, OTHER, WHITESPACE,      // 8-13
-      OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER,       // 14-21
-      OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER,       // 22-29
-      OTHER, OTHER, WHITESPACE,                                     // 30-32
-      SYMBOL, OTHER, HASH, ALPHA, SYMBOL, SYMBOL, OTHER,            // !"#$%&´
-      LPAREN, RPAREN, SYMBOL, SYMBOL, COMMA, SYMBOL, DOT, SYMBOL,   // ()*+,-./
-      NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC,                  // 01234
-      NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC,                  // 56789
-      COLON, SEMICOLON, SYMBOL, SYMBOL, SYMBOL, QUERY, OTHER,       // :;<=>?@
-      ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA,       // ABCDEFGH
-      ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA,       // IJKLMNOP
-      ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA,       // QRSTUVWX
-      ALPHA, ALPHA, LSQUARE, OTHER, RSQUARE, SYMBOL, ALPHA, OTHER,  // YZ[\]^_'
-      ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA,       // abcdefgh
-      ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA,       // ijklmnop
-      ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA,       // qrstuvwx
-      ALPHA, ALPHA, LBRACE, SYMBOL, RBRACE, SYMBOL];                // yz{|}~
+      OTHER,
+      OTHER,
+      OTHER,
+      OTHER,
+      OTHER,
+      OTHER,
+      OTHER,
+      OTHER,
+      // 0-7
+    OTHER, WHITESPACE, WHITESPACE, OTHER, OTHER, WHITESPACE, // 8-13
+    OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, // 14-21
+    OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, // 22-29
+    OTHER, OTHER, WHITESPACE, // 30-32
+    SYMBOL, OTHER, HASH, ALPHA, SYMBOL, SYMBOL, OTHER, // !"#$%&´
+    LPAREN, RPAREN, SYMBOL, SYMBOL, COMMA, SYMBOL, DOT, SYMBOL, // ()*+,-./
+    NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, // 01234
+    NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, // 56789
+    COLON, SEMICOLON, SYMBOL, SYMBOL, SYMBOL, QUERY, OTHER, // :;<=>?@
+    ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, // ABCDEFGH
+    ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, // IJKLMNOP
+    ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, // QRSTUVWX
+    ALPHA, ALPHA, LSQUARE, OTHER, RSQUARE, SYMBOL, ALPHA, OTHER, // YZ[\]^_'
+    ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, // abcdefgh
+    ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, // ijklmnop
+    ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, ALPHA, // qrstuvwx
+    ALPHA, ALPHA, LBRACE, SYMBOL, RBRACE, SYMBOL]; // yz{|}~
 
   // This must be a >= the highest precedence number handled by parseBinary.
   static var HIGHEST_PARSE_BINARY_PRECEDENCE = 16;
   static bool isAssignment(String symbol) => BINARY_PRECEDENCE[symbol] == 17;
 
-  // From https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Operators/Operator_Precedence
+
+
+      // From https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Operators/Operator_Precedence
   static final BINARY_PRECEDENCE = {
-      '+=': 17, '-=': 17, '*=': 17, '/=': 17, '%=': 17, '^=': 17, '|=': 17,
-      '&=': 17, '<<=': 17, '>>=': 17, '>>>=': 17, '=': 17,
-      '||': 14,
-      '&&': 13,
-      '|': 12,
-      '^': 11,
-      '&': 10,
-      '!=': 9, '==': 9, '!==': 9, '===': 9,
-      '<': 8, '<=': 8, '>=': 8, '>': 8, 'in': 8, 'instanceof': 8,
-      '<<': 7, '>>': 7, '>>>': 7,
-      '+': 6, '-': 6,
-      '*': 5, '/': 5, '%': 5
+    '+=': 17,
+    '-=': 17,
+    '*=': 17,
+    '/=': 17,
+    '%=': 17,
+    '^=': 17,
+    '|=': 17,
+    '&=': 17,
+    '<<=': 17,
+    '>>=': 17,
+    '>>>=': 17,
+    '=': 17,
+    '||': 14,
+    '&&': 13,
+    '|': 12,
+    '^': 11,
+    '&': 10,
+    '!=': 9,
+    '==': 9,
+    '!==': 9,
+    '===': 9,
+    '<': 8,
+    '<=': 8,
+    '>=': 8,
+    '>': 8,
+    'in': 8,
+    'instanceof': 8,
+    '<<': 7,
+    '>>': 7,
+    '>>>': 7,
+    '+': 6,
+    '-': 6,
+    '*': 5,
+    '/': 5,
+    '%': 5
   };
   static final UNARY_OPERATORS =
       ['++', '--', '+', '-', '~', '!', 'typeof', 'void', 'delete'].toSet();
@@ -516,8 +581,10 @@ class MiniJsParser {
       if (currentCode == charCodes.$BACKSLASH) {
         if (++position >= src.length) error("Unterminated literal");
         int escaped = src.codeUnitAt(position);
-        if (escaped == charCodes.$x || escaped == charCodes.$X ||
-            escaped == charCodes.$u || escaped == charCodes.$U ||
+        if (escaped == charCodes.$x ||
+            escaped == charCodes.$X ||
+            escaped == charCodes.$u ||
+            escaped == charCodes.$U ||
             category(escaped) == NUMERIC) {
           error('Numeric and hex escapes are not allowed in literals');
         }
@@ -529,12 +596,11 @@ class MiniJsParser {
 
   void getToken() {
     skippedNewline = false;
-    for (;;) {
+    for ( ; ; ) {
       if (position >= src.length) break;
       int code = src.codeUnitAt(position);
       //  Skip '//' and '/*' style comments.
-      if (code == charCodes.$SLASH &&
-          position + 1 < src.length) {
+      if (code == charCodes.$SLASH && position + 1 < src.length) {
         if (src.codeUnitAt(position + 1) == charCodes.$SLASH) {
           int nextPosition = src.indexOf('\n', position);
           if (nextPosition == -1) nextPosition = src.length;
@@ -565,8 +631,8 @@ class MiniJsParser {
       lastCategory = STRING;
       lastToken = getDelimited(position);
     } else if (code == charCodes.$0 &&
-               position + 2 < src.length &&
-               src.codeUnitAt(position + 1) == charCodes.$x) {
+        position + 2 < src.length &&
+        src.codeUnitAt(position + 1) == charCodes.$x) {
       // Hex literal.
       for (position += 2; position < src.length; position++) {
         int cat = category(src.codeUnitAt(position));
@@ -596,13 +662,11 @@ class MiniJsParser {
         // Special code to disallow ! and / in non-first position in token, so
         // that !! parses as two tokens and != parses as one, while =/ parses
         // as a an equals token followed by a regexp literal start.
-        newCat = (code == charCodes.$BANG || code == charCodes.$SLASH)
-            ?  NONE
-            : category(code);
+        newCat =
+            (code == charCodes.$BANG || code == charCodes.$SLASH) ? NONE : category(code);
       } while (!singleCharCategory(cat) &&
-               (cat == newCat ||
-                (cat == ALPHA && newCat == NUMERIC) ||    // eg. level42.
-                (cat == NUMERIC && newCat == DOT)));      // eg. 3.1415
+          (cat == newCat || (cat == ALPHA && newCat == NUMERIC) || // eg. level42.
+      (cat == NUMERIC && newCat == DOT))); // eg. 3.1415
       lastCategory = cat;
       lastToken = src.substring(lastPosition, position);
       if (cat == NUMERIC) {
@@ -645,7 +709,7 @@ class MiniJsParser {
     // Accept semicolon or automatically inserted semicolon before close brace.
     // Miniparser forbids other kinds of semicolon insertion.
     if (RBRACE == lastCategory) return true;
-    if (NONE == lastCategory) return true;  // end of input
+    if (NONE == lastCategory) return true; // end of input
     if (skippedNewline) {
       error('No automatic semicolon insertion at preceding newline');
     }
@@ -719,7 +783,8 @@ class MiniJsParser {
     String last = lastToken;
     if (acceptCategory(ALPHA)) {
       String functionName = last;
-      return new NamedFunction(new VariableDeclaration(functionName),
+      return new NamedFunction(
+          new VariableDeclaration(functionName),
           parseFun());
     }
     return parseFun();
@@ -730,7 +795,7 @@ class MiniJsParser {
 
     expectCategory(LPAREN);
     if (!acceptCategory(RPAREN)) {
-      for (;;) {
+      for ( ; ; ) {
         if (acceptCategory(HASH)) {
           InterpolatedParameter parameter =
               new InterpolatedParameter(interpolatedValues.length);
@@ -754,7 +819,7 @@ class MiniJsParser {
 
   Expression parseObjectInitializer() {
     List<Property> properties = <Property>[];
-    for (;;) {
+    for ( ; ; ) {
       if (acceptCategory(RBRACE)) break;
       // Limited subset: keys are identifiers, no 'get' or 'set' properties.
       Literal propertyName;
@@ -763,7 +828,7 @@ class MiniJsParser {
         propertyName = new LiteralString('"$identifier"');
       } else if (acceptCategory(STRING)) {
         propertyName = new LiteralString(identifier);
-      } else if (acceptCategory(SYMBOL)) {  // e.g. void
+      } else if (acceptCategory(SYMBOL)) { // e.g. void
         propertyName = new LiteralString('"$identifier"');
       } else if (acceptCategory(HASH)) {
         InterpolatedLiteral interpolatedLiteral =
@@ -812,9 +877,8 @@ class MiniJsParser {
             expectCategory(COMMA);
           }
         }
-        receiver = constructor ?
-               new New(receiver, arguments) :
-               new Call(receiver, arguments);
+        receiver =
+            constructor ? new New(receiver, arguments) : new Call(receiver, arguments);
         constructor = false;
       } else if (!constructor && acceptCategory(LSQUARE)) {
         Expression inBraces = parseExpression();
@@ -869,7 +933,8 @@ class MiniJsParser {
 
   Expression parseUnaryHigh() {
     String operator = lastToken;
-    if (lastCategory == SYMBOL && UNARY_OPERATORS.contains(operator) &&
+    if (lastCategory == SYMBOL &&
+        UNARY_OPERATORS.contains(operator) &&
         (acceptString("++") || acceptString("--"))) {
       return new Prefix(operator, parsePostfix());
     }
@@ -878,8 +943,10 @@ class MiniJsParser {
 
   Expression parseUnaryLow() {
     String operator = lastToken;
-    if (lastCategory == SYMBOL && UNARY_OPERATORS.contains(operator) &&
-        operator != "++" && operator != "--") {
+    if (lastCategory == SYMBOL &&
+        UNARY_OPERATORS.contains(operator) &&
+        operator != "++" &&
+        operator != "--") {
       expectCategory(SYMBOL);
       return new Prefix(operator, parseUnaryLow());
     }
@@ -890,7 +957,7 @@ class MiniJsParser {
     Expression lhs = parseUnaryLow();
     int minPrecedence;
     String lastSymbol;
-    Expression rhs;  // This is null first time around.
+    Expression rhs; // This is null first time around.
     while (true) {
       String symbol = lastToken;
       if (lastCategory != SYMBOL ||
@@ -930,7 +997,7 @@ class MiniJsParser {
       Expression rhs = parseAssignment();
       if (assignmentOperator == "=") {
         return new Assignment(lhs, rhs);
-      } else  {
+      } else {
         // Handle +=, -=, etc.
         String operator =
             assignmentOperator.substring(0, assignmentOperator.length - 1);
@@ -1148,9 +1215,8 @@ class MiniJsParser {
         expectCategory(RPAREN);
         Statement body = parseStatement();
         return new ForIn(
-            new VariableDeclarationList([
-                new VariableInitialization(
-                    new VariableDeclaration(identifier), null)]),
+            new VariableDeclarationList(
+                [new VariableInitialization(new VariableDeclaration(identifier), null)]),
             objectExpression,
             body);
       }

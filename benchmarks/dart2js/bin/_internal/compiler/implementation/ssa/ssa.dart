@@ -13,16 +13,14 @@ import '../deferred_load.dart' show DeferredLoadTask;
 import '../dart2jslib.dart' hide Selector, TypedSelector;
 import '../dart_types.dart';
 import '../elements/elements.dart';
-import '../elements/modelx.dart'
-    show ElementX,
-         VariableElementX,
-         ConstructorBodyElementX;
+import '../elements/modelx.dart' show ElementX, VariableElementX,
+    ConstructorBodyElementX;
 import '../js/js.dart' as js;
 import '../js_backend/js_backend.dart';
 import '../js_emitter/js_emitter.dart' show CodeEmitterTask;
 import '../native/native.dart' as native;
-import '../scanner/scannerlib.dart'
-    show PartialFunctionElement, Token, PLUS_TOKEN;
+import '../scanner/scannerlib.dart' show PartialFunctionElement, Token,
+    PLUS_TOKEN;
 import '../source_file.dart';
 import '../source_map_builder.dart';
 import '../tree/tree.dart' as ast;

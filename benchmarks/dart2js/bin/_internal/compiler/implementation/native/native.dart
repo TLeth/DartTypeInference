@@ -27,21 +27,20 @@ part 'js.dart';
 part 'scanner.dart';
 part 'ssa.dart';
 
-void maybeEnableNative(Compiler compiler,
-                       LibraryElement library) {
+void maybeEnableNative(Compiler compiler, LibraryElement library) {
   String libraryName = library.canonicalUri.toString();
   if (library.entryCompilationUnit.script.name.contains(
-          'dart/tests/compiler/dart2js_native')
-      || libraryName == 'dart:async'
-      || libraryName == 'dart:html'
-      || libraryName == 'dart:html_common'
-      || libraryName == 'dart:indexed_db'
-      || libraryName == 'dart:js'
-      || libraryName == 'dart:svg'
-      || libraryName == 'dart:_native_typed_data'
-      || libraryName == 'dart:web_audio'
-      || libraryName == 'dart:web_gl'
-      || libraryName == 'dart:web_sql') {
+      'dart/tests/compiler/dart2js_native') ||
+      libraryName == 'dart:async' ||
+      libraryName == 'dart:html' ||
+      libraryName == 'dart:html_common' ||
+      libraryName == 'dart:indexed_db' ||
+      libraryName == 'dart:js' ||
+      libraryName == 'dart:svg' ||
+      libraryName == 'dart:_native_typed_data' ||
+      libraryName == 'dart:web_audio' ||
+      libraryName == 'dart:web_gl' ||
+      libraryName == 'dart:web_sql') {
     library.canUseNative = true;
   }
 }

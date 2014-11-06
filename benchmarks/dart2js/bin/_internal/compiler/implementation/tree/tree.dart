@@ -10,8 +10,8 @@ import '../scanner/scannerlib.dart';
 import '../util/util.dart';
 import '../util/characters.dart';
 
-import '../resolution/secret_tree_element.dart'
-    show StoredTreeElementMixin, NullTreeElementMixin;
+import '../resolution/secret_tree_element.dart' show StoredTreeElementMixin,
+    NullTreeElementMixin;
 
 import '../elements/elements.dart' show MetadataAnnotation;
 

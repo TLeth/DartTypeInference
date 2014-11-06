@@ -96,7 +96,7 @@ class PrivateName extends PublicName {
 
   bool operator ==(other) {
     if (other is! PrivateName) return false;
-    return super==(other) && library == other.library;
+    return super == (other) && library == other.library;
   }
 
   String toString() => '${library.getLibraryName()}#${super.toString()}';

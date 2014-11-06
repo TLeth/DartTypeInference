@@ -51,12 +51,17 @@ class ValueSet {
   void kill(int flags) {
     if (flags == 0) return;
     int depends = SideEffects.computeDependsOnFlags(flags);
-    // Kill in the hash table.
-    for (int index = 0, length = table.length; index < length; index++) {
-      HInstruction instruction = table[index];
-      if (instruction != null && instruction.sideEffects.dependsOn(depends)) {
-        table[index] = null;
-        size--;
+
+    {
+      int index = 0;
+      int length = table.length;
+      // Kill in the hash table.
+      for ( ; index < length; index++) {
+        HInstruction instruction = table[index];
+        if (instruction != null && instruction.sideEffects.dependsOn(depends)) {
+          table[index] = null;
+          size--;
+        }
       }
     }
     // Kill in the collisions list.
@@ -92,10 +97,15 @@ class ValueSet {
   // by iterating through the hash table and the collisions list and
   // calling [:other.add:].
   static copyTo(var other, List<HInstruction> table, ValueSetNode collisions) {
-    // Copy elements from the hash table.
-    for (int index = 0, length = table.length; index < length; index++) {
-      HInstruction instruction = table[index];
-      if (instruction != null) other.add(instruction);
+
+    {
+      int index = 0;
+      int length = table.length;
+      // Copy elements from the hash table.
+      for ( ; index < length; index++) {
+        HInstruction instruction = table[index];
+        if (instruction != null) other.add(instruction);
+      }
     }
     // Copy elements from the collision list.
     ValueSetNode current = collisions;
@@ -111,11 +121,16 @@ class ValueSet {
   ValueSet intersection(ValueSet other) {
     if (size > other.size) return other.intersection(this);
     ValueSet result = new ValueSet();
-    // Look in the hash table.
-    for (int index = 0, length = table.length; index < length; index++) {
-      HInstruction instruction = table[index];
-      if (instruction != null && other.lookup(instruction) != null) {
-        result.add(instruction);
+
+    {
+      int index = 0;
+      int length = table.length;
+      // Look in the hash table.
+      for ( ; index < length; index++) {
+        HInstruction instruction = table[index];
+        if (instruction != null && other.lookup(instruction) != null) {
+          result.add(instruction);
+        }
       }
     }
     // Look in the collision list.

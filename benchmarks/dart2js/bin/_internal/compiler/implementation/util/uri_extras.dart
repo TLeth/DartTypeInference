@@ -32,7 +32,8 @@ String relativize(Uri base, Uri uri, bool isWindows) {
       base.userInfo == uri.userInfo &&
       equalsNCS(base.host, uri.host) &&
       base.port == uri.port &&
-      uri.query == "" && uri.fragment == "") {
+      uri.query == "" &&
+      uri.fragment == "") {
     if (normalize(uri.path).startsWith(normalize(base.path))) {
       return uri.path.substring(base.path.lastIndexOf('/') + 1);
     }
@@ -42,7 +43,7 @@ String relativize(Uri base, Uri uri, bool isWindows) {
     int common = 0;
     int length = min(uriParts.length, baseParts.length);
     while (common < length &&
-           normalize(uriParts[common]) == normalize(baseParts[common])) {
+        normalize(uriParts[common]) == normalize(baseParts[common])) {
       common++;
     }
     if (common == 1 || (isWindows && common == 2)) {

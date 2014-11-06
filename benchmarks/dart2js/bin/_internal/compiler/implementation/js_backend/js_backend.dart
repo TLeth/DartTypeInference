@@ -17,8 +17,8 @@ import '../dart_types.dart';
 import '../elements/elements.dart';
 import '../js/js.dart' as jsAst;
 import '../js/js.dart' show js;
-import '../js_emitter/js_emitter.dart'
-    show Emitter, CodeEmitterTask, ClassBuilder, MetadataEmitter;
+import '../js_emitter/js_emitter.dart' show Emitter, CodeEmitterTask,
+    ClassBuilder, MetadataEmitter;
 import '../library_loader.dart' show LibraryLoader;
 import '../native/native.dart' as native;
 import '../ssa/ssa.dart';
@@ -28,8 +28,7 @@ import '../universe/universe.dart';
 import '../util/characters.dart';
 import '../util/util.dart';
 
-import '../elements/visitor.dart' show
-    ElementVisitor;
+import '../elements/visitor.dart' show ElementVisitor;
 
 part 'backend.dart';
 part 'checked_mode_helpers.dart';

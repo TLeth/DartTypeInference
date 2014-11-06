@@ -99,7 +99,9 @@ class ExpensiveSet<E> extends IterableBase<E> implements Set<E> {
   }
 
   Set<E> union(Set<E> other) {
-    return _newSet()..addAll(this)..addAll(other);
+    return _newSet()
+        ..addAll(this)
+        ..addAll(other);
   }
 
   Set<E> difference(Set<E> other) {

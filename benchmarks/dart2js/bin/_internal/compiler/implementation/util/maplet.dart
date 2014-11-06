@@ -60,11 +60,15 @@ class Maplet<K, V> extends MapBase<K, V> {
     } else if (_MARKER == _extra) {
       return _key.containsKey(key);
     } else {
-      for (int remaining = _extra, i = 0; remaining > 0 && i < CAPACITY; i++) {
-        var candidate = _key[i];
-        if (_MARKER == candidate) continue;
-        if (candidate == key) return true;
-        remaining--;
+      {
+        int remaining = _extra;
+        int i = 0;
+        for ( ; remaining > 0 && i < CAPACITY; i++) {
+          var candidate = _key[i];
+          if (_MARKER == candidate) continue;
+          if (candidate == key) return true;
+          remaining--;
+        }
       }
       return false;
     }
@@ -76,11 +80,15 @@ class Maplet<K, V> extends MapBase<K, V> {
     } else if (_MARKER == _extra) {
       return _key[key];
     } else {
-      for (int remaining = _extra, i = 0; remaining > 0 && i < CAPACITY; i++) {
-        var candidate = _key[i];
-        if (_MARKER == candidate) continue;
-        if (candidate == key) return _key[i + CAPACITY];
-        remaining--;
+      {
+        int remaining = _extra;
+        int i = 0;
+        for ( ; remaining > 0 && i < CAPACITY; i++) {
+          var candidate = _key[i];
+          if (_MARKER == candidate) continue;
+          if (candidate == key) return _key[i + CAPACITY];
+          remaining--;
+        }
       }
       return null;
     }
@@ -101,14 +109,15 @@ class Maplet<K, V> extends MapBase<K, V> {
         list[CAPACITY + 1] = value;
         _key = list;
         _value = null;
-        _extra = 2;  // Two elements.
+        _extra = 2; // Two elements.
       }
     } else if (_MARKER == _extra) {
       _key[key] = value;
     } else {
       int remaining = _extra;
       int index = 0;
-      int copyTo, copyFrom;
+      int copyTo;
+      int copyFrom;
       while (remaining > 0 && index < CAPACITY) {
         var candidate = _key[index];
         if (_MARKER == candidate) {
@@ -176,18 +185,22 @@ class Maplet<K, V> extends MapBase<K, V> {
     } else if (_MARKER == _extra) {
       return _key.remove(key);
     } else {
-      for (int remaining = _extra, i = 0; remaining > 0 && i < CAPACITY; i++) {
-        var candidate = _key[i];
-        if (_MARKER == candidate) continue;
-        if (candidate == key) {
-          int valueIndex = CAPACITY + i;
-          var result = _key[valueIndex];
-          _key[i] = _MARKER;
-          _key[valueIndex] = null;
-          _extra--;
-          return result;
+      {
+        int remaining = _extra;
+        int i = 0;
+        for ( ; remaining > 0 && i < CAPACITY; i++) {
+          var candidate = _key[i];
+          if (_MARKER == candidate) continue;
+          if (candidate == key) {
+            int valueIndex = CAPACITY + i;
+            var result = _key[valueIndex];
+            _key[i] = _MARKER;
+            _key[valueIndex] = null;
+            _extra--;
+            return result;
+          }
+          remaining--;
         }
-        remaining--;
       }
       return null;
     }
@@ -199,11 +212,15 @@ class Maplet<K, V> extends MapBase<K, V> {
     } else if (_MARKER == _extra) {
       _key.forEach(action);
     } else {
-      for (int remaining = _extra, i = 0; remaining > 0 && i < CAPACITY; i++) {
-        var candidate = _key[i];
-        if (_MARKER == candidate) continue;
-        action(candidate, _key[CAPACITY + i]);
-        remaining--;
+      {
+        int remaining = _extra;
+        int i = 0;
+        for ( ; remaining > 0 && i < CAPACITY; i++) {
+          var candidate = _key[i];
+          if (_MARKER == candidate) continue;
+          action(candidate, _key[CAPACITY + i]);
+          remaining--;
+        }
       }
     }
   }

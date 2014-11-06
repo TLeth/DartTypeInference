@@ -8,7 +8,7 @@ part of scanner;
  * A keyword in the Dart programming language.
  */
 class Keyword {
-  static const List<Keyword> values = const <Keyword> [
+  static const List<Keyword> values = const <Keyword>[
       const Keyword("assert"),
       const Keyword("break"),
       const Keyword("case"),
@@ -40,34 +40,31 @@ class Keyword {
       const Keyword("void"),
       const Keyword("while"),
       const Keyword("with"),
-
       // TODO(ahe): Don't think this is a reserved word.
-      // See: http://dartbug.com/5579
-      const Keyword("is", info: IS_INFO),
-
-      const Keyword("abstract", isBuiltIn: true),
-      const Keyword("as", info: AS_INFO, isBuiltIn: true),
-      const Keyword("dynamic", isBuiltIn: true),
-      const Keyword("export", isBuiltIn: true),
-      const Keyword("external", isBuiltIn: true),
-      const Keyword("factory", isBuiltIn: true),
-      const Keyword("get", isBuiltIn: true),
-      const Keyword("implements", isBuiltIn: true),
-      const Keyword("import", isBuiltIn: true),
-      const Keyword("library", isBuiltIn: true),
-      const Keyword("operator", isBuiltIn: true),
-      const Keyword("part", isBuiltIn: true),
-      const Keyword("set", isBuiltIn: true),
-      const Keyword("static", isBuiltIn: true),
-      const Keyword("typedef", isBuiltIn: true),
-
-      const Keyword("hide", isPseudo: true),
-      const Keyword("native", isPseudo: true),
-      const Keyword("of", isPseudo: true),
-      const Keyword("on", isPseudo: true),
-      const Keyword("show", isPseudo: true),
-      const Keyword("source", isPseudo: true),
-      const Keyword("deferred", isPseudo: true)];
+    // See: http://dartbug.com/5579
+    const Keyword("is", info: IS_INFO),
+        const Keyword("abstract", isBuiltIn: true),
+        const Keyword("as", info: AS_INFO, isBuiltIn: true),
+        const Keyword("dynamic", isBuiltIn: true),
+        const Keyword("export", isBuiltIn: true),
+        const Keyword("external", isBuiltIn: true),
+        const Keyword("factory", isBuiltIn: true),
+        const Keyword("get", isBuiltIn: true),
+        const Keyword("implements", isBuiltIn: true),
+        const Keyword("import", isBuiltIn: true),
+        const Keyword("library", isBuiltIn: true),
+        const Keyword("operator", isBuiltIn: true),
+        const Keyword("part", isBuiltIn: true),
+        const Keyword("set", isBuiltIn: true),
+        const Keyword("static", isBuiltIn: true),
+        const Keyword("typedef", isBuiltIn: true),
+        const Keyword("hide", isPseudo: true),
+        const Keyword("native", isPseudo: true),
+        const Keyword("of", isPseudo: true),
+        const Keyword("on", isPseudo: true),
+        const Keyword("show", isPseudo: true),
+        const Keyword("source", isPseudo: true),
+        const Keyword("deferred", isPseudo: true)];
 
   final String syntax;
   final bool isPseudo;
@@ -82,10 +79,8 @@ class Keyword {
     return _keywords;
   }
 
-  const Keyword(this.syntax,
-                {this.isPseudo: false,
-                 this.isBuiltIn: false,
-                 this.info: KEYWORD_INFO});
+  const Keyword(this.syntax, {this.isPseudo: false, this.isBuiltIn: false,
+      this.info: KEYWORD_INFO});
 
   static Map<String, Keyword> computeKeywordMap() {
     Map<String, Keyword> result = new Map<String, Keyword>();
@@ -110,19 +105,18 @@ abstract class KeywordState {
   static KeywordState _KEYWORD_STATE;
   static KeywordState get KEYWORD_STATE {
     if (_KEYWORD_STATE == null) {
-      List<String> strings =
-          new List<String>(Keyword.values.length);
+      List<String> strings = new List<String>(Keyword.values.length);
       for (int i = 0; i < Keyword.values.length; i++) {
         strings[i] = Keyword.values[i].syntax;
       }
-      strings.sort((a,b) => a.compareTo(b));
+      strings.sort((a, b) => a.compareTo(b));
       _KEYWORD_STATE = computeKeywordStateTable(0, strings, 0, strings.length);
     }
     return _KEYWORD_STATE;
   }
 
   static KeywordState computeKeywordStateTable(int start, List<String> strings,
-                                               int offset, int length) {
+      int offset, int length) {
     List<KeywordState> result = new List<KeywordState>(26);
     assert(length != 0);
     int chunk = 0;
@@ -137,9 +131,8 @@ abstract class KeywordState {
         if (chunk != c) {
           if (chunkStart != -1) {
             assert(result[chunk - $a] == null);
-            result[chunk - $a] = computeKeywordStateTable(start + 1, strings,
-                                                          chunkStart,
-                                                          i - chunkStart);
+            result[chunk - $a] =
+                computeKeywordStateTable(start + 1, strings, chunkStart, i - chunkStart);
           }
           chunkStart = i;
           chunk = c;
@@ -148,9 +141,12 @@ abstract class KeywordState {
     }
     if (chunkStart != -1) {
       assert(result[chunk - $a] == null);
-      result[chunk - $a] =
-        computeKeywordStateTable(start + 1, strings, chunkStart,
-                                 offset + length - chunkStart);
+      result[chunk -
+          $a] = computeKeywordStateTable(
+              start + 1,
+              strings,
+              chunkStart,
+              offset + length - chunkStart);
     } else {
       assert(length == 1);
       return new LeafKeywordState(strings[offset]);
@@ -170,7 +166,7 @@ class ArrayKeywordState extends KeywordState {
   final List<KeywordState> table;
 
   ArrayKeywordState(List<KeywordState> this.table, String syntax)
-    : super((syntax == null) ? null : Keyword.keywords[syntax]);
+      : super((syntax == null) ? null : Keyword.keywords[syntax]);
 
   KeywordState next(int c) => table[c - $a];
 

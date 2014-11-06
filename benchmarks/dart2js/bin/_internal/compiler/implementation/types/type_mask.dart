@@ -10,18 +10,20 @@ part of types;
  * yield conservative answers that contain too many classes.
  */
 abstract class TypeMask {
-  factory TypeMask(ClassElement base,
-                   int kind,
-                   bool isNullable,
-                   ClassWorld classWorld) {
+  factory TypeMask(ClassElement base, int kind, bool isNullable,
+      ClassWorld classWorld) {
     return new FlatTypeMask.normalized(
-        base, (kind << 1) | (isNullable ? 1 : 0), classWorld);
+        base,
+        (kind << 1) | (isNullable ? 1 : 0),
+        classWorld);
   }
 
   const factory TypeMask.empty() = FlatTypeMask.empty;
 
   factory TypeMask.exact(ClassElement base, ClassWorld classWorld) {
-    assert(invariant(base, classWorld.isInstantiated(base),
+    assert(invariant(
+        base,
+        classWorld.isInstantiated(base),
         message: "Cannot create extact type mask for uninstantiated class"));
     return new FlatTypeMask.exact(base);
   }
@@ -53,13 +55,15 @@ abstract class TypeMask {
   const factory TypeMask.nonNullEmpty() = FlatTypeMask.nonNullEmpty;
 
   factory TypeMask.nonNullExact(ClassElement base, ClassWorld classWorld) {
-    assert(invariant(base, classWorld.isInstantiated(base),
+    assert(invariant(
+        base,
+        classWorld.isInstantiated(base),
         message: "Cannot create extact type mask for uninstantiated class"));
     return new FlatTypeMask.nonNullExact(base);
   }
 
-  factory TypeMask.nonNullExactOrEmpty(ClassElement base,
-      ClassWorld classWorld) {
+  factory TypeMask.nonNullExactOrEmpty(ClassElement base, ClassWorld classWorld)
+      {
     if (classWorld.isInstantiated(base)) {
       return new FlatTypeMask.nonNullExact(base);
     }
@@ -115,7 +119,7 @@ abstract class TypeMask {
       if (mask.isSubclass) return classWorld.hasAnySubclass(mask.base);
       assert(mask.isSubtype);
       return classWorld.hasAnySubtype(mask.base) &&
-             !classWorld.hasOnlySubclasses(mask.base);
+          !classWorld.hasOnlySubclasses(mask.base);
     } else if (mask is UnionTypeMask) {
       return mask.disjointMasks.every((mask) => isNormalized(mask, classWorld));
     }
@@ -170,7 +174,7 @@ abstract class TypeMask {
    * Note: This may differ from semantic equality in the set containment sense.
    *   Use [containsMask] and [isInMask] for that, instead.
    */
-  bool operator==(other);
+  bool operator ==(other);
 
   /**
    * Returns `true` if [other] is a supertype of this mask, i.e., if

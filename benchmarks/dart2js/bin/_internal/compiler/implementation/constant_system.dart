@@ -53,10 +53,8 @@ abstract class ConstantSystem {
   ConstantValue createString(DartString string);
   ConstantValue createBool(bool value);
   ConstantValue createNull();
-  ConstantValue createMap(Compiler compiler,
-                          InterfaceType type,
-                          List<ConstantValue> keys,
-                          List<ConstantValue> values);
+  ConstantValue createMap(Compiler compiler, InterfaceType type,
+      List<ConstantValue> keys, List<ConstantValue> values);
 
   // We need to special case the subtype check for JavaScript constant
   // system because an int is a double at runtime.
@@ -75,34 +73,57 @@ abstract class ConstantSystem {
 
   UnaryOperation lookupUnary(String operator) {
     switch (operator) {
-      case '~': return bitNot;
-      case '-': return negate;
-      case '!': return not;
-      default:  return null;
+      case '~':
+        return bitNot;
+      case '-':
+        return negate;
+      case '!':
+        return not;
+      default:
+        return null;
     }
   }
 
   BinaryOperation lookupBinary(String operator) {
     switch (operator) {
-      case "+":   return add;
-      case "-":   return subtract;
-      case "*":   return multiply;
-      case "/":   return divide;
-      case "%":   return modulo;
-      case "~/":  return truncatingDivide;
-      case "|":   return bitOr;
-      case "&":   return bitAnd;
-      case "^":   return bitXor;
-      case "||":  return booleanOr;
-      case "&&":  return booleanAnd;
-      case "<<":  return shiftLeft;
-      case ">>":  return shiftRight;
-      case "<":   return less;
-      case "<=":  return lessEqual;
-      case ">":   return greater;
-      case ">=":  return greaterEqual;
-      case "==":  return equal;
-      default:    return null;
+      case "+":
+        return add;
+      case "-":
+        return subtract;
+      case "*":
+        return multiply;
+      case "/":
+        return divide;
+      case "%":
+        return modulo;
+      case "~/":
+        return truncatingDivide;
+      case "|":
+        return bitOr;
+      case "&":
+        return bitAnd;
+      case "^":
+        return bitXor;
+      case "||":
+        return booleanOr;
+      case "&&":
+        return booleanAnd;
+      case "<<":
+        return shiftLeft;
+      case ">>":
+        return shiftRight;
+      case "<":
+        return less;
+      case "<=":
+        return lessEqual;
+      case ">":
+        return greater;
+      case ">=":
+        return greaterEqual;
+      case "==":
+        return equal;
+      default:
+        return null;
     }
   }
 }

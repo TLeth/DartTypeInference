@@ -90,7 +90,7 @@ class RedundantPhiEliminator extends RecursiveVisitor implements Pass {
         // Reorganize parameters and arguments in case of deletions.
         cont.parameters[dst] = cont.parameters[src];
         for (InvokeContinuation invoke in invokes) {
-            invoke.arguments[dst] = invoke.arguments[src];
+          invoke.arguments[dst] = invoke.arguments[src];
         }
 
         dst++;
@@ -101,8 +101,8 @@ class RedundantPhiEliminator extends RecursiveVisitor implements Pass {
 
       // Add continuations of about-to-be modified invokes to worklist since
       // we might introduce new optimization opportunities.
-      for (Reference ref = oldDefinition.firstRef; ref != null;
-           ref = ref.next) {
+      for (Reference ref =
+          oldDefinition.firstRef; ref != null; ref = ref.next) {
         Node parent = ref.parent;
         if (parent is InvokeContinuation) {
           Continuation thatCont = parent.continuation.definition;
