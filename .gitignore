@@ -1,7 +1,7 @@
 # Don’t commit the following directories created by pub.
 .DS_Store
 build/
-packages/
+packages
 
 # dont include tests related output
 inferred/
