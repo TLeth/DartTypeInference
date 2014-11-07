@@ -220,7 +220,7 @@ class SourceElement extends Block {
   SourceElement get sourceElement => this;
   
 
-  Map<Name, NamedElement> get declaredElements => [declaredVariables, declaredFunctions, declaredClasses].reduce(MapUtil.union);
+  Map<Name, NamedElement> get declaredElements => [declaredVariables, declaredFunctions, declaredClasses, declaredFunctionAlias].reduce(MapUtil.union);
   Map<Source, SourceElement> parts = <Source, SourceElement>{};
   
   Map<ImportDirective, Source> imports = <ImportDirective, Source>{};

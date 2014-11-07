@@ -129,8 +129,18 @@ class ScopeResolver {
       
       lib.addDefined(funcElement.name);
     }
+
+    for(FunctionAliasElement alias in source.declaredFunctionAlias.values) {
+      _checkScopeDuplicate(alias.name, alias.ast, source);
+      lib.addElement(alias.name, alias);
+
+      if (!alias.isPrivate) 
+        lib.addExport(alias.name, alias);
+      
+      lib.addDefined(alias.name);
+    }
     
-    //Since part of elements cannot have any other directives we only do this if they dont have a partOf. 
+    //Since 'part of' elements cannot have any other directives we only do this if they dont have a partOf. 
     if (source.partOf == null) {
       _setLibraryOnPartOf(source);
     }
