@@ -67,6 +67,14 @@ class ElementAnalysis {
     }
     return null; 
   }
+  
+  TypeParameterElement resolveTypeParameterElement(Identifier identifier, SourceElement source) {
+      NamedElement element = source.resolvedIdentifiers[identifier];
+      if (element is TypeParameterElement)
+        return element;
+      else
+        return null;
+  }
 }
 
 class Name {
@@ -325,9 +333,15 @@ class ClassElement extends Block implements NamedElement {
   Map<Name, FieldElement> declaredFields = <Name, FieldElement>{};
   Map<Name, MethodElement> declaredMethods = <Name, MethodElement>{};
   Map<Name, ConstructorElement> declaredConstructors = <Name, ConstructorElement>{};
-
-  Map<Name, NamedElement> get declaredElements => [declaredFields, declaredMethods].reduce(MapUtil.union);
+  Map<Name, TypeParameterElement> declaredTypeParameters = <Name, TypeParameterElement>{};
+  //List of the type parameters, matching the parameters sequence.
+  List<TypeParameterElement> typeParameters = <TypeParameterElement>[];
   
+  
+  
+
+  Map<Name, NamedElement> get declaredElements => [declaredFields, declaredMethods, declaredTypeParameters].reduce(MapUtil.union);
+    
   ClassDeclaration _decl;
   
   SourceElement sourceElement;
@@ -344,6 +358,10 @@ class ClassElement extends Block implements NamedElement {
   
   //Is only null if the element is object.
   ClassElement extendsElement = null;
+  
+  //Type parameter map, mapping to either the classElement or TypeParameterElement.
+  Map<TypeParameterElement, NamedElement> typeParameterMap = null;
+
   Identifier get identifier => _decl.name;
   
   bool isSubtypeOf(ClassElement element) {
@@ -394,6 +412,10 @@ class ClassElement extends Block implements NamedElement {
   FieldElement addField(Name name, FieldElement field) => declaredFields[name] = field;
   MethodElement addMethod(Name name, MethodElement method) => declaredMethods[name] = method;
   ConstructorElement addConstructor(Name name, ConstructorElement constructor) => declaredConstructors[name] = constructor;
+  TypeParameterElement addTypeParameter(Name name, TypeParameterElement typeParameter) {
+    typeParameters.add(typeParameter);
+    return declaredTypeParameters[name] = typeParameter;
+  }
 
   String toString() {
     return "Class [${isAbstract ? ' abstract' : ''}"+
@@ -468,6 +490,32 @@ class VariableElement extends AnnotatedElement {
             "${isFinal ? ' final ' : ''}"+
             "${isSynthetic ? ' synthetic ' : ''}] ${name}";
   }
+}
+
+class TypeParameterElement extends NamedElement {
+  Name name;
+  TypeParameter ast;
+  bool _classGeneric;
+  bool get isClassGeneric => _classGeneric; 
+  Identifier get identifier => ast.name;
+  SourceElement sourceElement;
+  ClassElement classElement = null;
+  ClassElement extendsElement = null;
+  FunctionAliasElement functionAliasElement = null;
+  
+  dynamic accept(ElementVisitor visitor) => visitor.visitTypeParameterElement(this);
+  
+  TypeParameterElement.FromClassElement(TypeParameter this.ast, ClassElement this.classElement, SourceElement this.sourceElement){
+    name = new Name.FromIdentifier(ast.name);
+    _classGeneric = true;
+  }
+  
+  TypeParameterElement.FromFunctionAliasElement(TypeParameter this.ast, FunctionAliasElement this.functionAliasElement, SourceElement this.sourceElement){
+    name = new Name.FromIdentifier(ast.name);
+    _classGeneric = false;
+  }
+  
+  String toString() => '<${name}>';
 }
 
 class ParameterElement extends VariableElement {
@@ -647,7 +695,6 @@ class ConstructorElement extends Block with ClassMember implements NamedElement,
       name = new PrefixedName.FromIdentifier(this.ast.returnType, new Name.FromIdentifier(this.ast.name));
     else
       name = new Name.FromIdentifier(this.ast.returnType);
-    
     _returnType = new TypeName(ast.returnType, null);
   }
   
@@ -712,6 +759,8 @@ class FunctionAliasElement extends Block implements CallableElement, NamedElemen
   FunctionTypeAlias ast;
   SourceElement sourceElement;
   Name _name;
+
+  Map<Name, TypeParameterElement> declaredTypeParameters = <Name, TypeParameterElement>{};
   dynamic accept(ElementVisitor visitor) => visitor.visitFunctionAliasElement(this);
   
   FormalParameterList get parameters => ast.parameters;
@@ -734,6 +783,8 @@ class FunctionAliasElement extends Block implements CallableElement, NamedElemen
   FunctionAliasElement(FunctionTypeAlias this.ast, SourceElement this.sourceElement){
     _name = new Name.FromIdentifier(ast.name);
   }
+
+  TypeParameterElement addTypeParameter(Name name, TypeParameterElement typeParameter) => declaredTypeParameters[name] = typeParameter;
 }
 
 class NamedFunctionElement extends FunctionElement implements NamedElement {
@@ -793,6 +844,7 @@ abstract class ElementVisitor<R> {
   R visitParameterElement(ParameterElement node);
   R visitFieldParameterElement(FieldParameterElement node);
   R visitFunctionParameterElement(FunctionParameterElement node);
+  R visitTypeParameterElement(TypeParameterElement node);
   
   R visitClassMember(ClassMember node);
   R visitFieldElement(FieldElement node);
@@ -833,6 +885,7 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
     node.declaredFields.values.forEach(visit);
     node.declaredMethods.values.forEach(visit);
     node.declaredConstructors.values.forEach(visit);
+    node.declaredTypeParameters.values.forEach(visit);
     return null;
   }
   
@@ -843,6 +896,11 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   
   A visit(Element node) {
     node.accept(this);
+    return null;
+  }
+  
+  A visitTypeParameterElement(TypeParameterElement node){
+    visitNamedElement(node);
     return null;
   }
   
@@ -884,6 +942,7 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   
   A visitFunctionAliasElement(FunctionAliasElement node) {
     visitCallableElement(node);
+    node.declaredTypeParameters.values.forEach(visit);
     return null;
   }
   
@@ -1097,11 +1156,33 @@ class ElementGenerator extends GeneralizingAstVisitor {
     _currentClassElement = null;
   }
   
+  visitTypeParameter(TypeParameter node){
+    
+    if (_currentClassElement != null){
+      TypeParameterElement param = new TypeParameterElement.FromClassElement(node, _currentClassElement, element);
+      _currentClassElement.addTypeParameter(param.name, param);
+    } else if (_currentCallableElement != null && _currentCallableElement is FunctionAliasElement){
+      FunctionAliasElement funcAlias = _currentCallableElement;
+      TypeParameterElement param = new TypeParameterElement.FromFunctionAliasElement(node, funcAlias, element);
+      funcAlias.addTypeParameter(param.name, param);
+    } else {
+      engine.errors.addError(new EngineError("Visited type parameter, but currentClass was null and _currentCallableElement was not a functionAlias.", source, node.offset, node.length), true);
+    }    
+    analysis.addElement(node, _currentClassElement);
+    super.visitTypeParameter(node);
+  }
+  
   visitClassTypeAlias(ClassTypeAlias node){
-    Element classElement = new ClassAliasElement(node, element);
-    analysis.addElement(node, classElement);
-    element.addClass(classElement);
+    _currentClassElement = new ClassAliasElement(node, element);
+    analysis.addElement(node, _currentClassElement);
+    element.addClass(_currentClassElement);
+    
+    _enterBlock(_currentClassElement);
     super.visitClassTypeAlias(node);
+    _leaveBlock();
+    
+    _currentClassElement = null;
+    
   }
   
   visitMethodDeclaration(MethodDeclaration node) {

@@ -228,22 +228,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   @override
   visitPrefixedIdentifier(PrefixedIdentifier node) {
     node.safelyVisitChild(node.prefix, this);
-    
-    var prefixResult = references[node.prefix];
-    
-    if (prefixResult != null && prefixResult is Our.ClassElement) {
-      var staticElem = prefixResult.declaredElements[new Our.Name.FromIdentifier(node.prefix)],
-          ctorElem = prefixResult.declaredConstructors[new Our.Name.FromIdentifier(node)];
-
-      if (staticElem != null) {
-        // Static element
-        
-      } else if (ctorElem != null) {
-        // Factory ctor
-        
-        references[node] = ctorElem;
-      }
-    }
   }
 
   //Only try to resolve the target.

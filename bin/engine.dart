@@ -254,10 +254,13 @@ class Engine {
     if (this.options.printNameResolving) {
       new PrintResolvedIdentifiers(this, _elementAnalysis);
     }
+    
+    if (this.options.printGenericParamterTypes)
+      _elementAnalysis.accept(new PrintGenericTypeMapVisitor(entrySourceElement));
 
     //_elementAnalysis.accept(new PrintLibraryVisitor(scope: false, import: false, export: true, defined: false, depended_exports: true));
     if (this.options.printElementNodes)
-      _elementAnalysis.accept(new PrintElementVisitor());
+      _elementAnalysis.accept(new PrintElementVisitor(entrySourceElement));
   }
   
   _makeConstraintAnalysis(){

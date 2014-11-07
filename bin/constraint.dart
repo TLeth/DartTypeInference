@@ -153,6 +153,7 @@ class TypeVariable {
 abstract class ConstraintHelper {
   TypeIdentifier _lastTypeIdentifier = null;
   FilterFunc _lastWhere = null;
+  SourceElement get source;
   
   TypeMap get types;
   
@@ -189,6 +190,11 @@ abstract class ConstraintHelper {
     if (a != b)
       foreach(a).update((AbstractType type) => types.add(b, type));
   }
+    
+  void subsetConstraintWithBind(TypeIdentifier a, TypeIdentifier b, Map<ParameterType, AbstractType> genericTypeMap){
+    foreach(a).update((AbstractType type) =>
+      types.add(b, TypeParameterMapUtil.bindParamterTypes(type, genericTypeMap)));
+  }
 }
 
 /* 
@@ -202,15 +208,19 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
   Engine get engine => elementAnalysis.engine;
   TypeMap get types => constraintAnalysis.typeMap;
   
-  AbstractType resolveType(TypeName type, LibraryElement library, SourceElement source){
+  SourceElement get source => null;
+  
+  AbstractType resolveType(TypeName type, SourceElement source){
     if (type == null || type.name.toString() == 'void' || type.name.toString() == 'dynamic')
       return null;
     
-    ClassElement classElement = elementAnalysis.resolveClassElement(new Name.FromIdentifier(type.name), library, source);
-    if (classElement != null)
-      return new NominalType(classElement);
-    else 
-      return null;
+    NamedElement namedElement = source.resolvedIdentifiers[type.name];
+    if (namedElement is ClassElement)
+      return new NominalType(namedElement);
+    if (namedElement is TypeParameterElement)
+      return new ParameterType(namedElement);
+    
+    return null;
   }
   
   
@@ -227,13 +237,13 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
       return node.returns.fold(true, (bool res, ReturnElement r) => res && r.ast.expression == null);
   }
   
-  TypeIdentifier typeReturn(CallableElement element, LibraryElement library, SourceElement source){
+  TypeIdentifier typeReturn(CallableElement element, SourceElement source){
     TypeIdentifier ident = new ReturnTypeIdentifier(element);
     AbstractType type;
     
     types.create(ident);
     
-    type = resolveType(element.returnType, library, source);
+    type = resolveType(element.returnType, source);
     if (type != null)
       types.add(ident, type);
     else if (returnsVoid(element))
@@ -270,9 +280,8 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
     
-    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement.library, node.sourceElement);
+    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
     ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
-    
     if (node.isGetter){
       equalConstraint(elementTypeIdent, returnIdent);
     } else if (node.isSetter){
@@ -296,7 +305,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
         
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
     
-    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement.library, node.sourceElement);
+    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
     ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
     
     if (node.isGetter){
@@ -314,15 +323,16 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
   
   visitConstructorElement(ConstructorElement node){
     super.visitConstructorElement(node); //Visit parameters
-    TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
+    
+    TypeIdentifier elementTypeIdent = new PropertyTypeIdentifier(new NominalType(node.classDecl), node.name);
         
-    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement.library, node.sourceElement);
+    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
     ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
     
     types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));
 
-    //Class members needs to be bound to the class property as well.
-    equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.name));
+    //TODO (jln): check if this is correct.
+    //equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.name));
   }
   
   visitFunctionParameterElement(FunctionParameterElement node){
@@ -330,7 +340,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
         
-    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement.library, node.sourceElement);
+    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
     ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
     types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));
   }
@@ -340,7 +350,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     super.visitFunctionElement(node); // visit parameters
 
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.ast);
-    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement.library, node.sourceElement);
+    TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
     ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
     
     types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));
@@ -349,7 +359,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
   visitFieldElement(FieldElement node){
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
     
-    AbstractType elementType = resolveType(node.annotatedType, node.sourceElement.library, node.sourceElement);
+    AbstractType elementType = resolveType(node.annotatedType, node.sourceElement);
     types.create(elementTypeIdent);
     
     if (elementType != null)
@@ -362,7 +372,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
   visitParameterElement(ParameterElement node){
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
         
-    AbstractType elementType = resolveType(node.annotatedType, node.sourceElement.library, node.sourceElement);
+    AbstractType elementType = resolveType(node.annotatedType, node.sourceElement);
     types.create(elementTypeIdent);
     
     if (elementType != null)
@@ -372,7 +382,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
   visitFieldParameterElement(FieldParameterElement node){
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
             
-    AbstractType elementType = resolveType(node.annotatedType, node.sourceElement.library, node.sourceElement);
+    AbstractType elementType = resolveType(node.annotatedType, node.sourceElement);
     types.create(elementTypeIdent);
     
     if (elementType != null)
@@ -386,7 +396,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
   visitVariableElement(VariableElement node){
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
             
-    AbstractType elementType = resolveType(node.annotatedType, node.sourceElement.library, node.sourceElement);
+    AbstractType elementType = resolveType(node.annotatedType, node.sourceElement);
     types.create(elementTypeIdent);
     
     if (elementType != null)
@@ -401,6 +411,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   TypeMap get types => constraintAnalysis.typeMap;
   SourceElement source;
   Engine get engine => constraintAnalysis.engine; 
+  TypeParameterMapUtil typeParamterMapUtil;
 
   ClassElement _currentClassElement = null;
   
@@ -411,6 +422,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   }
   
   ConstraintGenerator._internal(SourceElement this.source, ConstraintAnalysis this.constraintAnalysis){
+    typeParamterMapUtil = new TypeParameterMapUtil(engine);
     source.ast.accept(this);
   }
   
@@ -452,12 +464,22 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       }
     }
     
-    
     if (isNumberBinaryFunctionCall(functionIdent, arguments, namedArguments, returnIdent))
       numberBinaryFunctionCall(functionIdent, arguments[0], returnIdent);
     else {
-      //\forall (\gamma_1 -> ... -> \gamma_n -> \beta) \in [method] =>
-      //  \gamma_i \in [arg_i] &&  \beta \in [method]
+
+      Map<ParameterType, AbstractType> genericTypeMap = {};
+      if (functionIdent is PropertyTypeIdentifier) {
+        AbstractType prefixType = functionIdent.propertyIdentifierType; 
+        if (prefixType is NominalType)
+          genericTypeMap = prefixType.parameterTypeMap;
+      }
+      
+      if (source.source.shortName == 'test.dart'){
+        print("Functioncall");
+        print("${genericTypeMap}");
+      }
+      
       foreach(functionIdent)
         /*
          * Checks if the type is a function and matches the call with respect to arguments.
@@ -481,7 +503,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
             for(Name name in namedArguments.keys){
               subsetConstraint(namedArguments[name], func.namedParameterTypes[name]);
             }
-            if (returnIdent != null) subsetConstraint(func.returnType, returnIdent);
+            if (returnIdent != null) subsetConstraintWithBind(func.returnType, returnIdent, genericTypeMap);
           }
         }); 
     }
@@ -589,33 +611,39 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   visitInstanceCreationExpression(InstanceCreationExpression n){
     super.visitInstanceCreationExpression(n);
     // new ClassName(arg_1,..., arg_n);
-    NamedElement element = source.resolvedIdentifiers[n.constructorName.type.name];
-    //TODO (jln): What about generics.
-    if (element != null){
+    Identifier className = n.constructorName.type.name;
+    Identifier constructorIdentifier = n.constructorName.name;
+    
+    NamedElement element;
+    if (className is PrefixedIdentifier){
+      element = source.resolvedIdentifiers[className.prefix];
+      if (constructorIdentifier == null)
+        constructorIdentifier = className.identifier;
+    } else if (className is SimpleIdentifier)
+      element = source.resolvedIdentifiers[className];
+    
+    if (element != null && element is ClassElement){
+      ClassElement classElement = element;
       //{ClassName} \in [n]
       TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
       
-      /* 
-       * The constructor call was unnamed.
-       * First we need to check if there is a declared constructor with the same name as the class,
-       * if exist we call it as a function, otherwise the type is added to the node.    
-       */
-      if (element is ClassElement) {
-        AbstractType classType = new NominalType(element);
-        if (element.declaredConstructors.isEmpty)
-          types.add(nodeIdent, classType);
-        else {
-          //Call the constructor like a function.
-          AbstractType classType = new NominalType(element);
-          TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, element.name);
-          functionCall(constructorIdent, n.argumentList.arguments, nodeIdent);
+      NominalType classType = new NominalType.MakeInstanceWithTypeArguments(classElement, n.constructorName.type.typeArguments, typeParamterMapUtil, source);
+      //The class did not have any constructors so just make a object of the given class-type. (asserting the program is not failing) 
+      if (classElement.declaredConstructors.isEmpty)
+        types.add(nodeIdent, classType);
+      else {
+        Name constructorName = null;
+        // Unnamed constructors gets the constructorName from the class. 
+        if (constructorIdentifier == null) 
+          constructorName = new Name.FromIdentifier(classElement.identifier);
+        else 
+          constructorName = new PrefixedName.FromIdentifier(classElement.identifier, new Name.FromIdentifier(constructorIdentifier));
+      
+        TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, constructorName);
+        if (source.source.shortName == 'test.dart'){
+          print("Constructor call");
+          print(classType.parameterTypeMap);
         }
-      /*
-       * The constructor was named, and we know the constructor so call it.
-       */  
-      } else if (element is ConstructorElement){
-        AbstractType classType = new NominalType(element.classDecl);
-        TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, element.name);
         functionCall(constructorIdent, n.argumentList.arguments, nodeIdent);
       }
     }

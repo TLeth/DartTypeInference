@@ -38,10 +38,13 @@ class TypeAnnotator {
   
   TypeName AbstractTypeToTypeName(AbstractType t, LibraryElement library, [int offset = 0]){
     Identifier identifier = null;
+    TypeArgumentList typeArguments = null;
     if (t is DynamicType)
       identifier = new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset));
     else if (t is VoidType)
       identifier = new SimpleIdentifier(new KeywordToken(Keyword.VOID, offset));
+    else if (t is ParameterType)
+      identifier = Name.ConvertToIdentifier(new Name.FromIdentifier(t.parameter.ast.name), offset);
     else if (t is FunctionType) {
       //TODO (jln): this could be more specific, maybe with use of typedef.
       ClassElement functionClassElement = analysis.resolveClassElement(new Name("Function"), analysis.dartCore, analysis.dartCore.source);
@@ -50,11 +53,28 @@ class TypeAnnotator {
       ClassElement objectClassElement = analysis.resolveClassElement(new Name("Object"), analysis.dartCore, analysis.dartCore.source);
       if (t.element == objectClassElement)
         identifier = new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset));
-      else
+      else {
         identifier = convertClassName(t.element, library, offset);
+        typeArguments = generateTypeArgumentList(t.element, t.parameterTypeMap, library, offset + identifier.length);
+      }
+        
+    } 
+    return new TypeName(identifier, typeArguments);
+  }
+  
+  TypeArgumentList generateTypeArgumentList(ClassElement element, Map<ParameterType, AbstractType> map, LibraryElement library, [int offset = 0]){
+    if (map.isEmpty || element.typeParameters.length != map.length)
+      return null;
+
+    List<TypeName> typeArguments = <TypeName>[];
+    var ost = offset + 1;
+    for(TypeParameterElement parameterElement in element.typeParameters) {
+      TypeName typeName = AbstractTypeToTypeName(map[new ParameterType(parameterElement)], library, ost);
+      ost += typeName.length + 2;
+      typeArguments.add(typeName);
     }
     
-    return new TypeName(identifier, null);
+    return new TypeArgumentList(new Token(TokenType.LT, offset), typeArguments, new Token(TokenType.GT, offset));
   }
   
   Identifier convertClassName(ClassElement classElement, LibraryElement library, [int offset = 0]){

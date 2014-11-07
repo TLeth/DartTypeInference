@@ -5,9 +5,9 @@ import 'package:analyzer/src/generated/utilities_dart.dart';
 import 'element.dart';
 import 'util.dart';
 import 'engine.dart';
+import 'resolver.dart';
 
 abstract class AbstractType {
-  
   /**
    * Return the least upper bound of this type and the given type, or `null` if there is no
    * least upper bound.
@@ -138,10 +138,35 @@ class FunctionType extends AbstractType {
 class NominalType extends AbstractType {
   
   ClassElement element;
+  Map<ParameterType, AbstractType> parameterTypeMap = <ParameterType, AbstractType>{};
   
-  NominalType(ClassElement this.element);
+  NominalType(ClassElement this.element) {
+    for(TypeParameterElement key in element.typeParameterMap.keys){
+      parameterTypeMap[new ParameterType(key)] = new ParameterType(key);
+    }
+  }
+  
+  NominalType.MakeInstance(ClassElement this.element, Map<TypeParameterElement, NamedElement> binds){
+    Iterable<TypeParameterElement> keys = element.typeParameterMap.keys;    
+    for(TypeParameterElement key in keys){
+      if (binds[key] is ClassElement){
+        parameterTypeMap[new ParameterType(key)] = new NominalType.MakeInstance(binds[key], binds);
+      } else
+        parameterTypeMap[new ParameterType(key)] = new DynamicType();
+    }
+  }
+  
+  factory NominalType.MakeInstanceWithTypeArguments(ClassElement element, TypeArgumentList typeArguments, TypeParameterMapUtil parameterMapUtil, SourceElement source){
+    Map<TypeParameterElement, NamedElement> binds = parameterMapUtil.getTypeParameterBinds(element.typeParameters, typeArguments, source);
+    Map<TypeParameterElement, NamedElement> map = parameterMapUtil.bindTypeParameterElements(element.typeParameterMap, binds);
+    /*if (source.source.shortName == 'test.dart'){
+      print(element);
+      print(map);
+    }*/
+    return new NominalType.MakeInstance(element, map);
+  }
  
-  String toString() => element.name.toString();
+  String toString() => (parameterTypeMap.isEmpty ? element.name.toString() : "${element.name}<${MapUtil.join(parameterTypeMap, ', ')}>");
   
   bool operator ==(Object other) => other is NominalType && other.element == this.element;
   
@@ -162,7 +187,7 @@ class NominalType extends AbstractType {
         return new DynamicType();
       else
         return new NominalType(leastUpperBound);
-    } 
+    }
     
     if (t is DynamicType || t is VoidType)
       return t;
@@ -180,6 +205,26 @@ class NominalType extends AbstractType {
   int get hashCode => element.hashCode;
 }
 
+class ParameterType extends AbstractType {
+  TypeParameterElement parameter;
+  
+  ParameterType(TypeParameterElement this.parameter);
+  
+  bool isSubtypeOf(DynamicType t) => false;
+  
+  /* 
+   * This is called when trying to annotate variables, and by returning this, it ensures that the 
+   * type annotated always is the type parameter used.
+   * It should not b introduced into other structures.
+   */
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine) => this;
+  
+  String toString() => "<${parameter.name}>";
+  bool operator ==(Object other) => other is ParameterType && other.parameter == parameter;
+  
+  int get hashCode => parameter.hashCode;
+}
+
 class DynamicType extends AbstractType {
   static DynamicType _instance = null;
   factory DynamicType() => (_instance == null ? _instance = new DynamicType._internal() : _instance);
@@ -191,7 +236,7 @@ class DynamicType extends AbstractType {
   AbstractType getLeastUpperBound(AbstractType t, Engine engine) => this;
   
   String toString() => "dynamic";
-  bool operator ==(Object other) => other is VoidType;
+  bool operator ==(Object other) => other is DynamicType;
   
 }
 
@@ -224,6 +269,76 @@ class VoidType extends AbstractType {
   
   String toString() => "void";
   bool operator ==(Object other) => other is VoidType;
+}
+
+
+
+class TypeParameterMapUtil {
+  
+  Engine engine;
+  
+  TypeParameterMapUtil(Engine this.engine);
+  
+  // Generates a new map with the TypeParameterElements bound.
+  Map<TypeParameterElement, NamedElement> bindTypeParameterElements(Map<TypeParameterElement, NamedElement> map, Map<TypeParameterElement, NamedElement> binds){
+    Map<TypeParameterElement, NamedElement> res = <TypeParameterElement, NamedElement>{};
+    
+    for(TypeParameterElement key in map.keys){
+      res[key] = map[key];
+      if (binds.containsKey(map[key]))
+        res[key] = binds[map[key]];
+    }
+    
+    for(TypeParameterElement key in binds.keys)
+      res[key] = binds[key];
+    
+    return res;
+  }
+
+  
+  Map<TypeParameterElement, NamedElement> getTypeParameterBinds(List<TypeParameterElement> typeParameters, TypeArgumentList typeArguments, SourceElement source){
+    Map<TypeParameterElement, NamedElement> res = <TypeParameterElement, NamedElement>{};
+    
+    if (typeArguments == null){
+      for(var i = 0; i < typeParameters.length; i++)
+        res[typeParameters[i]] = typeParameters[i];
+      return res;
+    }
+    
+    if (typeParameters.length != typeArguments.arguments.length)
+      engine.errors.addError(new EngineError("Paramter types was mapped to the parent class, but the type parameters and type arguments did not have same length.", source.source, typeArguments.offset, typeArguments.length), true);
+    
+    for(var i = 0; i < typeParameters.length; i++) {
+      NamedElement namedElement = source.resolvedIdentifiers[typeArguments.arguments[i].name];
+      if (namedElement is ClassElement){
+        ClassHierarchyResolver.createTypeParameterMap(namedElement, this);
+        Map<TypeParameterElement, NamedElement> typeParameterMap = namedElement.typeParameterMap;
+        Map<TypeParameterElement, NamedElement> typeBinds = getTypeParameterBinds(namedElement.typeParameters, typeArguments.arguments[i].typeArguments, source);
+        res = MapUtil.union(res, bindTypeParameterElements(typeParameterMap, typeBinds));
+      }
+      res[typeParameters[i]] = namedElement;
+    }
+          
+    return res;
+  }
+  
+  static AbstractType bindParamterTypes(AbstractType type, Map<ParameterType, AbstractType> map){
+    if (type is ParameterType){
+      if (map.containsKey(type))
+        return map[type];
+      else 
+        return new DynamicType();
+    }
+    
+    if (type is NominalType){
+      NominalType boundType = new NominalType(type.element);
+      for(ParameterType key in type.parameterTypeMap.keys)
+        boundType.parameterTypeMap[key] = bindParamterTypes(type.parameterTypeMap[key], map);
+      return boundType;
+    }
+    
+    return type;
+  }
 }
 
 /************ TypeIdentifiers *********************/
