@@ -141,32 +141,70 @@ class NominalType extends AbstractType {
   Map<ParameterType, AbstractType> parameterTypeMap = <ParameterType, AbstractType>{};
   
   NominalType(ClassElement this.element) {
+    if (element == null)
+      throw new Exception("Nominal type was created with a null classElement.");
+    
     for(TypeParameterElement key in element.typeParameterMap.keys){
       parameterTypeMap[new ParameterType(key)] = new ParameterType(key);
     }
   }
   
-  NominalType.MakeInstance(ClassElement this.element, Map<TypeParameterElement, NamedElement> binds){
-    Iterable<TypeParameterElement> keys = element.typeParameterMap.keys;    
+  factory NominalType.MakeInstance(ClassElement element, Map<TypeParameterElement, NamedElement> binds, [Map<ClassElement, AbstractType> cache = null]){
+    if (cache == null)
+      cache = <ClassElement, AbstractType>{};
+      
+    if (cache.containsKey(element))
+      return cache[element];
+    
+    Iterable<TypeParameterElement> keys = element.typeParameterMap.keys;
+    NominalType type = cache[element] = new NominalType(element);
+    if (element.identifier.toString() =='C'){
+      print("TEST");
+    }
     for(TypeParameterElement key in keys){
       if (binds[key] is ClassElement){
-        parameterTypeMap[new ParameterType(key)] = new NominalType.MakeInstance(binds[key], binds);
+        if (cache.containsKey(binds[key]))
+          type.parameterTypeMap[new ParameterType(key)] = cache[binds[key]];
+        else
+          type.parameterTypeMap[new ParameterType(key)] = new NominalType.MakeInstance(binds[key], binds, cache);
       } else
-        parameterTypeMap[new ParameterType(key)] = new DynamicType();
+        type.parameterTypeMap[new ParameterType(key)] = new DynamicType();
     }
+    return type;
   }
   
   factory NominalType.MakeInstanceWithTypeArguments(ClassElement element, TypeArgumentList typeArguments, TypeParameterMapUtil parameterMapUtil, SourceElement source){
     Map<TypeParameterElement, NamedElement> binds = parameterMapUtil.getTypeParameterBinds(element.typeParameters, typeArguments, source);
     Map<TypeParameterElement, NamedElement> map = parameterMapUtil.bindTypeParameterElements(element.typeParameterMap, binds);
-    /*if (source.source.shortName == 'test.dart'){
-      print(element);
-      print(map);
-    }*/
+    
+    
     return new NominalType.MakeInstance(element, map);
   }
+  
+  String _printParameterTypeMap(Map<ParameterType, AbstractType> map, [List<AbstractType> seenTypes = null]){
+    if (seenTypes == null)
+      seenTypes = [];
+    
+    List<ParameterType> keys = new List.from(map.keys);
+    String res = "";
+    for(var i = 0; i < keys.length; i++){
+      if (i > 0)
+        res += ", ";
+      if (map[keys[i]] is NominalType){
+        NominalType t = map[keys[i]];
+        if (seenTypes.contains(t))
+          res += "${keys[i]}: ${t.toString(false)}";
+        else {
+          seenTypes.add(t);
+          res += "${keys[i]}: ${t.toString(true, seenTypes)}";          
+        }
+      } else 
+        res += "${keys[i]}: ${map[keys[i]]}";
+    }
+    return res;
+  }
  
-  String toString() => (parameterTypeMap.isEmpty ? element.name.toString() : "${element.name}<${MapUtil.join(parameterTypeMap, ', ')}>");
+  String toString([bool withTypeMap = true, List<AbstractType> seenTypes = null]) => (parameterTypeMap.isEmpty || !withTypeMap ? element.name.toString() : "${element.name}<${_printParameterTypeMap(parameterTypeMap, seenTypes)}>");
   
   bool operator ==(Object other) => other is NominalType && other.element == this.element;
   
@@ -322,18 +360,25 @@ class TypeParameterMapUtil {
     return res;
   }
   
-  static AbstractType bindParamterTypes(AbstractType type, Map<ParameterType, AbstractType> map){
+  static AbstractType bindParamterTypes(AbstractType type, Map<ParameterType, AbstractType> map, [Map<AbstractType, AbstractType> cache = null]){
     if (type is ParameterType){
       if (map.containsKey(type))
         return map[type];
       else 
         return new DynamicType();
     }
+
+    if (cache == null)
+      cache = <AbstractType, AbstractType>{};
     
     if (type is NominalType){
+      if (cache.containsKey(type))
+        return cache[type];
+      
       NominalType boundType = new NominalType(type.element);
+      cache[type] = boundType;
       for(ParameterType key in type.parameterTypeMap.keys)
-        boundType.parameterTypeMap[key] = bindParamterTypes(type.parameterTypeMap[key], map);
+        boundType.parameterTypeMap[key] = bindParamterTypes(type.parameterTypeMap[key], map, cache);
       return boundType;
     }
     

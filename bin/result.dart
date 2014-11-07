@@ -139,8 +139,8 @@ Result _classify(TypeName expected, TypeName actual, bool comparingGeneric) {
     ClassElement expectedClass = sourceElem.library.lookup(new Name.FromIdentifier(expected.name), false);
     ClassElement actualClass = sourceElem.library.lookup(new Name.FromIdentifier(actual.name), false);
 
-    NominalType expectedType = new NominalType(expectedClass);
-    NominalType actualType = new NominalType(actualClass);
+    NominalType expectedType = (expectedClass != null ? new NominalType(expectedClass) : null);
+    NominalType actualType = (actualClass != null ? new NominalType(actualClass) : null);
     
     if (expected.name.toString() == actual.name.toString()) {
       res.preciseAnnotations = [entry];

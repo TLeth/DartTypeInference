@@ -55,25 +55,49 @@ class TypeAnnotator {
         identifier = new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset));
       else {
         identifier = convertClassName(t.element, library, offset);
-        typeArguments = generateTypeArgumentList(t.element, t.parameterTypeMap, library, offset + identifier.length);
+        //typeArguments = generateTypeArgumentList(t.element, t.parameterTypeMap, library, offset + identifier.length);
       }
-        
-    } 
+    }
     return new TypeName(identifier, typeArguments);
   }
   
+  void _setPreviousToken(AstNode node, Token token){
+    if (node is TypeName)
+      _setPreviousToken(node.name, token);
+    else if (node is SimpleIdentifier)
+      node.token.previous = token;
+    else if (node is PrefixedIdentifier)
+      _setPreviousToken(node.identifier, token);
+  }
+  
+  bool isDynamicType(dynamic node){
+    if (node is TypeName)
+      return isDynamicType(node.name);
+    if (node is SimpleIdentifier)
+      return isDynamicType(node.token);
+    if (node is KeywordToken)
+      return node.keyword == Keyword.DYNAMIC;
+    return false;
+  }
+  
   TypeArgumentList generateTypeArgumentList(ClassElement element, Map<ParameterType, AbstractType> map, LibraryElement library, [int offset = 0]){
-    if (map.isEmpty || element.typeParameters.length != map.length)
+    if (map.isEmpty || element.typeParameters.length > map.length)
       return null;
 
     List<TypeName> typeArguments = <TypeName>[];
-    var ost = offset + 1;
+    int ost = offset + 1, i = 0;
+    bool allDynamic = true;
     for(TypeParameterElement parameterElement in element.typeParameters) {
       TypeName typeName = AbstractTypeToTypeName(map[new ParameterType(parameterElement)], library, ost);
-      ost += typeName.length + 2;
+      allDynamic = allDynamic && isDynamicType(typeName);
+      ost += typeName.length;
+      if (i > 0)
+        _setPreviousToken(typeName, new Token(TokenType.COMMA, ost++));
       typeArguments.add(typeName);
+      i++; 
     }
-    
+    if (allDynamic)
+      return null;
     return new TypeArgumentList(new Token(TokenType.LT, offset), typeArguments, new Token(TokenType.GT, offset));
   }
   
@@ -181,6 +205,10 @@ class AnnotateSourceVisitor extends SourceVisitor {
     
    visit(node.identifier);
  }
+  
+  visitTypeArgumentList(TypeArgumentList node){
+    super.visitTypeArgumentList(node);
+  }
   
   visitFieldFormalParameter(FieldFormalParameter node) {
      token(node.keyword, followedBy: space);

@@ -418,8 +418,7 @@ class ClassElement extends Block implements NamedElement {
   }
 
   String toString() {
-    return "Class [${isAbstract ? ' abstract' : ''}"+
-            "${isSynthetic ? ' synthetic' : ''}] ${name}${extendsElement != null ? ' extends ${extendsElement.name}' : ''}";
+    return "Class ${name}${extendsElement != null ? ' extends ${extendsElement.name}' : ''}";
   }
   
   ClassMember lookup(Name name) {

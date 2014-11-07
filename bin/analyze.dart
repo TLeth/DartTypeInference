@@ -235,7 +235,12 @@ class CommandLineOptions {
 void main(args){
   CommandLineOptions options = CommandLineOptions.parse(args);
   sdk = new DirectoryBasedDartSdk(new JavaFile(options.dartSdkPath));
-  _typeAnnotate(options);
+  try {
+    _typeAnnotate(options);
+  } catch (e, stackTrace){
+    print(e);
+    print(stackTrace);
+  }
 }
 
 

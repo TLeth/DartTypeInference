@@ -86,6 +86,8 @@ import 'generic_typedef.dart';
 import 'generic_noconstructor.dart';
 import 'generic_namedconstructor.dart';
 import 'generic_constructor.dart';
+import 'generic_notype.dart';
+import 'generic_multi.dart';
 import 'casq_ctor.dart';
 import 'logic_and.dart';
 import 'logic_or.dart';
