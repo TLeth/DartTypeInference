@@ -10,6 +10,10 @@ if [ ! -d tests/.stripped ]; then
     mkdir tests/.stripped
 fi
 
+if [ ! -d tests/output ]; then
+    mkdir tests/output
+fi
+
 for f in $(ls tests/cases/)
 do
     if [ ! -f tests/.stripped/$f ]; then
