@@ -228,23 +228,36 @@
           }
          };
          
-         window.printLatex = function() {
+        window.printLatex = function() {
             for(var i = 0 ; i < $scope.results.length; i++){
-              console.log($scope.results[i].date);
-              var res = "";
-              for(var j = 0; j < $scope.results[i].suite.length; j++){
-                var resa = [];
-                resa.push($scope.results[i].suite[j].benchmark);
-                resa.push(Math.round($scope.results[i].suite[j].data.preciseAnnotations.length / $scope.results[i].suite[j].data.expectedFileAnnotations * 10000) / 100 + '\\%');
-                for(var k = 0; k < $scope.errors.length; k++){
-                  resa.push(Math.round($scope.results[i].suite[j].data[$scope.errors[k]].length / $scope.results[i].suite[j].data.expectedFileAnnotations * 10000) / 100 + '\\%');
-                }
-                res += resa.join('\t\\&\t') + ' \\\\\n';
-              }
-              console.log(res);
-            }
-         }
+                console.log($scope.results[i].date);
+                var res = "";
+                for(var j = 0; j < $scope.results[i].suite.length; j++){
+                    var resa = [];
+                    resa.push($scope.results[i].suite[j].benchmark);
+                    var num = Math.round($scope.results[i].suite[j].data.preciseAnnotations.length / $scope.results[i].suite[j].data.expectedFileAnnotations * 10000) / 100;
+                    resa.push(parseFloat(num).toFixed(2) + '\\%');
+                    for(var k = 0; k < $scope.errors.length-1; k++){
+                        num = Math.round($scope.results[i].suite[j].data[$scope.errors[k]].length / $scope.results[i].suite[j].data.expectedFileAnnotations * 10000) / 100;
+                        resa.push( parseFloat(num).toFixed(2) + '\\%');
+                    }
+                    
+                    res += resa.join(' & ') + ' \\\\\n';
 
+                    resa = [' '];
+                    resa.push($scope.results[i].suite[j].data.preciseAnnotations.length);
+                    for(var k = 0; k < $scope.errors.length-1; k++){
+                        num = $scope.results[i].suite[j].data[$scope.errors[k]].length;
+                        resa.push( num );
+                    }
+
+                    res += resa.join(' & ') + ' \\\\\n';
+
+                }
+                console.log(res);
+            }
+        }
+        
       }]);
 
     </script>
