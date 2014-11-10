@@ -98,4 +98,6 @@ import 'default_optparameter.dart';
 import 'default_namedparameter.dart';
 import 'default_fieldparameter.dart';
 import 'func_arg_var.dart';
+import 'generic_field.dart';
+import 'generic_method.dart';
 void main() {}

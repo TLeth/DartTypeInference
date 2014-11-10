@@ -190,8 +190,7 @@ abstract class ConstraintHelper {
       foreach(a).update((AbstractType type) => types.add(b, type));
   }
     
-  void subsetConstraintWithBind(TypeIdentifier a, TypeIdentifier b, Map<ParameterType, AbstractType> genericTypeMap){
-    
+  void subsetConstraintWithBind(TypeIdentifier a, TypeIdentifier b, Map<ParameterType, AbstractType> genericTypeMap){ 
     foreach(a).update((AbstractType type) {
       if (type is ParameterType){
         if (genericTypeMap.containsKey(type))
@@ -927,7 +926,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     //TODO (jln): Does this take library prefix into account?
     foreach(prefixIdent).update((AbstractType alpha) {
       TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.identifier));
-      subsetConstraint(alphaPropertyIdent, nodeIdent);
+      if (alpha is NominalType && alpha.genericMap != null)
+        subsetConstraintWithBind(alphaPropertyIdent, nodeIdent, alpha.getGenericTypeMap(genericMapGenerator)); 
+      else
+        subsetConstraint(alphaPropertyIdent, nodeIdent);
     });
   }
   
@@ -939,7 +941,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     //TODO (jln): Does this take library prefix into account?
     foreach(targetIdent).update((AbstractType alpha) {
       TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.propertyName));
-      subsetConstraint(alphaPropertyIdent, nodeIdent);
+      if (alpha is NominalType && alpha.genericMap != null)
+        subsetConstraintWithBind(alphaPropertyIdent, nodeIdent, alpha.getGenericTypeMap(genericMapGenerator)); 
+      else
+        subsetConstraint(alphaPropertyIdent, nodeIdent);
     });
   }
   
