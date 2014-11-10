@@ -197,6 +197,21 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   }
   
   @override
+  visitFunctionTypeAlias(FunctionTypeAlias node) {
+    _openNewScope(scope, (_) {
+      Our.FunctionTypeAlias f = this.declaredElements[node];
+      
+      f.declaredTypeParameters.forEach((n, p) {
+        this.scope[n.toString()] = p;
+      });
+      
+      this.scope[node.name.toString()] = f;
+
+      super.visitFunctionTypeAlias(node);
+    });
+  }
+
+  @override
   visitSimpleIdentifier(SimpleIdentifier node) {    
 
     String name = node.name.toString();

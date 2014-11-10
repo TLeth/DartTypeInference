@@ -24,3 +24,4 @@ pubspec.lock
 
 tests/.stripped
 tests/output
+results.json
