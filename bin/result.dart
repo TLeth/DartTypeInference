@@ -136,11 +136,15 @@ Result _classify(TypeName expected, TypeName actual, bool comparingGeneric) {
   
   if (expected != null && actual != null) {
 
-    ClassElement expectedClass = sourceElem.library.lookup(new Name.FromIdentifier(expected.name), false);
-    ClassElement actualClass = sourceElem.library.lookup(new Name.FromIdentifier(actual.name), false);
+    NamedElement expectedClass = sourceElem.library.lookup(new Name.FromIdentifier(expected.name), false);
+    NamedElement actualClass = sourceElem.library.lookup(new Name.FromIdentifier(actual.name), false);
+    
+    //TODO (jln): What to do in this case?
+    if (expectedClass is FunctionAliasElement || actualClass is FunctionAliasElement)
+      return res;
 
-    NominalType expectedType = (expectedClass != null ? new NominalType(expectedClass) : null);
-    NominalType actualType = (actualClass != null ? new NominalType(actualClass) : null);
+    NominalType expectedType = (expectedClass is ClassElement ? new NominalType(expectedClass) : null);
+    NominalType actualType = (actualClass is ClassElement ? new NominalType(actualClass) : null);
     
     if (expected.name.toString() == actual.name.toString()) {
       res.preciseAnnotations = [entry];

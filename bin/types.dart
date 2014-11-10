@@ -142,9 +142,17 @@ class NominalType extends AbstractType {
   
   GenericMap get genericMap => _genericMap;
   
-  NominalType(ClassElement this.element);
+  NominalType(ClassElement this.element) {
+    if (element is FunctionAliasElement){
+      throw new Exception("FunctionAliasElement is not a classElement");
+    }
+  }
   
-  NominalType.makeInstance(ClassElement this.element, GenericMap this._genericMap);
+  NominalType.makeInstance(ClassElement this.element, GenericMap this._genericMap){
+    if (element is FunctionAliasElement){
+        throw new Exception("FunctionAliasElement is not a classElement");
+      }
+  }
   
   Map<ParameterType, AbstractType> getGenericTypeMap(GenericMapGenerator generator) {
     if (_genericMap == null)
