@@ -98,6 +98,29 @@ class ScopeVisitor extends GeneralizingAstVisitor {
      
       super.visitClassDeclaration(node);
     });
+    
+  }
+  
+  visitClassTypeAlias(ClassTypeAlias node) {
+    _openNewScope(scope, (_) {
+      Our.ClassAliasElement c = this.declaredElements[node];
+      c.declaredElements.forEach((k, v) {
+        this.scope[k.toString()] = v;
+      });
+      this.scope[node.name.toString()] = c;
+      super.visitClassTypeAlias(node);
+    });
+  }
+  
+  visitFunctionTypeAlias(FunctionTypeAlias node) {
+    _openNewScope(scope, (_) {
+      Our.FunctionAliasElement funcAlias = this.declaredElements[node];
+      funcAlias.declaredTypeParameters.forEach((k, v) {
+        this.scope[k.toString()] = v;
+      });
+      this.scope[node.name.toString()] = funcAlias;
+      super.visitFunctionTypeAlias(node);
+    });
   }
 
   @override

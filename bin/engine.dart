@@ -20,6 +20,7 @@ import 'element.dart';
 import 'constraint.dart';
 import 'resolver.dart' hide IdentifierResolver;
 import 'printer.dart';
+import 'generics.dart';
 
 //TODO (jln): split files into smaller ones.
 const int MAX_CACHE_SIZE = 512;
@@ -66,9 +67,8 @@ class ErrorCollector {
   
   addError(EngineError err, [bool faliure = false]) {
     _errors.add(err);
-    if (faliure) {
-      throw err;
-    }
+    if (faliure)
+      throw new Exception(err.toCustomString(_engine));
   }
   
   void reset() => _errors.clear();
@@ -94,12 +94,15 @@ class Engine {
   ElementAnalysis get elementAnalysis => _elementAnalysis;
   ConstraintAnalysis _constraintAnalysis;
   ConstraintAnalysis get constraintAnalysis => _constraintAnalysis;
+  GenericMapGenerator _genericMapGenerator;
+  GenericMapGenerator get genericMapGenerator => _genericMapGenerator;
   
   JavaFile get entryFile => _entryFile;
   Source get entrySource => _entrySource;
   
   Engine(CommandLineOptions this.options, DartSdk this._sdk) {
     errors = new ErrorCollector(this);
+    _genericMapGenerator = new GenericMapGenerator(this);
   }
   
   
@@ -254,9 +257,6 @@ class Engine {
     if (this.options.printNameResolving) {
       new PrintResolvedIdentifiers(this, _elementAnalysis);
     }
-    
-    if (this.options.printGenericParamterTypes)
-      _elementAnalysis.accept(new PrintGenericTypeMapVisitor(entrySourceElement));
 
     //_elementAnalysis.accept(new PrintLibraryVisitor(scope: false, import: false, export: true, defined: false, depended_exports: true));
     if (this.options.printElementNodes)

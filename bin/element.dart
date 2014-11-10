@@ -7,6 +7,7 @@ import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/scanner.dart';
 import 'engine.dart';
 import 'util.dart';
+import 'generics.dart';
 import 'printer.dart';
 
 export 'resolver.dart' show LibraryElement;
@@ -220,7 +221,7 @@ class SourceElement extends Block {
   SourceElement get sourceElement => this;
   
 
-  Map<Name, NamedElement> get declaredElements => [declaredVariables, declaredFunctions, declaredClasses].reduce(MapUtil.union);
+  Map<Name, NamedElement> get declaredElements => [declaredVariables, declaredFunctions, declaredClasses, declaredFunctionAlias].reduce(MapUtil.union);
   Map<Source, SourceElement> parts = <Source, SourceElement>{};
   
   Map<ImportDirective, Source> imports = <ImportDirective, Source>{};
@@ -358,9 +359,6 @@ class ClassElement extends Block implements NamedElement {
   
   //Is only null if the element is object.
   ClassElement extendsElement = null;
-  
-  //Type parameter map, mapping to either the classElement or TypeParameterElement.
-  Map<TypeParameterElement, NamedElement> typeParameterMap = null;
 
   Identifier get identifier => _decl.name;
   
@@ -514,7 +512,7 @@ class TypeParameterElement extends NamedElement {
     _classGeneric = false;
   }
   
-  String toString() => '<${name}>';
+  String toString() => '${name}';
 }
 
 class ParameterElement extends VariableElement {
@@ -761,6 +759,8 @@ class FunctionAliasElement extends Block implements CallableElement, NamedElemen
 
   Map<Name, TypeParameterElement> declaredTypeParameters = <Name, TypeParameterElement>{};
   dynamic accept(ElementVisitor visitor) => visitor.visitFunctionAliasElement(this);
+  //List of the type parameters, matching the parameters sequence.
+  List<TypeParameterElement> typeParameters = <TypeParameterElement>[];
   
   FormalParameterList get parameters => ast.parameters;
   List<ReturnElement> get returns => [];
@@ -783,7 +783,10 @@ class FunctionAliasElement extends Block implements CallableElement, NamedElemen
     _name = new Name.FromIdentifier(ast.name);
   }
 
-  TypeParameterElement addTypeParameter(Name name, TypeParameterElement typeParameter) => declaredTypeParameters[name] = typeParameter;
+  TypeParameterElement addTypeParameter(Name name, TypeParameterElement typeParameter) {
+    typeParameters.add(typeParameter);
+    return declaredTypeParameters[name] = typeParameter;
+  }
 }
 
 class NamedFunctionElement extends FunctionElement implements NamedElement {

@@ -1,12 +1,12 @@
 library typeanalysis.constraints;
 
 import 'package:analyzer/src/generated/ast.dart' hide ClassMember;
-import 'package:analyzer/src/generated/utilities_dart.dart';
 import 'package:analyzer/src/generated/scanner.dart';
 import 'engine.dart';
 import 'element.dart';
 import 'types.dart';
 import 'util.dart';
+import 'generics.dart';
 import 'dart:collection';
 
 class ConstraintAnalysis {
@@ -153,8 +153,7 @@ class TypeVariable {
 abstract class ConstraintHelper {
   TypeIdentifier _lastTypeIdentifier = null;
   FilterFunc _lastWhere = null;
-  SourceElement get source;
-  
+  GenericMapGenerator get genericMapGenerator;
   TypeMap get types;
   
   ConstraintHelper foreach(dynamic ident) {
@@ -192,8 +191,18 @@ abstract class ConstraintHelper {
   }
     
   void subsetConstraintWithBind(TypeIdentifier a, TypeIdentifier b, Map<ParameterType, AbstractType> genericTypeMap){
-    foreach(a).update((AbstractType type) =>
-      types.add(b, TypeParameterMapUtil.bindParamterTypes(type, genericTypeMap)));
+    
+    foreach(a).update((AbstractType type) {
+      if (type is ParameterType){
+        if (genericTypeMap.containsKey(type))
+          types.add(b, genericTypeMap[type]);
+        else
+          types.add(b, type);
+      } else if (type is NominalType){
+        types.add(b, genericMapGenerator.createInstanceWithBinds(type, genericTypeMap));
+      } else
+        types.add(b, type);
+    });
   }
 }
 
@@ -205,10 +214,9 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
   
   ElementAnalysis get elementAnalysis => constraintAnalysis.elementAnalysis;
   ConstraintAnalysis constraintAnalysis;
+  GenericMapGenerator get genericMapGenerator => engine.genericMapGenerator;
   Engine get engine => elementAnalysis.engine;
   TypeMap get types => constraintAnalysis.typeMap;
-  
-  SourceElement get source => null;
   
   AbstractType resolveType(TypeName type, SourceElement source){
     if (type == null || type.name.toString() == 'void' || type.name.toString() == 'dynamic')
@@ -216,7 +224,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     NamedElement namedElement = source.resolvedIdentifiers[type.name];
     if (namedElement is ClassElement)
-      return new NominalType(namedElement);
+      return new NominalType.makeInstance(namedElement, genericMapGenerator.create(namedElement, type.typeArguments, source));
     if (namedElement is TypeParameterElement)
       return new ParameterType(namedElement);
     
@@ -410,8 +418,8 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   ConstraintAnalysis constraintAnalysis;
   TypeMap get types => constraintAnalysis.typeMap;
   SourceElement source;
-  Engine get engine => constraintAnalysis.engine; 
-  TypeParameterMapUtil typeParamterMapUtil;
+  Engine get engine => constraintAnalysis.engine;
+  GenericMapGenerator get genericMapGenerator => engine.genericMapGenerator;
 
   ClassElement _currentClassElement = null;
   
@@ -422,7 +430,6 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   }
   
   ConstraintGenerator._internal(SourceElement this.source, ConstraintAnalysis this.constraintAnalysis){
-    typeParamterMapUtil = new TypeParameterMapUtil(engine);
     source.ast.accept(this);
   }
   
@@ -472,12 +479,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       if (functionIdent is PropertyTypeIdentifier) {
         AbstractType prefixType = functionIdent.propertyIdentifierType; 
         if (prefixType is NominalType)
-          genericTypeMap = prefixType.parameterTypeMap;
-      }
-      
-      if (source.source.shortName == 'test.dart'){
-        print("Functioncall");
-        print("${genericTypeMap}");
+          genericTypeMap = prefixType.getGenericTypeMap(genericMapGenerator);
       }
       
       foreach(functionIdent)
@@ -627,7 +629,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       //{ClassName} \in [n]
       TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
       
-      NominalType classType = new NominalType.MakeInstanceWithTypeArguments(classElement, n.constructorName.type.typeArguments, typeParamterMapUtil, source);
+      NominalType classType = new NominalType.makeInstance(classElement, genericMapGenerator.create(classElement, n.constructorName.type.typeArguments, source));
       //The class did not have any constructors so just make a object of the given class-type. (asserting the program is not failing) 
       if (classElement.declaredConstructors.isEmpty)
         types.add(nodeIdent, classType);
@@ -640,10 +642,6 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
           constructorName = new PrefixedName.FromIdentifier(classElement.identifier, new Name.FromIdentifier(constructorIdentifier));
       
         TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, constructorName);
-        if (source.source.shortName == 'test.dart'){
-          print("Constructor call");
-          print(classType.parameterTypeMap);
-        }
         functionCall(constructorIdent, n.argumentList.arguments, nodeIdent);
       }
     }

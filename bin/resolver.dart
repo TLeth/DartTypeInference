@@ -253,10 +253,8 @@ class ClassHierarchyResolver {
   Engine engine;
   ElementAnalysis analysis;
   ClassElement objectClassElement;
-  TypeParameterMapUtil typeParameterMap;
   
   ClassHierarchyResolver(Engine this.engine, ElementAnalysis this.analysis) {
-    typeParameterMap = new TypeParameterMapUtil(engine);
     objectClassElement = analysis.resolveClassElement(new Name("Object"), analysis.dartCore, analysis.dartCore.source);
     if (objectClassElement == null){
       engine.errors.addError(new EngineError("`Object` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", analysis.dartCore.source.source, analysis.dartCore.source.ast.offset, analysis.dartCore.source.ast.length), true);
@@ -264,7 +262,6 @@ class ClassHierarchyResolver {
     
     analysis.sources.values.forEach((SourceElement source) {
       source.declaredClasses.values.forEach(_createClassHierarchy);
-      source.declaredClasses.values.forEach((ClassElement classElement) => createTypeParameterMap(classElement, typeParameterMap));;
     });
   }
   
@@ -284,25 +281,6 @@ class ClassHierarchyResolver {
         else
           classElement.extendsElement = extendClass;
       }
-    }
-  }
-  
-  static void createTypeParameterMap(ClassElement classElement, TypeParameterMapUtil parameterMapUtil){
-    
-    SourceElement sourceElement = classElement.sourceElement;
-    if (classElement.typeParameterMap != null)
-      return;
-    
-    classElement.typeParameterMap = <TypeParameterElement, NamedElement>{};
-    
-    for(TypeParameterElement typeParam in classElement.typeParameters)
-      classElement.typeParameterMap[typeParam] = typeParam;
-    
-    if (classElement.extendsElement != null && classElement.superclass != null){
-      createTypeParameterMap(classElement.extendsElement, parameterMapUtil);
-      Map<TypeParameterElement, NamedElement> binds = parameterMapUtil.getTypeParameterBinds(classElement.extendsElement.typeParameters, classElement.superclass.typeArguments, sourceElement);
-      Map<TypeParameterElement, NamedElement> typeParameterMap = classElement.extendsElement.typeParameterMap;
-      classElement.typeParameterMap = MapUtil.union(classElement.typeParameterMap, parameterMapUtil.bindTypeParameterElements(typeParameterMap, binds));
     }
   }
 }

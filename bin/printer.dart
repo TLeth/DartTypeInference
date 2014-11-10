@@ -304,7 +304,7 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
   }
 }
 
-class PrintGenericTypeMapVisitor extends analysis.RecursiveElementVisitor { 
+/*class PrintGenericTypeMapVisitor extends analysis.RecursiveElementVisitor { 
   int _ident = 0;
   
   analysis.SourceElement sourceElement = null;
@@ -346,7 +346,7 @@ class PrintGenericTypeMapVisitor extends analysis.RecursiveElementVisitor {
       node.declaredClasses.values.forEach(visit);
     }
   }
-}
+}*/
 
 class PrintAstVisitor implements GeneralizingAstVisitor {
   

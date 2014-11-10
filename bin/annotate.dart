@@ -10,42 +10,48 @@ import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/scanner.dart';
 import 'types.dart';
 import 'result.dart';
+import 'generics.dart';
 
 class TypeAnnotator {
   
   TypeMap typemap;
   Engine engine;
   ElementAnalysis get analysis => engine.elementAnalysis; 
+  GenericMapGenerator get genericMapGenerator => engine.genericMapGenerator;
   
   TypeAnnotator(TypeMap this.typemap, Engine this.engine);
   
-  TypeName annotateIdentifier(Identifier identifier, LibraryElement library, {bool canBeVoid: false, int offset: 0}){
+  TypeName annotateIdentifier(Identifier identifier, LibraryElement library, {bool canBeVoid: false, int offset: 0, List<TypeParameterElement> validTypeParameters: null}){
     TypeIdentifier typeIdent = new ExpressionTypeIdentifier(identifier);
-    return annotateTypeIdentifier(typeIdent, library, canBeVoid: canBeVoid, offset: offset);
+    return annotateTypeIdentifier(typeIdent, library, canBeVoid: canBeVoid, offset: offset, validTypeParameters: validTypeParameters);
   }
   
-  TypeName annotateTypeIdentifier(TypeIdentifier typeIdent, LibraryElement library, {bool canBeVoid: false, int offset: 0}){
+  TypeName annotateTypeIdentifier(TypeIdentifier typeIdent, LibraryElement library, {bool canBeVoid: false, int offset: 0, List<TypeParameterElement> validTypeParameters: null}){
     TypeVariable typeVariable = typemap[typeIdent];
     if (typeVariable == null)
       return new TypeName(new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset)), null);
     
     AbstractType type = typeVariable.getLeastUpperBound(engine);
     if (type is VoidType && !canBeVoid)
-      return AbstractTypeToTypeName(new DynamicType(), library, offset);
+      return new TypeName(new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset)), null);
     else
-      return AbstractTypeToTypeName(type, library, offset);
+      return AbstractTypeToTypeName(type, library, offset: offset, validTypeParameters: validTypeParameters);
   }
   
-  TypeName AbstractTypeToTypeName(AbstractType t, LibraryElement library, [int offset = 0]){
+  TypeName AbstractTypeToTypeName(AbstractType t, LibraryElement library, {int offset: 0, List<TypeParameterElement> validTypeParameters: null}){
     Identifier identifier = null;
     TypeArgumentList typeArguments = null;
     if (t is DynamicType)
       identifier = new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset));
     else if (t is VoidType)
       identifier = new SimpleIdentifier(new KeywordToken(Keyword.VOID, offset));
-    else if (t is ParameterType)
-      identifier = Name.ConvertToIdentifier(new Name.FromIdentifier(t.parameter.ast.name), offset);
-    else if (t is FunctionType) {
+    else if (t is ParameterType) {
+      if (validTypeParameters != null && validTypeParameters.contains(t.parameter)) {
+        identifier = Name.ConvertToIdentifier(new Name.FromIdentifier(t.parameter.ast.name), offset);
+      } else {
+        identifier = new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset));
+      }
+    } else if (t is FunctionType) {
       //TODO (jln): this could be more specific, maybe with use of typedef.
       ClassElement functionClassElement = analysis.resolveClassElement(new Name("Function"), analysis.dartCore, analysis.dartCore.source);
       identifier = convertClassName(functionClassElement, library, offset);
@@ -55,10 +61,39 @@ class TypeAnnotator {
         identifier = new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset));
       else {
         identifier = convertClassName(t.element, library, offset);
-        //typeArguments = generateTypeArgumentList(t.element, t.parameterTypeMap, library, offset + identifier.length);
+        typeArguments = generateTypeArguments(t, library, offset: offset, validTypeParameters: validTypeParameters);
       }
     }
     return new TypeName(identifier, typeArguments);
+  }
+  
+  TypeArgumentList generateTypeArguments(NominalType type, LibraryElement library, {int offset: 0, List<TypeParameterElement> validTypeParameters: null}) {
+    if (type.genericMap == null)
+      return null;
+     
+    Map<ParameterType, AbstractType> map = type.genericMap.get();
+    
+    if (map.isEmpty)
+      return null;
+    
+    ClassElement element = type.element;
+
+    List<TypeName> typeArguments = <TypeName>[];
+    int ost = offset + 1, i = 0;
+    bool allDynamic = true;
+    for(TypeParameterElement parameterElement in element.typeParameters) {
+      TypeName typeName = AbstractTypeToTypeName(map[new ParameterType(parameterElement)], library, offset: ost, validTypeParameters: validTypeParameters);
+      ost += typeName.length;
+      allDynamic = allDynamic && isDynamicType(typeName);
+      if (i > 0)
+        _setPreviousToken(typeName, new Token(TokenType.COMMA, ost++));
+      typeArguments.add(typeName);
+      i++; 
+    }
+    if (allDynamic)
+      return null;
+    
+    return new TypeArgumentList(new Token(TokenType.LT, offset), typeArguments, new Token(TokenType.GT, ost + 1));
   }
   
   void _setPreviousToken(AstNode node, Token token){
@@ -67,7 +102,7 @@ class TypeAnnotator {
     else if (node is SimpleIdentifier)
       node.token.previous = token;
     else if (node is PrefixedIdentifier)
-      _setPreviousToken(node.identifier, token);
+      _setPreviousToken(node.prefix, token);
   }
   
   bool isDynamicType(dynamic node){
@@ -78,27 +113,6 @@ class TypeAnnotator {
     if (node is KeywordToken)
       return node.keyword == Keyword.DYNAMIC;
     return false;
-  }
-  
-  TypeArgumentList generateTypeArgumentList(ClassElement element, Map<ParameterType, AbstractType> map, LibraryElement library, [int offset = 0]){
-    if (map.isEmpty || element.typeParameters.length > map.length)
-      return null;
-
-    List<TypeName> typeArguments = <TypeName>[];
-    int ost = offset + 1, i = 0;
-    bool allDynamic = true;
-    for(TypeParameterElement parameterElement in element.typeParameters) {
-      TypeName typeName = AbstractTypeToTypeName(map[new ParameterType(parameterElement)], library, ost);
-      allDynamic = allDynamic && isDynamicType(typeName);
-      ost += typeName.length;
-      if (i > 0)
-        _setPreviousToken(typeName, new Token(TokenType.COMMA, ost++));
-      typeArguments.add(typeName);
-      i++; 
-    }
-    if (allDynamic)
-      return null;
-    return new TypeArgumentList(new Token(TokenType.LT, offset), typeArguments, new Token(TokenType.GT, offset));
   }
   
   Identifier convertClassName(ClassElement classElement, LibraryElement library, [int offset = 0]){
@@ -179,6 +193,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
   TypeAnnotator get typeAnnotator => annotator.typeAnnotator;
   Engine get engine => annotator.engine;
   SourceElement sourceElement;
+  List<TypeParameterElement> typeableParameterElements;
   
   AnnotateSourceVisitor(this.annotator, this.sourceElement, options, lineInfo, source, preSelection): super(options, lineInfo, source, preSelection);
   
@@ -198,7 +213,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
    
    Element parameterElement = elementAnalysis.elements[node];
    if (parameterElement is ParameterElement) {
-     visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier, sourceElement.library, offset: node.offset), followedBy: nonBreakingSpace);
+     visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier, sourceElement.library, offset: node.offset, validTypeParameters: typeableParameterElements), followedBy: nonBreakingSpace);
    } else {
      engine.errors.addError(new EngineError("A SimpleFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
    }
@@ -210,12 +225,33 @@ class AnnotateSourceVisitor extends SourceVisitor {
     super.visitTypeArgumentList(node);
   }
   
+  visitClassDeclaration(ClassDeclaration node){
+    ClassElement classElement = elementAnalysis.elements[node];
+    typeableParameterElements = classElement.typeParameters;
+    super.visitClassDeclaration(node);
+    typeableParameterElements = null;
+  }
+  
+  visitClassTypeAlias(ClassTypeAlias node){
+    ClassAliasElement classAlias = elementAnalysis.elements[node];
+    typeableParameterElements = classAlias.typeParameters;
+    super.visitClassTypeAlias(node);
+    typeableParameterElements = null;
+  }
+  
+  visitFunctionTypeAlias(FunctionTypeAlias node){
+    FunctionAliasElement funcAlias = elementAnalysis.elements[node];
+    typeableParameterElements = funcAlias.typeParameters;
+    super.visitFunctionTypeAlias(node);
+    typeableParameterElements = null;
+  }
+  
   visitFieldFormalParameter(FieldFormalParameter node) {
      token(node.keyword, followedBy: space);
      
       Element parameterElement = elementAnalysis.elements[node];
       if (parameterElement is ParameterElement) {
-        visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier, sourceElement.library, offset: node.offset), followedBy: space);
+        visitNode(typeAnnotator.annotateIdentifier(parameterElement.identifier, sourceElement.library, offset: node.offset, validTypeParameters: typeableParameterElements), followedBy: space);
       } else {
         engine.errors.addError(new EngineError("A FieldFormalParameter was not mapped to a) ParameterElement", sourceElement.source, node.offset, node.length), false);
       }
@@ -230,7 +266,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
     Element functionParameterElement = elementAnalysis.elements[node];
     if (functionParameterElement is CallableElement) {
       ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(functionParameterElement);
-      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, sourceElement.library, canBeVoid: true, offset: node.offset), followedBy: space);
+      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, sourceElement.library, canBeVoid: true, offset: node.offset, validTypeParameters: typeableParameterElements), followedBy: space);
     } else {
       engine.errors.addError(new EngineError("A SimpleFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
     }
@@ -247,7 +283,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
     
     if (functionElement is FunctionElement) {
       ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(functionElement);
-      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, sourceElement.library, canBeVoid: true, offset: node.name.offset), followedBy: space);
+      visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, sourceElement.library, canBeVoid: true, offset: node.name.offset, validTypeParameters: typeableParameterElements), followedBy: space);
     } else {
       engine.errors.addError(new EngineError("A FunctionDeclaration was not mapped to a FunctionElement", sourceElement.source, node.offset, node.length), false);     
     }
@@ -275,7 +311,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
     if (node.variables.length > 0) {
       Element variableElement = elementAnalysis.elements[node.variables[0]];
       if (variableElement is NamedElement) {
-        visitNode(typeAnnotator.annotateIdentifier(variableElement.identifier, sourceElement.library, offset: node.offset), followedBy: space);
+        visitNode(typeAnnotator.annotateIdentifier(variableElement.identifier, sourceElement.library, offset: node.offset, validTypeParameters: typeableParameterElements), followedBy: space);
       } else {
         engine.errors.addError(new EngineError("A VariableDeclaration was not mapped to a NamedElement", sourceElement.source, node.variables[0].offset, node.variables[0].length), false);
       }
@@ -316,7 +352,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
       Element methodElement = elementAnalysis.elements[node];
       if (methodElement is MethodElement) {
         ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(methodElement);
-        visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, sourceElement.library, canBeVoid: true, offset: node.offset), followedBy: space);
+        visitNode(typeAnnotator.annotateTypeIdentifier(typeIdent, sourceElement.library, canBeVoid: true, offset: node.offset, validTypeParameters: typeableParameterElements), followedBy: space);
       } else {
         engine.errors.addError(new EngineError("A MethodDeclaration was not mapped to a MethodElement", sourceElement.source, node.offset, node.length), false);
       }
