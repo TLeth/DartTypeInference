@@ -105,4 +105,5 @@ import 'generic_field3.dart';
 import 'generic_factory.dart';
 import 'generic_parentmethod.dart';
 import 'generic_list.dart';
+import 'generic_lub.dart';
 void main() {}
