@@ -47,7 +47,7 @@ class GenericMap {
         richType = new ParameterType(e);
       
       if (richType == null){
-        engine.errors.addError(new EngineError("The typeArgument: ${type} could not be resolved", source.source, type.offset, type.length));
+        engine.errors.addError(new EngineError("The typeArgument: ${type} could not be resolved", source.source, type.offset, type.length));
         richType = new DynamicType();
       }
       
