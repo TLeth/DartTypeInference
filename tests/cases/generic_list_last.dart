@@ -1,4 +1,4 @@
-library test.generic_list;
+library test.generic_list_last;
 
 void main() {
   List<bool> a = new List<bool>(256);
