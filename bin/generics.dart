@@ -123,24 +123,6 @@ class GenericMapGenerator {
     return new NominalType.makeInstance(element, genericMap);
   }
   
-  Map<ParameterType, AbstractType> getDynamicParamterMap(ClassElement classElement){
-    Map<ParameterType, AbstractType> res = <ParameterType, AbstractType>{};
-    
-    for(TypeParameterElement t in classElement.typeParameters)
-      res[new ParameterType(t)] = new DynamicType();
-    
-    if (classElement.extendsElement != null){
-      TypeArgumentList typeArguments = null;
-      if (classElement.superclass != null)
-        typeArguments = classElement.superclass.typeArguments;
-      GenericMap genericMap = create(classElement.extendsElement, typeArguments, classElement.sourceElement);
-      NominalType parentType = new NominalType.makeInstance(classElement.extendsElement, genericMap);
-      res = MapUtil.union(parentType.getGenericTypeMap(this), res);
-    }
-    return res;
-  }
-
-  
   Map<ParameterType, AbstractType> getUnfilledParamterMap(ClassElement classElement){
     Map<ParameterType, AbstractType> res = <ParameterType, AbstractType>{};
     
