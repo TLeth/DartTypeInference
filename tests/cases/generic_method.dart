@@ -1,8 +1,8 @@
 library test.generic_method;
 
 class A<T> {
-  T b(T a) => a;
+  T b() => null;
 }
 
 A<int> b = new A<int>();
-int c = b.b(3);
+int c = b.b();
