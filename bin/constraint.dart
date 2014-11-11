@@ -280,6 +280,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     }
     
     super.visitClassElement(node);
+    
   }
   
   visitMethodElement(MethodElement node){
@@ -641,7 +642,8 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
           constructorName = new PrefixedName.FromIdentifier(classElement.identifier, new Name.FromIdentifier(constructorIdentifier));
       
         TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, constructorName);
-        functionCall(constructorIdent, n.argumentList.arguments, nodeIdent);
+        functionCall(constructorIdent, n.argumentList.arguments, null);
+        types.add(nodeIdent, classType);
       }
     }
   }
