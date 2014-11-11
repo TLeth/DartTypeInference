@@ -56,8 +56,8 @@ class TypeMap {
   }
 }
 
-typedef bool FilterFunc(AbstractType);
-typedef dynamic NotifyFunc(AbstractType);
+typedef bool FilterFunc(AbstractType t);
+typedef dynamic NotifyFunc(AbstractType t);
 
 class TypeVariable {
   Set<AbstractType> _types = new Set<AbstractType>();
@@ -185,23 +185,32 @@ abstract class ConstraintHelper {
     subsetConstraint(b, a);
   }
   
-  void subsetConstraint(TypeIdentifier a, TypeIdentifier b) {
-    if (a != b)
-      foreach(a).update((AbstractType type) => types.add(b, type));
-  }
+  void subsetConstraint(TypeIdentifier a, TypeIdentifier b, {FilterFunc filter: null, Map<ParameterType, AbstractType> binds: null}) {
+    if (a == b)
+      return;
     
-  void subsetConstraintWithBind(TypeIdentifier a, TypeIdentifier b, Map<ParameterType, AbstractType> genericTypeMap){ 
-    foreach(a).update((AbstractType type) {
-      if (type is ParameterType){
-        if (genericTypeMap.containsKey(type))
-          types.add(b, genericTypeMap[type]);
-        else
+    // If the binds is bound, then the subset should first resolve the binding.
+    Function bindFunction;
+    if (binds != null){
+      bindFunction = (AbstractType type) {
+        if (type is ParameterType){
+          if (binds.containsKey(type))
+            types.add(b, binds[type]);
+          else
+            types.add(b, type);
+        } else if (type is NominalType){
+          types.add(b, genericMapGenerator.createInstanceWithBinds(type, binds));
+        } else
           types.add(b, type);
-      } else if (type is NominalType){
-        types.add(b, genericMapGenerator.createInstanceWithBinds(type, genericTypeMap));
-      } else
-        types.add(b, type);
-    });
+      };
+    } else {
+      bindFunction = (AbstractType type) => types.add(b, type);
+    }
+    
+    if (filter == null)
+      foreach(a).update(bindFunction);
+    else
+      foreach(a).where(filter).update(bindFunction);
   }
 }
 
@@ -223,9 +232,9 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     NamedElement namedElement = source.resolvedIdentifiers[type.name];
     if (namedElement is ClassElement)
-      return new NominalType.makeInstance(namedElement, genericMapGenerator.create(namedElement, type.typeArguments, source));
+      return new NominalType.makeInstance(namedElement, genericMapGenerator.create(namedElement, type.typeArguments, source), true);
     if (namedElement is TypeParameterElement)
-      return new ParameterType(namedElement);
+      return new ParameterType(namedElement, true);
     
     return null;
   }
@@ -273,8 +282,8 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
       Map<Name, NamedElement> classElements = node.classElements;
       List<Name> inheritedElements = ListUtil.complement(node.classElements.keys, node.declaredElements.keys);
       for(Name n in inheritedElements){
-        TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(node.extendsElement), n);
-        TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node), n);
+        TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(node.extendsElement, true), n);
+        TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node, true), n);
         equalConstraint(parentTypeIdent, thisTypeIdent);
       }
     }
@@ -302,9 +311,9 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     //Class members needs to be bound to the class property as well.
     if (node.isSetter)
-      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.getterName));
+      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl, true), node.getterName));
     else
-      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.name));
+      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl, true), node.name));
   }
   
   visitNamedFunctionElement(NamedFunctionElement node) {
@@ -337,9 +346,6 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
     
     types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));
-
-    //TODO (jln): check if this is correct.
-    //equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.name));
   }
   
   visitFunctionParameterElement(FunctionParameterElement node){
@@ -504,7 +510,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
             for(Name name in namedArguments.keys){
               subsetConstraint(namedArguments[name], func.namedParameterTypes[name]);
             }
-            if (returnIdent != null) subsetConstraintWithBind(func.returnType, returnIdent, genericTypeMap);
+            if (returnIdent != null) subsetConstraint(func.returnType, returnIdent, binds: genericTypeMap);
           }
         }); 
     }
@@ -589,13 +595,19 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   visitListLiteral(ListLiteral n){
     super.visitListLiteral(n);
     // {List} \in [n]
-    types.add(n, getAbstractType(new Name("List"), constraintAnalysis.dartCore, source));
+    ClassElement listClass = elementAnalysis.resolveClassElement(new Name("List"), constraintAnalysis.dartCore, source); 
+    if (listClass == null)
+      engine.errors.addError(new EngineError("A list literal was used, but could not find List in the dartCore.", source.source, n.offset, n.length ), true);
+    types.add(n, new NominalType.makeInstance(listClass, genericMapGenerator.create(listClass, n.typeArguments, source)));
   }
   
   visitMapLiteral(MapLiteral n){
     super.visitMapLiteral(n);
     // {Map} \in [n]
-    types.add(n, getAbstractType(new Name("Map"), constraintAnalysis.dartCore, source));
+    ClassElement mapClass = elementAnalysis.resolveClassElement(new Name("Map"), constraintAnalysis.dartCore, source);
+    if (mapClass == null)
+      engine.errors.addError(new EngineError("A map literal was used, but could not find Map in the dartCore.", source.source, n.offset, n.length ), true);
+    types.add(n, new NominalType.makeInstance(mapClass, genericMapGenerator.create(mapClass, n.typeArguments, source)));
   }
   
   visitExpressionFunctionBody(ExpressionFunctionBody node){
@@ -719,6 +731,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     }
   }
   
+  
   /*
    * When a functionTypedFormalParameter gets a abstractType, it needs to check if it matches a functionType with the same number of parameters.
    * If so bind these function parameters to the arguments and bind the return type.
@@ -728,6 +741,8 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       if (!elementAnalysis.containsElement(node) || elementAnalysis.elements[node] is! CallableElement)
         engine.errors.addError(new EngineError("A FunctionTypedFormalParameter was visited, but didn't have a associated Callablelement.", source.source, node.offset, node.length ), true);
       CallableElement callableElement = elementAnalysis.elements[node];
+      
+      FilterFunc onlyParameterTypesAndAnnotated = (AbstractType t) => t is ParameterType && t.annotatedType;
       
       TypeIdentifier funcIdent = new ExpressionTypeIdentifier(node.identifier);
       TypeIdentifier returnIdent = new ReturnTypeIdentifier(callableElement);
@@ -740,13 +755,19 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
             paramIdents.normalParameterTypes.length == func.normalParameterTypes.length; })
         .update((AbstractType func) {
           if (func is FunctionType) {
-            for (var i = 0; i < paramIdents.normalParameterTypes.length;i++)
+            
+            for (var i = 0; i < paramIdents.normalParameterTypes.length;i++){
               subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
-            for (var i = 0; i < func.optionalParameterTypes.length;i++)
-              subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
+              subsetConstraint(paramIdents.normalParameterTypes[i], func.normalParameterTypes[i], filter: onlyParameterTypesAndAnnotated);
+            }
+            for (var i = 0; i < func.optionalParameterTypes.length;i++){
+              subsetConstraint(func.optionalParameterTypes[i], paramIdents.optionalParameterTypes[i]);
+              subsetConstraint(paramIdents.optionalParameterTypes[i], func.optionalParameterTypes[i], filter: onlyParameterTypesAndAnnotated);
+            }
             
             for(Name name in func.namedParameterTypes.keys){
               subsetConstraint(func.namedParameterTypes[name], paramIdents.namedParameterTypes[name]);
+              subsetConstraint(paramIdents.namedParameterTypes[name], func.namedParameterTypes[name], filter: onlyParameterTypesAndAnnotated);
             }
             subsetConstraint(func.returnType, returnIdent);
           }
@@ -927,7 +948,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     foreach(prefixIdent).update((AbstractType alpha) {
       TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.identifier));
       if (alpha is NominalType && alpha.genericMap != null)
-        subsetConstraintWithBind(alphaPropertyIdent, nodeIdent, alpha.getGenericTypeMap(genericMapGenerator)); 
+        subsetConstraint(alphaPropertyIdent, nodeIdent, binds: alpha.getGenericTypeMap(genericMapGenerator)); 
       else
         subsetConstraint(alphaPropertyIdent, nodeIdent);
     });
@@ -942,7 +963,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     foreach(targetIdent).update((AbstractType alpha) {
       TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.propertyName));
       if (alpha is NominalType && alpha.genericMap != null)
-        subsetConstraintWithBind(alphaPropertyIdent, nodeIdent, alpha.getGenericTypeMap(genericMapGenerator)); 
+        subsetConstraint(alphaPropertyIdent, nodeIdent, binds: alpha.getGenericTypeMap(genericMapGenerator)); 
       else
         subsetConstraint(alphaPropertyIdent, nodeIdent);
     });
