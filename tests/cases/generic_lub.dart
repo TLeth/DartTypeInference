@@ -1,6 +1,6 @@
 library test.generic_lub;
 
-void main(){
+void main() {
   List<num> a = new List<int>();
   a = new List<double>();
   List b = new List<int>();

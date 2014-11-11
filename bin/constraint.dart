@@ -290,6 +290,16 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     super.visitClassElement(node);
     
+    node.implementElements.forEach((ClassElement implementsElement){
+      implementsElement.declaredElements.forEach((Name n, NamedElement e){
+        if (node.lookup(n) == null){
+          TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(implementsElement), n);
+          TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node), n);
+          equalConstraint(parentTypeIdent, thisTypeIdent);
+        }
+      });
+    });
+    
   }
   
   visitMethodElement(MethodElement node){
@@ -319,7 +329,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
   
   visitNamedFunctionElement(NamedFunctionElement node) {
     super.visitNamedFunctionElement(node); //Visit parameters
-        
+    
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
     
     TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
@@ -335,6 +345,13 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
       }
     } else {
       types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));  
+    }
+    
+    if (node.name.toString() == 'main' && node.decl.parent is CompilationUnit && paramIdents.normalParameterTypes.length == 1){
+      ClassElement listClass = elementAnalysis.resolveClassElement(new Name("List"), constraintAnalysis.dartCore, node.sourceElement);
+      ClassElement stringClass = elementAnalysis.resolveClassElement(new Name("String"), constraintAnalysis.dartCore, node.sourceElement);
+      NominalType listStringType = genericMapGenerator.createInstanceWithBinds(new NominalType(listClass), {new ParameterType(listClass.typeParameters[0]): new NominalType(stringClass)});
+      types.add(paramIdents.normalParameterTypes[0], listStringType);
     }
   }
   
@@ -525,7 +542,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     FunctionParameterElement funcElement = parameterIdentifier.functionParameterElement;
     ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(funcElement, source.library, source, elementAnalysis);
     
-    FilterFunc isParameterTypeAndAnnotated = (AbstractType t) => t is ParameterType && t.annotatedType;
+    FilterFunc isParameterTypeAndAnnotated = (AbstractType t) => t is ParameterType && t.annotatedType && binds.containsKey(t);
     
     foreach(argumentIdentifier)
     .where((AbstractType func) {

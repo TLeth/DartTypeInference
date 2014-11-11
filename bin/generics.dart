@@ -59,10 +59,23 @@ class GenericMap {
       if (classElement.superclass != null)
         typeArguments = classElement.superclass.typeArguments;
       GenericMap genericMap = generator.create(classElement.extendsElement, typeArguments, classElement.sourceElement);
-      NominalType parentType = new NominalType.makeInstance(classElement.extendsElement, genericMap);
-      res = MapUtil.union(parentType.getGenericTypeMap(generator), res);
+      res = MapUtil.union(genericMap.copyWithBoundParameters(res).get(), res);
     }
-  
+    
+    for(var i = 0; i < classElement.implementElements.length; i++){
+      ClassElement implementsClass = classElement.implementElements[i];
+      TypeArgumentList typeArguments = classElement.implements[i].typeArguments;
+      GenericMap genericMap = generator.create(implementsClass, typeArguments, classElement.sourceElement);
+      res = MapUtil.union(genericMap.copyWithBoundParameters(res).get(), res);      
+    }
+    
+//    for(var i = 0; i < classElement.mixinElements.length; i++){
+//      ClassElement mixinClass = classElement.mixinElements[i];
+//      TypeArgumentList typeArguments = classElement.mixins[i].typeArguments;
+//      GenericMap genericMap = generator.create(mixinClass, typeArguments, classElement.sourceElement);
+//      res = MapUtil.union(genericMap.copyWithBoundParameters(res).get(), res);      
+//    }
+
     return res;  
   }
   
