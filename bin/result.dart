@@ -11,6 +11,7 @@ import 'package:analyzer/src/generated/parser.dart';
 import 'package:analyzer/src/generated/scanner.dart';
 import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/error.dart';
+import 'engine.dart';
 
 
 
@@ -18,10 +19,12 @@ CompilationUnit expectedUnit, actualUnit;
 SourceElement sourceElem;
 String expectedFilePath;
 bool findingNewTypes;
+Engine engine;
 //String benchmarkPath;
-Result compareTypes(String expectedFile, String actualFile, String benchmark, SourceElement sourceElement, bool findNewTypes) {
+Result compareTypes(String expectedFile, String actualFile, Engine e, SourceElement sourceElement, bool findNewTypes) {
+    engine = e;
     sourceElem = sourceElement;
-    expectedFilePath = (findNewTypes ? expectedFile: actualFile).replaceFirst(benchmark, '');
+    expectedFilePath = (findNewTypes ? expectedFile: actualFile).replaceFirst(engine.options.benchmarkRootPath, '');
     findingNewTypes = findNewTypes;
     //benchmarkPath = benchmark;
     
@@ -140,8 +143,17 @@ Result _classify(TypeName expected, TypeName actual, bool comparingGeneric) {
     NamedElement actualClass = sourceElem.library.lookup(new Name.FromIdentifier(actual.name), false);
     
     //TODO (jln): What to do in this case?
-    if (expectedClass is FunctionAliasElement || actualClass is FunctionAliasElement)
+    
+    if (expectedClass is FunctionAliasElement) {
+      ClassElement funcElement = engine.elementAnalysis.resolveClassElement(new Name('Function'), engine.elementAnalysis.dartCore, engine.elementAnalysis.dartCore.source);
+      if (actualClass is ClassElement && actualClass == funcElement)
+        res.supertypeAnnotations = [entry];
+      else if (actual.name.toString() == 'dynamic')
+        res.noTypeAnnotations = [entry];
+      else
+        res.unrelatedAnnotations = [entry];
       return res;
+    }
 
     NominalType expectedType = (expectedClass is ClassElement ? new NominalType(expectedClass) : null);
     NominalType actualType = (actualClass is ClassElement ? new NominalType(actualClass) : null);

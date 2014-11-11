@@ -178,8 +178,8 @@ class Annotator {
         
         String expectedFilePath = actualFilePath.replaceFirst(engine.options.actualRootPath, engine.options.expectedRootPath);
         
-        this.res.add(compareTypes(expectedFilePath, actualFilePath, engine.options.benchmarkRootPath, sourceElement, false));
-        this.res.add(compareTypes(actualFilePath, expectedFilePath, engine.options.benchmarkRootPath, sourceElement, true));
+        this.res.add(compareTypes(expectedFilePath, actualFilePath, engine, sourceElement, false));
+        this.res.add(compareTypes(actualFilePath, expectedFilePath, engine, sourceElement, true));
       }
     }
   }

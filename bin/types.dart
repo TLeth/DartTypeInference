@@ -99,8 +99,8 @@ class FunctionType extends AbstractType {
   }
   
   AbstractType getLeastUpperBound(AbstractType t, Engine engine) {
-    if (t is DynamicType || t is VoidType)
-          return t;
+    if (t is DynamicType || t is VoidType || t is ParameterType)
+          return t.getLeastUpperBound(t, engine);
     
     ClassElement funcElement = engine.elementAnalysis.resolveClassElement(new Name('Function'), engine.elementAnalysis.dartCore, engine.elementAnalysis.dartCore.source);
     if (funcElement == null)
@@ -174,6 +174,9 @@ class NominalType extends AbstractType {
   }
   
   AbstractType getLeastUpperBound(AbstractType t, Engine engine){
+    if (t is DynamicType || t is VoidType || t is ParameterType)
+      return t.getLeastUpperBound(t, engine);
+    
     if (t is NominalType) {
       ClassElement leastUpperBound = element.getLeastUpperBound(t.element);
       if (leastUpperBound == null)
@@ -182,9 +185,6 @@ class NominalType extends AbstractType {
       else
         return new NominalType(leastUpperBound);
     }
-    
-    if (t is DynamicType || t is VoidType)
-      return t;
    
     //If this type is Function and t is FunctionType, return Function.
     ClassElement funcElement = engine.elementAnalysis.resolveClassElement(new Name('Function'), engine.elementAnalysis.dartCore, engine.elementAnalysis.dartCore.source);
@@ -227,7 +227,12 @@ class DynamicType extends AbstractType {
   
   bool isSubtypeOf(DynamicType t) => true;
   
-  AbstractType getLeastUpperBound(AbstractType t, Engine engine) => this;
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine) {
+    if (t is ParameterType)
+      return t.getLeastUpperBound(t, engine);
+    else
+      return this;
+  }
   
   String toString() => "dynamic";
   bool operator ==(Object other) => other is DynamicType;
@@ -258,7 +263,7 @@ class VoidType extends AbstractType {
   
   bool isSubtypeOf(AbstractType t) => t is VoidType;
   
-  AbstractType getLeastUpperBound(AbstractType t, Engine engine) => (t is DynamicType ? t : this);
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine) => (t is DynamicType || t is ParameterType ? t.getLeastUpperBound(t, engine) : this);
   
   String toString() => "void";
   bool operator ==(Object other) => other is VoidType;
