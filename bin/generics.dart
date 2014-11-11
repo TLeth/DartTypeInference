@@ -30,7 +30,7 @@ class GenericMap {
     Map<ParameterType, AbstractType> res = <ParameterType, AbstractType>{};
     
     if (typeArguments.arguments.length != classElement.typeParameters.length)
-      engine.errors.addError(new EngineError("The typeArguments ${typeArguments} did not match the length og the parameters for the class ${classElement}", source.source, typeArguments.offset, typeArguments.length), true);
+      engine.errors.addError(new EngineError("The typeArguments ${typeArguments} did not match the length of the parameters for the class ${classElement}", source.source, typeArguments.offset, typeArguments.length), true);
     
     for(var i = 0; i < typeArguments.arguments.length; i++){
       TypeName type = typeArguments.arguments[i];
