@@ -338,12 +338,12 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
       types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));  
     }
     
-    if (node.name.toString() == 'main' && node.decl.parent is CompilationUnit){
-      if (paramIdents.normalParameterTypes.length == 1) {
-       // print(1);
-      }
+    if (node.name.toString() == 'main' && node.decl.parent is CompilationUnit && paramIdents.normalParameterTypes.length == 1){
+      ClassElement listClass = elementAnalysis.resolveClassElement(new Name("List"), constraintAnalysis.dartCore, node.sourceElement);
+      ClassElement stringClass = elementAnalysis.resolveClassElement(new Name("String"), constraintAnalysis.dartCore, node.sourceElement);
+      NominalType listStringType = genericMapGenerator.createInstanceWithBinds(new NominalType(listClass), {new ParameterType(listClass.typeParameters[0]): new NominalType(stringClass)});
+      types.add(paramIdents.normalParameterTypes[0], listStringType);
     }
-    
   }
   
   visitConstructorElement(ConstructorElement node){
