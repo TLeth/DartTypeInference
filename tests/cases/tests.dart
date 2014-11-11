@@ -109,5 +109,6 @@ import 'generic_lub.dart';
 import 'generic_list_last.dart';
 import 'generic_list_foreach.dart';
 import 'generic_factory2.dart';
+import 'generic_formalfuncparam.dart';
 
 void main() {}
