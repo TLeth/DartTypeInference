@@ -298,7 +298,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
     
     TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
-    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
+    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement, elementAnalysis);
     if (node.isGetter){
       equalConstraint(elementTypeIdent, returnIdent);
     } else if (node.isSetter){
@@ -323,7 +323,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
     
     TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
-    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
+    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement, elementAnalysis);
     
     if (node.isGetter){
       equalConstraint(elementTypeIdent, returnIdent);
@@ -344,7 +344,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     TypeIdentifier elementTypeIdent = new PropertyTypeIdentifier(new NominalType(node.classDecl), node.name);
         
     TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
-    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
+    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement, elementAnalysis);
     
     types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));
   }
@@ -353,9 +353,9 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     super.visitFunctionParameterElement(node); //Visit parameters
     
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
-        
+    elementTypeIdent.functionParameterElement = node;    
     TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
-    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
+    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement, elementAnalysis);    
     types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));
   }
 
@@ -365,7 +365,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
 
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.ast);
     TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
-    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement);
+    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement, elementAnalysis);
     
     types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));
   }
@@ -503,10 +503,11 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
         .update((AbstractType func) {
           if (func is FunctionType) {
             for (var i = 0; i < arguments.length;i++){
-              if (i < func.normalParameterTypes.length)
-                subsetConstraint(arguments[i], func.normalParameterTypes[i]);              
-              else
-                subsetConstraint(arguments[i], func.optionalParameterTypes[i - func.normalParameterTypes.length]);
+              TypeIdentifier parameter = (i < func.normalParameterTypes.length ? func.normalParameterTypes[i] : func.optionalParameterTypes[i - func.normalParameterTypes.length]);
+              if (parameter.functionParameterElement != null)
+               bindFunctionParameterElement(parameter, arguments[i], genericTypeMap); 
+               
+              subsetConstraint(arguments[i], parameter);
             }
             for(Name name in namedArguments.keys){
               subsetConstraint(namedArguments[name], func.namedParameterTypes[name]);
@@ -515,6 +516,35 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
           }
         }); 
     }
+  }
+
+  bindFunctionParameterElement(TypeIdentifier parameterIdentifier, TypeIdentifier argumentIdentifier, Map<ParameterType, AbstractType> binds){
+    if (parameterIdentifier.functionParameterElement == null)
+      return;
+    
+    FunctionParameterElement funcElement = parameterIdentifier.functionParameterElement;
+    ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(funcElement, source.library, source, elementAnalysis);
+    
+    FilterFunc isParameterTypeAndAnnotated = (AbstractType t) => t is ParameterType && t.annotatedType;
+    
+    foreach(argumentIdentifier)
+    .where((AbstractType func) {
+          return func is FunctionType && 
+          MapUtil.submap(func.namedParameterTypes, paramIdents.namedParameterTypes) &&
+          paramIdents.optionalParameterTypes.length >= func.optionalParameterTypes.length &&
+          paramIdents.normalParameterTypes.length == func.normalParameterTypes.length; })
+    .update((AbstractType func) {
+        if (func is FunctionType) {
+          for (var i = 0; i < paramIdents.normalParameterTypes.length;i++)
+            subsetConstraint(paramIdents.normalParameterTypes[i], func.normalParameterTypes[i], filter: isParameterTypeAndAnnotated, binds: binds);
+            
+          for (var i = 0; i < func.optionalParameterTypes.length;i++)
+            subsetConstraint(paramIdents.optionalParameterTypes[i], func.optionalParameterTypes[i], filter: isParameterTypeAndAnnotated, binds: binds);
+          
+          for(Name name in func.namedParameterTypes.keys)
+            subsetConstraint(paramIdents.namedParameterTypes[name], func.namedParameterTypes[name], filter: isParameterTypeAndAnnotated, binds: binds);
+        }
+     });
   }
   
 
@@ -744,11 +774,9 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
         engine.errors.addError(new EngineError("A FunctionTypedFormalParameter was visited, but didn't have a associated Callablelement.", source.source, node.offset, node.length ), true);
       CallableElement callableElement = elementAnalysis.elements[node];
       
-      FilterFunc onlyParameterTypesAndAnnotated = (AbstractType t) => t is ParameterType && t.annotatedType;
-      
       TypeIdentifier funcIdent = new ExpressionTypeIdentifier(node.identifier);
       TypeIdentifier returnIdent = new ReturnTypeIdentifier(callableElement);
-      ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(callableElement, source.library, source);
+      ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(callableElement, source.library, source, elementAnalysis);
       foreach(funcIdent)
         .where((AbstractType func) {
             return func is FunctionType && 
@@ -758,19 +786,15 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
         .update((AbstractType func) {
           if (func is FunctionType) {
             
-            for (var i = 0; i < paramIdents.normalParameterTypes.length;i++){
+            for (var i = 0; i < paramIdents.normalParameterTypes.length;i++)
               subsetConstraint(func.normalParameterTypes[i], paramIdents.normalParameterTypes[i]);
-              subsetConstraint(paramIdents.normalParameterTypes[i], func.normalParameterTypes[i], filter: onlyParameterTypesAndAnnotated);
-            }
-            for (var i = 0; i < func.optionalParameterTypes.length;i++){
+              
+            for (var i = 0; i < func.optionalParameterTypes.length;i++)
               subsetConstraint(func.optionalParameterTypes[i], paramIdents.optionalParameterTypes[i]);
-              subsetConstraint(paramIdents.optionalParameterTypes[i], func.optionalParameterTypes[i], filter: onlyParameterTypesAndAnnotated);
-            }
             
-            for(Name name in func.namedParameterTypes.keys){
+            for(Name name in func.namedParameterTypes.keys)
               subsetConstraint(func.namedParameterTypes[name], paramIdents.namedParameterTypes[name]);
-              subsetConstraint(paramIdents.namedParameterTypes[name], func.namedParameterTypes[name], filter: onlyParameterTypesAndAnnotated);
-            }
+            
             subsetConstraint(func.returnType, returnIdent);
           }
        });

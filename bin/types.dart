@@ -28,6 +28,11 @@ abstract class AbstractType {
    *
    */
   bool isSubtypeOf(AbstractType type);
+  
+  /**
+   * Is `true` if the type spawns from a annotation. 
+   */
+  bool get annotatedType;
 
   /**
    * Return `true` if this type is a supertype of the given type. A type <i>S</i> is a
@@ -57,14 +62,15 @@ class FunctionType extends AbstractType {
   List<TypeIdentifier> optionalParameterTypes;
   Map<Name, TypeIdentifier> namedParameterTypes;
   TypeIdentifier returnType;
+  bool annotatedType;
   
   FunctionType(List<TypeIdentifier> this.normalParameterTypes, TypeIdentifier this.returnType, 
-              [List<TypeIdentifier> optionalParameterTypes = null, Map<Name, TypeIdentifier> namedParameterTypes = null ] ) :
+              [List<TypeIdentifier> optionalParameterTypes = null, Map<Name, TypeIdentifier> namedParameterTypes = null, bool this.annotatedType = false ] ) :
                 this.optionalParameterTypes = (optionalParameterTypes == null ? <TypeIdentifier>[] : optionalParameterTypes),
                 this.namedParameterTypes = (namedParameterTypes == null ? <Name, TypeIdentifier>{} : namedParameterTypes);
   
   factory FunctionType.FromIdentifiers(TypeIdentifier returnIdent, ParameterTypeIdentifiers paramIdents) =>
-    new FunctionType(paramIdents.normalParameterTypes, returnIdent, paramIdents.optionalParameterTypes, paramIdents.namedParameterTypes);
+    new FunctionType(paramIdents.normalParameterTypes, returnIdent, paramIdents.optionalParameterTypes, paramIdents.namedParameterTypes, true);
   
   String toString() {
     StringBuffer sb = new StringBuffer();
@@ -139,16 +145,17 @@ class NominalType extends AbstractType {
   
   ClassElement element;
   GenericMap _genericMap = null;
+  bool annotatedType;
   
   GenericMap get genericMap => _genericMap;
   
-  NominalType(ClassElement this.element) {
+  NominalType(ClassElement this.element, [ this.annotatedType = false ]) {
     if (element is FunctionAliasElement){
       throw new Exception("FunctionAliasElement is not a classElement");
     }
   }
   
-  NominalType.makeInstance(ClassElement this.element, GenericMap this._genericMap){
+  NominalType.makeInstance(ClassElement this.element, GenericMap this._genericMap, [ this.annotatedType = false ] ){
     if (element is FunctionAliasElement){
         throw new Exception("FunctionAliasElement is not a classElement");
       }
@@ -202,9 +209,10 @@ class NominalType extends AbstractType {
 class ParameterType extends AbstractType {
   TypeParameterElement parameter;
   
-  ParameterType(TypeParameterElement this.parameter);
+  ParameterType(TypeParameterElement this.parameter, [this.annotatedType = true]);
   
   bool isSubtypeOf(DynamicType t) => false;
+  bool annotatedType;
   
   /* 
    * This is called when trying to annotate variables, and by returning this, it ensures that the 
@@ -225,6 +233,7 @@ class DynamicType extends AbstractType {
   
   DynamicType._internal();
   
+  bool annotatedType = false;
   bool isSubtypeOf(DynamicType t) => true;
   
   AbstractType getLeastUpperBound(AbstractType t, Engine engine) {
@@ -261,6 +270,7 @@ class VoidType extends AbstractType {
   
   VoidType._internal();
   
+  bool annotatedType = false;
   bool isSubtypeOf(AbstractType t) => t is VoidType;
   
   AbstractType getLeastUpperBound(AbstractType t, Engine engine) => (t is DynamicType || t is ParameterType ? t.getLeastUpperBound(t, engine) : this);
@@ -279,6 +289,7 @@ abstract class TypeIdentifier {
     return null;
   }
   
+  FunctionParameterElement functionParameterElement = null;
   bool get isPropertyLookup => false;
   Name get propertyIdentifierName => null;
   AbstractType get propertyIdentifierType => null;
@@ -343,7 +354,7 @@ class ParameterTypeIdentifiers {
   
   ParameterTypeIdentifiers();
   
-  factory ParameterTypeIdentifiers.FromCallableElement(CallableElement element, LibraryElement library, SourceElement source){
+  factory ParameterTypeIdentifiers.FromCallableElement(CallableElement element, LibraryElement library, SourceElement source, ElementAnalysis analysis){
     
     FormalParameterList paramList = element.parameters;
     ParameterTypeIdentifiers types = new ParameterTypeIdentifiers();
@@ -358,7 +369,10 @@ class ParameterTypeIdentifiers {
       if (param is NormalFormalParameter) normalParam = param;
       else if (param is DefaultFormalParameter) normalParam = param.parameter;
       
+      
       TypeIdentifier paramTypeIdent = new ExpressionTypeIdentifier(param.identifier);
+      if (param is FunctionTypedFormalParameter)        
+        paramTypeIdent.functionParameterElement = analysis.elements[param];
       
       if (normalParam.kind == ParameterKind.REQUIRED)
         types.normalParameterTypes.add(paramTypeIdent);
