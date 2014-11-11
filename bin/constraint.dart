@@ -281,6 +281,16 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     super.visitClassElement(node);
     
+    node.implementElements.forEach((ClassElement implementsElement){
+      implementsElement.declaredElements.forEach((Name n, NamedElement e){
+        if (node.lookup(n) == null){
+          TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(implementsElement), n);
+          TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node), n);
+          equalConstraint(parentTypeIdent, thisTypeIdent);
+        }
+      });
+    });
+    
   }
   
   visitMethodElement(MethodElement node){
@@ -310,7 +320,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
   
   visitNamedFunctionElement(NamedFunctionElement node) {
     super.visitNamedFunctionElement(node); //Visit parameters
-        
+    
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
     
     TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
@@ -327,6 +337,13 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     } else {
       types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));  
     }
+    
+    if (node.name.toString() == 'main' && node.decl.parent is CompilationUnit){
+      if (paramIdents.normalParameterTypes.length == 1) {
+       // print(1);
+      }
+    }
+    
   }
   
   visitConstructorElement(ConstructorElement node){
