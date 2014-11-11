@@ -178,7 +178,7 @@ Result _classify(TypeName expected, TypeName actual, bool comparingGeneric) {
 
   if (expected.typeArguments != null) {
 
-    if (actual.typeArguments != null && expected.typeArguments.arguments.length == actual.typeArguments.arguments.length) {
+    if (actual != null && actual.typeArguments != null && expected.typeArguments.arguments.length == actual.typeArguments.arguments.length) {
 
       int i = 0;
       expected.typeArguments.arguments.forEach((expectedArg) {
@@ -193,9 +193,8 @@ Result _classify(TypeName expected, TypeName actual, bool comparingGeneric) {
         res.add(_classify(expectedArg, null, true));
       });
     }
-    
-
   }
+  
   return res;
 }
 

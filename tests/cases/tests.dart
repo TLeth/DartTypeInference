@@ -106,4 +106,8 @@ import 'generic_factory.dart';
 import 'generic_parentmethod.dart';
 import 'generic_list.dart';
 import 'generic_lub.dart';
+import 'generic_list_last.dart';
+import 'generic_list_foreach.dart';
+import 'generic_factory2.dart';
+
 void main() {}
