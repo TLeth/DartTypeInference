@@ -177,13 +177,24 @@ Result _classify(TypeName expected, TypeName actual, bool comparingGeneric) {
   }
 
   if (expected.typeArguments != null) {
-    if (res == null) { print('BEFORE'); }
+
+    if (actual.typeArguments != null && expected.typeArguments.arguments.length == actual.typeArguments.arguments.length) {
+
+      int i = 0;
+      expected.typeArguments.arguments.forEach((expectedArg) {
+        res.add(_classify(expectedArg, actual.typeArguments.arguments[i], true));
+        i++;
+      });
+      
+
+    } else {
+
+      expected.typeArguments.arguments.forEach((expectedArg) {
+        res.add(_classify(expectedArg, null, true));
+      });
+    }
     
-    expected.typeArguments.arguments.forEach((expectedArg) {
-      res.add(_classify(expectedArg, null, true));
-    });
-    
-    if (res == null) { print('AFTER'); }
+
   }
   return res;
 }
