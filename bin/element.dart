@@ -448,6 +448,9 @@ class ClassAliasElement extends ClassElement {
   
   ClassTypeAlias _alias;
   TypeName get superclass => _alias.superclass;
+  List<TypeName> get implements => _alias.implementsClause == null ? [] : _alias.implementsClause.interfaces;
+  List<TypeName> get mixins => _alias.withClause == null ? [] : _alias.withClause.mixinTypes;
+  
   bool get isAbstract => _alias.isAbstract;
   bool get isSynthetic => _alias.isSynthetic;
   Identifier get identifier => _alias.name;

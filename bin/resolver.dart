@@ -296,13 +296,15 @@ class ClassHierarchyResolver {
     classElement.implementElements = classElement.implements.fold([], (List a, TypeName implementsType) {
       ClassElement implementsElement = analysis.resolveClassElement(new Name.FromIdentifier(implementsType.name), libraryElement, sourceElement);
       if (implementsElement == null) engine.errors.addError(new EngineError("`${implementsType.name.toString()}` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", sourceElement.source, sourceElement.ast.offset, sourceElement.ast.length), true);
-      else return a.add(implementsElement);
+      else a.add(implementsElement);
+      return a;
     });
 
     classElement.mixinElements = classElement.mixins.fold([], (List a, TypeName mixinType) {
       ClassElement mixinElement = analysis.resolveClassElement(new Name.FromIdentifier(mixinType.name), libraryElement, sourceElement);
       if (mixinElement == null) engine.errors.addError(new EngineError("`${mixinType.name.toString()}` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", sourceElement.source, sourceElement.ast.offset, sourceElement.ast.length), true);
-      else return a.add(mixinElement);
+      else a.add(mixinElement);
+      return a;
     });
   }
 }
