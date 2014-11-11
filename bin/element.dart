@@ -359,7 +359,9 @@ class ClassElement extends Block implements NamedElement {
   
   //Is only null if the element is object.
   ClassElement extendsElement = null;
-
+  List<ClassElement> implementElements = [];
+  List<ClassElement> mixinElements = [];
+  
   Identifier get identifier => _decl.name;
   
   bool isSubtypeOf(ClassElement element) {
@@ -399,6 +401,9 @@ class ClassElement extends Block implements NamedElement {
   bool get isAbstract => _decl.isAbstract;
   bool get isSynthetic => _decl.isSynthetic;
   TypeName get superclass => _decl.extendsClause == null ? null : _decl.extendsClause.superclass;
+  List<TypeName> get implements => _decl.implementsClause == null ? [] : _decl.implementsClause.interfaces;
+  List<TypeName> get mixins => _decl.withClause == null ? [] : _decl.withClause.mixinTypes;
+  
   
   ClassElement._WithName(ClassDeclaration this._decl, SourceElement this.sourceElement, Name this.name);
   
