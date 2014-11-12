@@ -60,7 +60,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   Our.LibraryElement library;
 
   Map<AstNode, Our.NamedElement> declaredElements;
-  Map<Expression, Our.NamedElement> references = {};
+  Map<Expression, dynamic> references = {};
   Map<String, dynamic> scope;
   
   Source source;
