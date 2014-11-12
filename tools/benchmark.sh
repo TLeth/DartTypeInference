@@ -64,7 +64,7 @@ for benchmark in $benchmarks; do
 
             start=$(php -r 'echo microtime(TRUE);')
 
-            dart --old_gen_heap_size=1000m bin/analyze.dart -w --actual-basedir inferred --expected-basedir benchmarks --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfile
+            dart --old_gen_heap_size=2000m bin/analyze.dart -w --actual-basedir inferred --expected-basedir benchmarks --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfile
 
             end=$(php -r 'echo microtime(TRUE);')
 
