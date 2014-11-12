@@ -82,6 +82,7 @@ import 'gettersetter.dart';
 import 'method_gettersetter.dart';
 import 'static_gettersetter.dart';
 import 'generic_class.dart';
+import 'generic_return.dart';
 import 'generic_typedef.dart';
 import 'generic_noconstructor.dart';
 import 'generic_namedconstructor.dart';
