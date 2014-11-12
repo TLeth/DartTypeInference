@@ -278,7 +278,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     types.add(elementTypeIdent, new NominalType(node));
     
     //Make inheritance
-    if (node.extendsElement != null){
+    if (node.extendsElement != null) {
       Map<Name, NamedElement> classElements = node.classElements;
       List<Name> inheritedElements = ListUtil.complement(node.classElements.keys, node.declaredElements.keys);
       for(Name n in inheritedElements){
@@ -287,6 +287,15 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
         equalConstraint(parentTypeIdent, thisTypeIdent);
       }
     }
+
+    // node.declaredElements.keys.forEach((Name n) {
+    //   if ((node.extendsElement != null && node.extendsElement.lookup(n) != null)) {
+    //     TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(node.extendsElement, true), n);
+    //     TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node, true), n);
+    //     subsetConstraint(thisTypeIdent, parentTypeIdent); //, filter: (e) => !e is ParameterType);
+    //   }
+    // });
+        
     
     super.visitClassElement(node);
     
