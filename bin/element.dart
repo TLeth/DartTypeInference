@@ -292,14 +292,14 @@ class LibraryElement {
   bool containsDependedExport(LibraryElement library) => depended_exports.contains(library);
   
   //Lookup method used for making proper lookup in the scope.
-  NamedElement lookup(Name name, [bool noFatalError = true]) {
+  NamedElement lookup(Name name, [bool fatalError = true]) {
     if (!scope.containsKey(name)){
-      if (noFatalError) engine.errors.addError(new EngineError("An element with name: '${name}' didn't exists in the scope", source.source), true);
+      if (fatalError) engine.errors.addError(new EngineError("An element with name: '${name}' didn't exists in the scope", source.source), true);
       return null;
     }
     
     if (scope[name].length > 1){
-      if (noFatalError) engine.errors.addError(new EngineError("Multiple elements with name: '${name}' existed in scope", source.source), true);
+      if (fatalError) engine.errors.addError(new EngineError("Multiple elements with name: '${name}' existed in scope", source.source), true);
       return null;
     }
     
@@ -311,14 +311,29 @@ class LibraryElement {
                                (scope[element.getterName].length == 1 && scope[element.getterName][0].librarySource == element.librarySource)))) {
         return element;
       } else {
-        if (noFatalError) engine.errors.addError(new EngineError("The element: '${name}' did exist but its coresponding getter/setter was from another library.", source.source), true);
+        if (fatalError) engine.errors.addError(new EngineError("The element: '${name}' did exist but its coresponding getter/setter was from another library.", source.source), true);
         return null;
       }
     } else if (element is VariableElement) {
-      if (scope.containsKey(element.name) && scope[element.name].length == 1 && scope.containsKey(Name.SetterName(element.name)) && scope[Name.SetterName(element.name)].length == 1){
+      if (scope.containsKey(element.name) && 
+          scope[element.name].length == 1 && 
+          scope.containsKey(Name.SetterName(element.name)) && 
+          scope[Name.SetterName(element.name)].length == 1) {
+
         return element;
+
       } else {
-        if (noFatalError) engine.errors.addError(new EngineError("The variable element: '${name}' did exist but the coresponding getter/setter was not unique represented.", source.source), true);
+
+        return element;
+
+        if (fatalError) {
+          print(scope.containsKey(element.name));
+          if (scope.containsKey(element.name)) print(scope[element.name].length);
+          print(scope.containsKey(Name.SetterName(element.name)));
+          if (scope.containsKey(Name.SetterName(element.name))) print(scope[Name.SetterName(element.name)].length);
+        }
+
+        if (fatalError) engine.errors.addError(new EngineError("The variable element: '${name}' did exist but the coresponding getter/setter was not unique represented.", source.source), true);
         return null;
       }
     }else {

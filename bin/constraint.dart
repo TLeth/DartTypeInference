@@ -676,7 +676,9 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     Identifier constructorIdentifier = n.constructorName.name;
     
     NamedElement element;
-    if (className is PrefixedIdentifier){
+    if (source.resolvedIdentifiers[className] is ClassElement)
+      element = source.resolvedIdentifiers[className];
+    else if (className is PrefixedIdentifier){
       element = source.resolvedIdentifiers[className.prefix];
       if (constructorIdentifier == null)
         constructorIdentifier = className.identifier;
@@ -965,6 +967,9 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   }
   
   visitSimpleIdentifier(SimpleIdentifier n){
+    if (source.resolvedIdentifiers[n] is List)
+      return;
+
     super.visitSimpleIdentifier(n);
     
     /*
@@ -982,6 +987,13 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   }
   
   visitPrefixedIdentifier(PrefixedIdentifier n){
+    if (source.resolvedIdentifiers[n] != null ){
+      Identifier ident = source.resolvedIdentifiers[n].identifier;
+      if (ident != n)
+        equalConstraint(new ExpressionTypeIdentifier(ident), new ExpressionTypeIdentifier(n));
+      return;
+    }
+
     super.visitPrefixedIdentifier(n);
     
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
