@@ -106,7 +106,7 @@ class FunctionType extends AbstractType {
   
   AbstractType getLeastUpperBound(AbstractType t, Engine engine) {
     if (t is DynamicType || t is VoidType || t is ParameterType)
-          return t.getLeastUpperBound(t, engine);
+          return t.getLeastUpperBound(this, engine);
     
     ClassElement funcElement = engine.elementAnalysis.resolveClassElement(new Name('Function'), engine.elementAnalysis.dartCore, engine.elementAnalysis.dartCore.source);
     if (funcElement == null)
@@ -144,22 +144,16 @@ class FunctionType extends AbstractType {
 class NominalType extends AbstractType {
   
   ClassElement element;
-  GenericMap _genericMap = null;
+  GenericMap _genericMap;
+  GenericMapGenerator get _generator => element.sourceElement.engine.genericMapGenerator;
   bool annotatedType;
-  
   GenericMap get genericMap => _genericMap;
   
   NominalType(ClassElement this.element, [ this.annotatedType = false ]) {
-    if (element is FunctionAliasElement){
-      throw new Exception("FunctionAliasElement is not a classElement");
-    }
+    _genericMap = _generator.create(element, null, element.sourceElement);
   }
   
-  NominalType.makeInstance(ClassElement this.element, GenericMap this._genericMap, [ this.annotatedType = false ] ){
-    if (element is FunctionAliasElement){
-        throw new Exception("FunctionAliasElement is not a classElement");
-      }
-  }
+  NominalType.makeInstance(ClassElement this.element, GenericMap this._genericMap, [ this.annotatedType = false ] );
   
   Map<ParameterType, AbstractType> getGenericTypeMap(GenericMapGenerator generator) {
     if (_genericMap == null)
@@ -167,9 +161,9 @@ class NominalType extends AbstractType {
     return _genericMap.get();
   }
   
-  String toString([int level = 2]) => (_genericMap != null ? "${element.name.toString()}${_genericMap.toString(level)}" : element.name.toString());
+  String toString([int level = RECURSIVE_LEVEL]) => (_genericMap != null ? "${element.name.toString()}${_genericMap.toString(level)}" : element.name.toString());
   
-  bool operator ==(Object other) => other is NominalType && other.element == this.element;
+  bool operator ==(Object other) => other is NominalType && other.element == this.element && other._genericMap == _genericMap;
   
   bool isSubtypeOf(AbstractType type) {
     if (type is NominalType)
@@ -180,17 +174,22 @@ class NominalType extends AbstractType {
       return false;
   }
   
-  AbstractType getLeastUpperBound(AbstractType t, Engine engine){
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine, [int level = RECURSIVE_LEVEL]){
+    
     if (t is DynamicType || t is VoidType || t is ParameterType)
-      return t.getLeastUpperBound(t, engine);
+      return t.getLeastUpperBound(this, engine);
     
     if (t is NominalType) {
       ClassElement leastUpperBound = element.getLeastUpperBound(t.element);
       if (leastUpperBound == null)
         //In some cases the element cannot find the least upper bound, then return a dynamic type.
         return new DynamicType();
-      else
-        return new NominalType(leastUpperBound);
+      else {
+        
+        GenericMap genericMap = _genericMap.getLeastUpperBound(leastUpperBound, t, engine, level);
+        
+        return new NominalType.makeInstance(leastUpperBound, genericMap);
+      }   
     }
    
     //If this type is Function and t is FunctionType, return Function.
@@ -203,7 +202,7 @@ class NominalType extends AbstractType {
     return new DynamicType();
   }
   
-  int get hashCode => element.hashCode;
+  int get hashCode => genericMap.hashCode;
 }
 
 class ParameterType extends AbstractType {
@@ -238,7 +237,7 @@ class DynamicType extends AbstractType {
   
   AbstractType getLeastUpperBound(AbstractType t, Engine engine) {
     if (t is ParameterType)
-      return t.getLeastUpperBound(t, engine);
+      return t.getLeastUpperBound(this, engine);
     else
       return this;
   }
@@ -273,7 +272,7 @@ class VoidType extends AbstractType {
   bool annotatedType = false;
   bool isSubtypeOf(AbstractType t) => t is VoidType;
   
-  AbstractType getLeastUpperBound(AbstractType t, Engine engine) => (t is DynamicType || t is ParameterType ? t.getLeastUpperBound(t, engine) : this);
+  AbstractType getLeastUpperBound(AbstractType t, Engine engine) => (t is DynamicType || t is ParameterType ? t.getLeastUpperBound(this, engine) : this);
   
   String toString() => "void";
   bool operator ==(Object other) => other is VoidType;
@@ -318,16 +317,37 @@ class SyntheticTypeIdentifier extends TypeIdentifier {
   bool operator ==(Object other) => other is SyntheticTypeIdentifier && other._relation == _relation;
 }
 
-
+/**
+ * Properties hashCode and equals methods should not take generics into account.
+ */
 class PropertyTypeIdentifier extends TypeIdentifier {
   AbstractType _type;
   Name _name;
   
   PropertyTypeIdentifier(AbstractType this._type, Name this._name);
   
-  int get hashCode => _type.hashCode + 31 * _name.hashCode;
+  int get hashCode {
+    if (_type is NominalType){
+      NominalType type = _type;
+      return type.element.hashCode + 31 * _name.hashCode;
+    } else {
+      return _type.hashCode + 31 * _name.hashCode;
+    }
+  }
   
-  bool operator ==(Object other) => other is PropertyTypeIdentifier && other._type == _type && other._name == _name;
+  bool operator ==(Object other) {
+    if (other is! PropertyTypeIdentifier)
+      return false;
+    
+    PropertyTypeIdentifier otr = other as PropertyTypeIdentifier; 
+    
+    if (_type is NominalType && otr._type is NominalType){
+      return (_type as NominalType).element == (otr._type as NominalType).element && otr._name == _name; 
+    } else {
+      return otr._type == _type && otr._name == _name;
+    }
+  }
+  
   bool get isPropertyLookup => true;
   Name get propertyIdentifierName => _name;
   AbstractType get propertyIdentifierType => _type;

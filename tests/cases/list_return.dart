@@ -1,4 +1,4 @@
-library test.generic_list_foeach;
+library test.list_return;
 
 
 List<bool> f() {

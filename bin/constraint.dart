@@ -990,7 +990,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     //TODO (jln): Does this take library prefix into account?
     foreach(prefixIdent).update((AbstractType alpha) {
       TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.identifier));
-      if (alpha is NominalType && alpha.genericMap != null)
+      if (alpha is NominalType)
         subsetConstraint(alphaPropertyIdent, nodeIdent, binds: alpha.getGenericTypeMap(genericMapGenerator)); 
       else
         subsetConstraint(alphaPropertyIdent, nodeIdent);

@@ -215,6 +215,7 @@ class SourceElement extends Block {
   //If library is `null` it means that the library is implicit named. This means the library name is: ''.
   String libraryName = null;
   SourceElement partOf = null;
+  Engine engine;
   Source source;
   String get sourceContent => source.contents.data;
   Source get librarySource => (partOf == null ? source : partOf.source);
@@ -234,7 +235,7 @@ class SourceElement extends Block {
   
   LibraryElement library = null;
    
-  SourceElement(Source this.source, CompilationUnit this.ast);
+  SourceElement(Source this.source, Engine this.engine, CompilationUnit this.ast);
   
   Source addImport(Source source, ImportDirective directive) => imports[directive] = source;
   Source addExport(Source source, ExportDirective directive) => exports[directive] = source;
@@ -1050,7 +1051,7 @@ class ElementGenerator extends GeneralizingAstVisitor {
     //print("Generating elements for: ${source} (${source.hashCode}) which is ${analysis.containsSource(source) ? "in already" : "not in already"}");
     if (!analysis.containsSource(source)) {
       CompilationUnit unit = engine.getCompilationUnit(source);
-      element = new SourceElement(source, unit);
+      element = new SourceElement(source, engine, unit);
       analysis.addElement(unit, element);
       analysis.addSource(source, element);
       

@@ -7,6 +7,8 @@ import 'engine.dart';
 import 'package:analyzer/src/generated/ast.dart';
 import 'util.dart';
 
+const int RECURSIVE_LEVEL = 3; 
+
 class GenericMap {
   SourceElement source;
   ClassElement classElement;
@@ -18,6 +20,29 @@ class GenericMap {
       _map = _generateMap();
     return _map;
   }
+  
+  int get hashCode => _hashCode();
+  
+  int _hashCode([int level = RECURSIVE_LEVEL]){
+    if (level <= 0)
+      return classElement.hashCode;
+    
+    Map<ParameterType, AbstractType> map = get();
+    if (map.isEmpty)
+      return classElement.hashCode;
+    
+    int res = classElement.hashCode;
+    for(ParameterType param in map.keys){
+      AbstractType type = map[param];
+      if (type is NominalType){
+        res += param.hashCode * 13 * type.genericMap._hashCode(level - 1) * 31;
+      } else
+        res += param.hashCode * 13 * type.hashCode * 31;
+    }
+    return res;
+  }
+  
+  operator ==(Object other) => other is GenericMap && other.hashCode == hashCode;
   
   GenericMap._create(ClassElement this.classElement, TypeArgumentList this.typeArguments, SourceElement this.source, GenericMapGenerator this.generator);
   
@@ -79,9 +104,79 @@ class GenericMap {
     return res;  
   }
   
+  GenericMap getLeastUpperBound(ClassElement lub, AbstractType t, Engine engine, [level = RECURSIVE_LEVEL]){
+    if (t is NominalType){
+      
+      if (t.genericMap == null)
+        return generator.create(lub, null, lub.sourceElement);
+      
+      if (level <= 0)
+        return generator.create(classElement, null, classElement.sourceElement);
+      
+      GenericMap map1 = createParentMap(lub);
+      GenericMap map2 = t.genericMap.createParentMap(lub);
+      return map1._leastUpperBound(map2, engine, level);
+    }
+    
+    return generator.create(lub, null, lub.sourceElement);
+  }
+  
+  GenericMap _leastUpperBound(GenericMap other, Engine engine, [level = RECURSIVE_LEVEL]){
+    if (level <= 0)
+      return generator.create(classElement, null, classElement.sourceElement);
+    
+    Map<ParameterType, AbstractType> otherMap = other.get();
+    Map<ParameterType, AbstractType> map = get();
+    Map<ParameterType, AbstractType> res = <ParameterType, AbstractType>{};
+    
+    List<ParameterType> keys = ListUtil.union(otherMap.keys, map.keys);
+    //print("KEYS: ${keys}");
+    for(ParameterType key in keys){
+      if (!otherMap.containsKey(key) && !map.containsKey(key))
+        res[key] = key;
+      else if (!otherMap.containsKey(key))
+        res[key] = map[key];
+      else if (!map.containsKey(key))
+        res[key] = otherMap[key];
+      else {
+        AbstractType t =  map[key];
+        if (t is NominalType)
+          res[key] = t.getLeastUpperBound(otherMap[key], engine, level-1);
+        else
+          res[key] = t.getLeastUpperBound(otherMap[key], engine);
+      }
+    }
+    
+    GenericMap newMap = generator.create(classElement, null, classElement.sourceElement);
+    return newMap.copyWithBoundParameters(res);
+  }
+  
+  GenericMap createParentMap(ClassElement parent){
+    GenericMap t = this;
+    Map<ParameterType, AbstractType> map = t.get();
+    
+    while(t.classElement != parent){
+      
+      if (t.classElement.extendsElement == null)
+        return null; //Should never happen, the parent should be in the extendsElement chain.
+      
+      TypeArgumentList typeArguments = null;
+      if (t.classElement.superclass != null)
+        typeArguments = t.classElement.superclass.typeArguments;
+      
+      t = generator.create(t.classElement.extendsElement, 
+                           typeArguments, 
+                           t.classElement.extendsElement.sourceElement);
+      t = t.copyWithBoundParameters(map);
+      map = t.get();
+    }
+    return t;
+  }
+  
+  
   GenericMap copyWithBoundParameters(Map<ParameterType, AbstractType> map){
     GenericMap res = new GenericMap._create(classElement, typeArguments, source, generator);
-    res.get();
+    res._map = _generateMap();
     
     for(ParameterType k in res._map.keys){
       if (res._map[k] is ParameterType && map.containsKey(res._map[k]))
@@ -91,7 +186,7 @@ class GenericMap {
     return res;
   }
   
-  String toString([int level = 2]){
+  String toString([int level = RECURSIVE_LEVEL]){
     if (level <= 0)
       return "<...>";
     
