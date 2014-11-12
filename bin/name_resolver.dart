@@ -42,7 +42,7 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
     //Pile together all declared elements
     visitBlock(element);
     
-    ScopeVisitor visitor = new ScopeVisitor(element.source, this.engine, this.declaredElements, element.resolvedIdentifiers, this.currentLibrary);
+    ScopeVisitor visitor = new ScopeVisitor(element, this.engine, this.declaredElements, element.resolvedIdentifiers, this.currentLibrary);
     element.ast.accept(visitor);
   }
   
@@ -61,30 +61,29 @@ class ScopeVisitor extends GeneralizingAstVisitor {
 
   Map<AstNode, Our.NamedElement> declaredElements;
   Map<Expression, Our.NamedElement> references = {};
-  Map<String, Our.NamedElement> scope;
+  Map<String, dynamic> scope;
   
   Source source;
-  
+  Our.SourceElement sourceElement;
   Engine engine;
   Our.ClassElement _currentClass = null;
 
-  ScopeVisitor(this.source, this.engine, this.declaredElements, this.references, this.library){
+  ScopeVisitor(s, this.engine, this.declaredElements, this.references, this.library){
     this.scope = {};
+    this.source = s.source;
+    this.sourceElement = s;
   }
 
-  @override
   visitBlock(Block node) {
     _openNewScope(scope, (_) =>
         super.visitBlock(node));
   }
 
-  @override
   visitFormalParameter(FormalParameter node) {
     this.scope[node.identifier.toString()] = this.declaredElements[node];
     super.visitFormalParameter(node);
   }
   
-  @override
   visitClassDeclaration(ClassDeclaration node){
     _openNewScope(scope, (_) {
       Our.ClassElement c = this.declaredElements[node];
@@ -112,7 +111,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     });
   }
 
-  @override
   visitVariableDeclaration(VariableDeclaration node) {
     node.safelyVisitChild(node.initializer, this);
     var namedElem = this.declaredElements[node];
@@ -148,12 +146,10 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     node.safelyVisitChild(node.body, this);
   }
   
-  @override
   visitFieldDeclaration(FieldDeclaration node) {
     node.visitChildren(this);
   }
   
-  @override
   visitMethodDeclaration(MethodDeclaration node) {
 
     if (this.declaredElements[node] == null)
@@ -168,7 +164,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     });
   }
 
-  @override
   visitFunctionDeclaration(FunctionDeclaration node) {
 
     if (this.declaredElements[node] == null)
@@ -184,8 +179,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     });
 
   }
-  
-  @override
+
   visitFunctionTypeAlias(FunctionTypeAlias node) {
     _openNewScope(scope, (_) {
       Our.FunctionAliasElement f = this.declaredElements[node];
@@ -200,7 +194,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     });
   }
 
-  @override
   visitSimpleIdentifier(SimpleIdentifier node) {    
 
     String name = node.name.toString();
@@ -239,7 +232,6 @@ class ScopeVisitor extends GeneralizingAstVisitor {
       }
   }
 
-  @override
   visitMethodInvocation(MethodInvocation node) {
     node.safelyVisitChild(node.target, this);
 
@@ -252,35 +244,59 @@ class ScopeVisitor extends GeneralizingAstVisitor {
 
   //Only resolve the prefix.
   //TODO handle library 'as ...' imports.
-  @override
   visitPrefixedIdentifier(PrefixedIdentifier node) {
     node.safelyVisitChild(node.prefix, this);
+    
+    if (references[node.prefix] is List) {
+      
+      // if (node.identifier.toString() == 'Variable') {
+      //   print(references[node.prefix].source.source);
+      //   print(source);
+      // }
+      
+      references[node.prefix].forEach((Our.LibraryElement lib) {
+        var lookup = lib.lookup(new Our.Name.FromIdentifier(node.identifier), false);
+        if (lookup != null) {
+          references[node.identifier] = lookup;
+          references[node] = references[node.identifier];
+        }
+      });
+    }
   }
 
   //Only try to resolve the target.
-  @override
   visitPropertyAccess(PropertyAccess node) {
     node.safelyVisitChild(node.target, this);
   }
 
-  @override
   visitNamedExpression(NamedExpression node) {
     node.safelyVisitChild(node.expression, this);
   }
 
   //Dont visit identifiers in these AST nodes.
-  @override
   visitLibraryDirective(LibraryDirective node) {}
 
-  @override
-  visitImportDirective(ImportDirective node) {}
+  visitImportDirective(ImportDirective node) {
+    if (node.prefix != null) {
+      
+      if (sourceElement.imports[node] == null ||
+          engine.elementAnalysis.sources[sourceElement.imports[node]] == null ||
+          engine.elementAnalysis.sources[sourceElement.imports[node]].library == null) {
+        //error
+      } else {
+        if (scope[node.prefix.toString()] is List) {
+          scope[node.prefix.toString()].add(engine.elementAnalysis.sources[sourceElement.imports[node]].library);
+        } else {
+          scope[node.prefix.toString()] = [engine.elementAnalysis.sources[sourceElement.imports[node]].library];
+        }
+        
+      }
+    }
+  }
 
-  @override
   visitExportDirective(ExportDirective node) {}
 
-  @override
   visitPartDirective(PartDirective node) {}
 
-  @override
   visitPartOfDirective(PartOfDirective node) {}
 }
