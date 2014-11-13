@@ -243,9 +243,9 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
   bool returnsVoid(CallableElement node) {
     if (node.isExternal)
       return false;
-    else if (node is MethodElement && (node.isAbstract || node.isGetter))
+    else if (node is MethodElement && (node.isAbstract || node.isGetter || node.isNative))
       return false;
-    else if (node is NamedFunctionElement && node.isGetter)
+    else if (node is NamedFunctionElement && (node.isGetter || node.isNative))
       return false;
     else if (node is FunctionParameterElement)
       return false;

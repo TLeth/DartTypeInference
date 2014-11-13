@@ -116,5 +116,6 @@ import 'class_fieldssuper.dart';
 import 'generic_parentfield.dart';
 import 'future_then.dart';
 import 'var_multi.dart';
+import 'native.dart';
 
 void main() {}

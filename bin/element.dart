@@ -646,6 +646,7 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
   bool get isSynthetic => ast.isSynthetic;
   bool get isPrivate => name.isPrivate;
   bool get isExternal => ast.externalKeyword != null;
+  bool get isNative => ast.body is NativeFunctionBody;
   
   
   TypeName get returnType => ast.returnType;
@@ -733,6 +734,8 @@ class ConstructorElement extends Block with ClassMember implements NamedElement,
 class FunctionElement extends Block with Element implements CallableElement {
   FunctionExpression ast;
   SourceElement sourceElement;
+  
+  
 
   TypeName get returnType => null;
   FormalParameterList get parameters => ast.parameters;
@@ -827,6 +830,7 @@ class NamedFunctionElement extends FunctionElement implements NamedElement {
   FormalParameterList get parameters => decl.functionExpression.parameters;
   bool get isSynthetic => decl.functionExpression.isSynthetic;
   bool get isExternal => decl.externalKeyword != null;
+  bool get isNative => decl.functionExpression != null && decl.functionExpression.body is NativeFunctionBody;
 
   TypeName get returnType => decl.returnType;
   
