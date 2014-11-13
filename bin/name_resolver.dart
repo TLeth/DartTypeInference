@@ -60,7 +60,9 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   Our.LibraryElement library;
 
   Map<AstNode, Our.NamedElement> declaredElements;
-  Map<Expression, dynamic> references = {};
+  Map<Expression, Our.NamedElement> references = {};
+  Map<Expression, List<Our.LibraryElement>> libs = {};
+  
   Map<String, dynamic> scope;
   
   Source source;
@@ -198,6 +200,12 @@ class ScopeVisitor extends GeneralizingAstVisitor {
 
     String name = node.name.toString();
 
+    if (scope[name] is List) {
+      libs[node] = scope[name];
+      return;
+    }
+
+    
     Our.Name getter = new Our.Name(name);
     Our.Name setter = new Our.Name(name + '=');
 
@@ -206,6 +214,8 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     var lib_getter_element = library.lookup(getter, false);
     var lib_setter_element = library.lookup(setter, false);
 
+    
+    
     if (local_getter_element != null) 
       {
         references[node] = local_getter_element;
@@ -247,14 +257,14 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   visitPrefixedIdentifier(PrefixedIdentifier node) {
     node.safelyVisitChild(node.prefix, this);
     
-    if (references[node.prefix] is List) {
+    if (libs.containsKey(node.prefix)) {
       
       // if (node.identifier.toString() == 'Variable') {
       //   print(references[node.prefix].source.source);
       //   print(source);
       // }
       
-      references[node.prefix].forEach((Our.LibraryElement lib) {
+      libs[node.prefix].forEach((Our.LibraryElement lib) {
         var lookup = lib.lookup(new Our.Name.FromIdentifier(node.identifier), false);
         if (lookup != null) {
           references[node.identifier] = lookup;
