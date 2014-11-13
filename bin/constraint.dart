@@ -880,7 +880,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     
       foreach(vIdent).update((AbstractType alpha) {
         TypeIdentifier functionIdent = new PropertyTypeIdentifier(alpha, new Name(operator));
-        TypeIdentifier returnIdent = new SyntheticTypeIdentifier(functionIdent);
+        TypeIdentifier returnIdent = new SyntheticTypeIdentifier(vIdent);
         functionCall(functionIdent, <Expression>[rightHandSide], returnIdent);
       
       //Result of (leftHandSide op RightHandSide) should be the result of the hole node.
@@ -1262,7 +1262,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     //Make the operation
     foreach(vIdent).update((AbstractType alpha) {
       TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name(operator));
-      TypeIdentifier returnIdent = new SyntheticTypeIdentifier(methodIdent);
+      TypeIdentifier returnIdent = new SyntheticTypeIdentifier(vIdent);
       functionCall(methodIdent, <Expression>[new IntegerLiteral(new StringToken(TokenType.INT, "1", 0), 1)], returnIdent);
       //Result of (leftHandSide op RightHandSide) should be the result of the hole node.
       subsetConstraint(returnIdent, nodeIdent);

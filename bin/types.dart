@@ -314,6 +314,8 @@ class SyntheticTypeIdentifier extends TypeIdentifier {
   
   int get hashCode => _relation.hashCode * 31;
   
+  String toString() => "SYN:${_relation}";
+  
   bool operator ==(Object other) => other is SyntheticTypeIdentifier && other._relation == _relation;
 }
 
