@@ -2,6 +2,7 @@ library typeanalysis.constraints;
 
 import 'package:analyzer/src/generated/ast.dart' hide ClassMember;
 import 'package:analyzer/src/generated/scanner.dart';
+import 'package:analyzer/src/generated/source.dart';
 import 'engine.dart';
 import 'element.dart';
 import 'types.dart';
@@ -457,7 +458,11 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   
   static void Generate(ConstraintAnalysis constraintAnalysis) {
     constraintAnalysis.elementAnalysis.sources.values.forEach((SourceElement source) {
-      new ConstraintGenerator._internal(source, constraintAnalysis);
+      UriKind kind = source.source.uriKind;
+      if (kind == UriKind.FILE_URI ||
+         (kind == UriKind.PACKAGE_URI && constraintAnalysis.engine.options.analyzePackages) ||
+         (kind == UriKind.DART_URI && constraintAnalysis.engine.options.analyzeSDK))                  
+        new ConstraintGenerator._internal(source, constraintAnalysis);
     });
   }
   
