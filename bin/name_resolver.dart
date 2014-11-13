@@ -42,7 +42,17 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
     //Pile together all declared elements
     visitBlock(element);
     
-    ScopeVisitor visitor = new ScopeVisitor(element, this.engine, this.declaredElements, element.resolvedIdentifiers, this.currentLibrary);
+    
+    ScopeImportVisitor importVisitor;
+    if (element.partOf != null){
+      importVisitor = new ScopeImportVisitor(element.partOf, this.engine);
+      element.partOf.ast.accept(importVisitor);
+    } else {
+      importVisitor = new ScopeImportVisitor(element, this.engine);
+      element.ast.accept(importVisitor);
+    }
+    
+    ScopeVisitor visitor = new ScopeVisitor(element, this.engine, this.declaredElements, element.resolvedIdentifiers, this.currentLibrary, importVisitor.scope);
     element.ast.accept(visitor);
   }
   
@@ -54,6 +64,31 @@ class IdentifierResolver extends Our.RecursiveElementVisitor {
   }
 }
 
+class ScopeImportVisitor extends GeneralizingAstVisitor {
+  
+  Our.SourceElement sourceElement;
+  Engine engine;
+  Map<String, dynamic> scope = {};
+
+  ScopeImportVisitor(this.sourceElement, this.engine);
+  
+  visitImportDirective(ImportDirective node) {
+    if (node.prefix != null) {
+      
+      if (sourceElement.imports[node] == null ||
+          engine.elementAnalysis.sources[sourceElement.imports[node]] == null ||
+          engine.elementAnalysis.sources[sourceElement.imports[node]].library == null) {
+        //error
+      } else {
+        if (scope[node.prefix.toString()] is List) {
+          scope[node.prefix.toString()].add(engine.elementAnalysis.sources[sourceElement.imports[node]].library);
+        } else {
+          scope[node.prefix.toString()] = [engine.elementAnalysis.sources[sourceElement.imports[node]].library];
+        }
+      }
+    }
+  }
+}
 
 class ScopeVisitor extends GeneralizingAstVisitor {
 
@@ -70,8 +105,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   Engine engine;
   Our.ClassElement _currentClass = null;
 
-  ScopeVisitor(s, this.engine, this.declaredElements, this.references, this.library){
-    this.scope = {};
+  ScopeVisitor(s, this.engine, this.declaredElements, this.references, this.library, this.scope){
     this.source = s.source;
     this.sourceElement = s;
   }
@@ -289,23 +323,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   //Dont visit identifiers in these AST nodes.
   visitLibraryDirective(LibraryDirective node) {}
 
-  visitImportDirective(ImportDirective node) {
-    if (node.prefix != null) {
-      
-      if (sourceElement.imports[node] == null ||
-          engine.elementAnalysis.sources[sourceElement.imports[node]] == null ||
-          engine.elementAnalysis.sources[sourceElement.imports[node]].library == null) {
-        //error
-      } else {
-        if (scope[node.prefix.toString()] is List) {
-          scope[node.prefix.toString()].add(engine.elementAnalysis.sources[sourceElement.imports[node]].library);
-        } else {
-          scope[node.prefix.toString()] = [engine.elementAnalysis.sources[sourceElement.imports[node]].library];
-        }
-        
-      }
-    }
-  }
+  visitImportDirective(ImportDirective node) {}
 
   visitExportDirective(ExportDirective node) {}
 

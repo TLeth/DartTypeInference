@@ -238,6 +238,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     if (namedElement is TypeParameterElement)
       return new ParameterType(namedElement, true);
     
+    engine.errors.addError(new EngineError("Unable to resolve type: ${type}.", source.source, type.offset, type.length),false);
     return null;
   }
   
@@ -749,6 +750,8 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
         functionCall(constructorIdent, n.argumentList.arguments, null);
         types.add(nodeIdent, classType);
       }
+    } else {
+      engine.errors.addError(new EngineError("Unable to find the class the instance creation: ${n}, was referencing", source.source, n.offset, n.length), false);
     }
   }
   
