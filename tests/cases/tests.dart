@@ -115,5 +115,6 @@ import 'generic_formalfuncparam.dart';
 import 'class_fieldssuper.dart';
 import 'generic_parentfield.dart';
 import 'future_then.dart';
+import 'var_multi.dart';
 
 void main() {}

@@ -166,7 +166,7 @@ class GenericMap {
       
       t = generator.create(t.classElement.extendsElement, 
                            typeArguments, 
-                           t.classElement.extendsElement.sourceElement);
+                           t.classElement.sourceElement);
       t = t.copyWithBoundParameters(map);
       map = t.get();
     }
@@ -175,15 +175,15 @@ class GenericMap {
   
   
   GenericMap copyWithBoundParameters(Map<ParameterType, AbstractType> map){
-    GenericMap res = new GenericMap._create(classElement, typeArguments, source, generator);
-    res._map = _generateMap();
+    GenericMap copy = new GenericMap._create(classElement, typeArguments, source, generator);
+    copy._map = copy.get();
     
-    for(ParameterType k in res._map.keys){
-      if (res._map[k] is ParameterType && map.containsKey(res._map[k]))
-        res._map[k] = map[res._map[k]];
+    for(ParameterType k in copy._map.keys){
+      if (copy._map[k] is ParameterType  && map.containsKey(copy._map[k]))
+        copy._map[k] = map[copy._map[k]];
     }
     
-    return res;
+    return copy;
   }
   
   String toString([int level = RECURSIVE_LEVEL]){
@@ -221,11 +221,7 @@ class GenericMapGenerator {
 
   NominalType createInstanceWithBinds(NominalType oldType, Map<ParameterType, AbstractType> map){
     ClassElement element = oldType.element;
-    GenericMap genericMap;
-    if (oldType.genericMap == null)
-      genericMap = create(element, null, element.sourceElement);
-    else
-      genericMap = oldType.genericMap;
+    GenericMap genericMap = oldType.genericMap;
     
     genericMap = genericMap.copyWithBoundParameters(map);
     return new NominalType.makeInstance(element, genericMap);

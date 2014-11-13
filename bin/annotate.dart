@@ -307,15 +307,9 @@ class AnnotateSourceVisitor extends SourceVisitor {
         modifier(node.keyword);
     } else
       modifier(node.keyword);
-    
-    if (node.variables.length > 0) {
-      Element variableElement = elementAnalysis.elements[node.variables[0]];
-      if (variableElement is NamedElement) {
-        visitNode(typeAnnotator.annotateIdentifier(variableElement.identifier, sourceElement.library, offset: node.offset, validTypeParameters: typeableParameterElements), followedBy: space);
-      } else {
-        engine.errors.addError(new EngineError("A VariableDeclaration was not mapped to a NamedElement", sourceElement.source, node.variables[0].offset, node.variables[0].length), false);
-      }
-    }
+
+
+    visitNode(typeAnnotator.annotateTypeIdentifier(new ExpressionTypeIdentifier(node), sourceElement.library, offset: node.offset, validTypeParameters: typeableParameterElements), followedBy: space);
 
     var variables = node.variables;
     // Decls with initializers get their own lines (dartbug.com/16849)

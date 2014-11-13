@@ -296,9 +296,9 @@ abstract class TypeIdentifier {
 
 
 class ExpressionTypeIdentifier extends TypeIdentifier {
-  Expression exp;
+  AstNode exp;
   
-  ExpressionTypeIdentifier(Expression this.exp);
+  ExpressionTypeIdentifier(AstNode this.exp);
   
   int get hashCode => exp.hashCode;
   
@@ -352,7 +352,7 @@ class PropertyTypeIdentifier extends TypeIdentifier {
   Name get propertyIdentifierName => _name;
   AbstractType get propertyIdentifierType => _type;
   
-  String toString() => "#${_type}.${_name}";
+  String toString() => (_type is NominalType ? "#${(_type as NominalType).element}.${_name}" : "#${_type}.${_name}");
 }
 
 class ReturnTypeIdentifier extends TypeIdentifier {

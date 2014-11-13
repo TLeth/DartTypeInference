@@ -191,14 +191,14 @@ abstract class ConstraintHelper {
     
     // If the binds is bound, then the subset should first resolve the binding.
     Function bindFunction;
-    if (binds != null){
+    if (binds != null && !binds.isEmpty){
       bindFunction = (AbstractType type) {
         if (type is ParameterType){
           if (binds.containsKey(type))
             types.add(b, binds[type]);
           else
             types.add(b, type);
-        } else if (type is NominalType){
+        } else if (type is NominalType){          
           types.add(b, genericMapGenerator.createInstanceWithBinds(type, binds));
         } else
           types.add(b, type);
@@ -507,7 +507,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       numberBinaryFunctionCall(functionIdent, arguments[0], returnIdent);
     else {
 
-      Map<ParameterType, AbstractType> genericTypeMap = {};
+      Map<ParameterType, AbstractType> genericTypeMap = null;
       if (functionIdent is PropertyTypeIdentifier) {
         AbstractType prefixType = functionIdent.propertyIdentifierType; 
         if (prefixType is NominalType)
@@ -546,6 +546,9 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
 
   bindFunctionParameterElement(TypeIdentifier parameterIdentifier, TypeIdentifier argumentIdentifier, Map<ParameterType, AbstractType> binds){
     if (parameterIdentifier.functionParameterElement == null)
+      return;
+    
+    if (binds == null)
       return;
     
     FunctionParameterElement funcElement = parameterIdentifier.functionParameterElement;
@@ -698,10 +701,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       ClassElement classElement = element;
       //{ClassName} \in [n]
       TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
-      
       NominalType classType = new NominalType.makeInstance(classElement, genericMapGenerator.create(classElement, n.constructorName.type.typeArguments, source));
-      //The class did not have any constructors so just make a object of the given class-type. (asserting the program is not failing) 
+      
       if (classElement.declaredConstructors.isEmpty)
+        //The class did not have any constructors so just make a object of the given class-type. (asserting the program is not failing)
         types.add(nodeIdent, classType);
       else {
         Name constructorName = null;
@@ -895,6 +898,21 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       assignmentExpression(node.name, node.initializer);
   }
   
+  visitVariableDeclarationList(VariableDeclarationList node){
+    super.visitVariableDeclarationList(node);
+    
+    TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
+    
+    for(VariableDeclaration v in node.variables){
+      Element variableElement = elementAnalysis.elements[v];
+      if (variableElement is NamedElement){
+        subsetConstraint(new ExpressionTypeIdentifier(variableElement.identifier), nodeIdent);   
+      } else {
+        engine.errors.addError(new EngineError("A VariableDeclaration was not mapped to a NamedElement", source.source, v.offset, v.length), false);
+      }
+    }
+  }
+  
   visitConstructorFieldInitializer(ConstructorFieldInitializer node){
     super.visitConstructorFieldInitializer(node);
     assignmentExpression(node.fieldName, node.expression);
@@ -1011,6 +1029,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     //TODO (jln): Does this take library prefix into account?
     foreach(prefixIdent).update((AbstractType alpha) {
       TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.identifier));
+      
       if (alpha is NominalType)
         subsetConstraint(alphaPropertyIdent, nodeIdent, binds: alpha.getGenericTypeMap(genericMapGenerator)); 
       else

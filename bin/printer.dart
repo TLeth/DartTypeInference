@@ -304,50 +304,6 @@ class PrintElementVisitor extends analysis.RecursiveElementVisitor {
   }
 }
 
-/*class PrintGenericTypeMapVisitor extends analysis.RecursiveElementVisitor { 
-  int _ident = 0;
-  
-  analysis.SourceElement sourceElement = null;
-  
-  PrintGenericTypeMapVisitor([analysis.SourceElement this.sourceElement = null]);
-  
-  visitElementAnalysis(analysis.ElementAnalysis node) {
-    if (sourceElement == null)
-      node.librarySources.values.forEach(visit);
-    else
-      sourceElement.accept(this);
-  }
-  
-  printTypeParameterMap(Map<analysis.TypeParameterElement, analysis.NamedElement> map){
-    for(analysis.TypeParameterElement key in map.keys)
-      print("${key}: ${map[key]}");
-  }
-  
-  visitClassAliasElement(analysis.ClassAliasElement node){
-    print("${node}");
-    printTypeParameterMap(node.typeParameterMap);
-    print("");
-  }
-
-  visitClassElement(analysis.ClassElement node) {
-    print("${node}");
-    printTypeParameterMap(node.typeParameterMap);
-    print("");
-  }
-  
-  visitNamedFunctionElement(analysis.NamedFunctionElement node){
-    print(("-" * _ident) + node.toString());
-    visitBlock(node);
-  }
-  
-  visitSourceElement(analysis.SourceElement node) {
-    if (node.declaredClasses.values.length > 0){
-      print("${node}");
-      node.declaredClasses.values.forEach(visit);
-    }
-  }
-}*/
-
 class PrintAstVisitor implements GeneralizingAstVisitor {
   
   visitAnnotatedNode(AnnotatedNode node) {
@@ -1305,8 +1261,12 @@ class PrintConstraintVisitor extends GeneralizingAstVisitor {
   }
   
   visitExpression(Expression e){
-    TypeIdentifier eType = new ExpressionTypeIdentifier(e);
-    print("${e} // ${types[eType]}");
+    TypeIdentifier ident = new ExpressionTypeIdentifier(e);
+    print("${e} // ${types[ident]}");
+    if (elementAnalysis.elements[e] is analysis.CallableElement){
+      ident = new ReturnTypeIdentifier(elementAnalysis.elements[e]);
+      print("${ident} // ${types[ident]}");
+    }
     super.visitExpression(e);
   }
 }
