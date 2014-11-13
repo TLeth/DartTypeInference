@@ -10,6 +10,7 @@ import 'util.dart';
 import 'generics.dart';
 import 'dart:collection';
 
+num a;
 class ConstraintAnalysis {
   TypeMap typeMap;
   
@@ -302,7 +303,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     node.implementElements.forEach((ClassElement implementsElement){
       implementsElement.declaredElements.forEach((Name n, NamedElement e){
-        if (node.lookup(n) == null){
+        if (node.lookup(n).isEmpty){
           TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(implementsElement), n);
           TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node), n);
           equalConstraint(parentTypeIdent, thisTypeIdent);
@@ -408,6 +409,30 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     //Class members needs to be bound to the class property as well.
     equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.name));
+  }
+  
+  bool _overrideSubsetConstraint(ClassMember element){
+    if (element.sourceElement.source.uriKind != UriKind.FILE_URI)
+      return false;
+    if (element is FieldElement)
+      return !element.isInstantiated;
+    if (element is MethodElement)
+      return element.isAbstract;
+    if (element is ConstructorElement)
+      return false;
+    return false;
+  }
+  
+  visitClassMember(ClassMember node){
+    super.visitClassMember(node);
+    TypeIdentifier memberIdent = new ExpressionTypeIdentifier(node.identifier);
+    TypeIdentifier overrideIdent;
+    node.overrides.forEach((ClassMember override) {
+      if (_overrideSubsetConstraint(override)){
+        overrideIdent = new ExpressionTypeIdentifier(override.identifier);
+        subsetConstraint(memberIdent, overrideIdent);
+      }
+    });
   }
   
   visitParameterElement(ParameterElement node){
@@ -588,6 +613,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
    * This function checks if this is a special case, if not it returns false.  
    */
   bool isNumberBinaryFunctionCall(TypeIdentifier functionIdent, List<TypeIdentifier> arguments, Map<Name, TypeIdentifier> namedArguments, TypeIdentifier returnIdent){
+    
     AbstractType intElem = getAbstractType(new Name("int"), constraintAnalysis.dartCore, source);
     var numberMethods = [TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.PERCENT].map(
         (token) => new Name(token.lexeme));

@@ -1,7 +1,7 @@
 library typeanalysis.resolve;
 
 import 'dart:collection';
-import 'package:analyzer/src/generated/ast.dart' hide Block;
+import 'package:analyzer/src/generated/ast.dart' hide Block, ClassMember;
 import 'package:analyzer/src/generated/source.dart';
 import 'element.dart';
 import 'engine.dart';
@@ -263,6 +263,7 @@ class ClassHierarchyResolver {
   Engine engine;
   ElementAnalysis analysis;
   ClassElement objectClassElement;
+  Set<ClassElement> generatedOverrides = new Set<ClassElement>();
   
   ClassHierarchyResolver(Engine this.engine, ElementAnalysis this.analysis) {
     objectClassElement = analysis.resolveClassElement(new Name("Object"), analysis.dartCore, analysis.dartCore.source);
@@ -273,8 +274,20 @@ class ClassHierarchyResolver {
     analysis.sources.values.forEach((SourceElement source) {
       source.declaredClasses.values.forEach(_createClassHierarchy);
     });
+    analysis.sources.values.forEach((SourceElement source) {
+      source.declaredClasses.values.forEach(_createOverridesHierarchy);
+    });
   }
   
+  void _createOverridesHierarchy(ClassElement classElement){    
+    List<ClassMember> elements = [classElement.declaredFields.values, classElement.declaredMethods.values, classElement.declaredConstructors.values].reduce(ListUtil.union);
+    
+    elements.forEach((ClassMember el){
+      classElement.lookup(el.name, interfaces: true).forEach((ClassMember overwritten) {
+        if (el != overwritten) el.overrides.add(overwritten);
+      });
+    });
+  }
   
   void _createClassHierarchy(ClassElement classElement){
     SourceElement sourceElement = classElement.sourceElement;

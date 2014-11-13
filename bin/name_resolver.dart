@@ -1,4 +1,4 @@
-library typeanalysis.Local;
+library typeanalysis.name_resolver;
 
 import 'package:analyzer/src/generated/ast.dart';
 import 'package:analyzer/src/generated/source.dart';
@@ -60,7 +60,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   Our.LibraryElement library;
 
   Map<AstNode, Our.NamedElement> declaredElements;
-  Map<Expression, Our.NamedElement> references = {};
+  Map<Identifier, Our.NamedElement> references = {};
   Map<Expression, List<Our.LibraryElement>> libs = {};
   
   Map<String, dynamic> scope;
@@ -264,8 +264,11 @@ class ScopeVisitor extends GeneralizingAstVisitor {
       //   print(source);
       // }
       
+      
+      
       libs[node.prefix].forEach((Our.LibraryElement lib) {
         var lookup = lib.lookup(new Our.Name.FromIdentifier(node.identifier), false);
+        
         if (lookup != null) {
           references[node.identifier] = lookup;
           references[node] = references[node.identifier];

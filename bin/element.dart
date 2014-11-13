@@ -12,7 +12,6 @@ import 'printer.dart';
 
 export 'resolver.dart' show LibraryElement;
 
-
 //TODO (jln): Variable scoping rules, check page 13 in the specification (tlj).
 //TODO (jln): We need to take type alias definitions into account here, since they change the resolution step 
 /**
@@ -315,28 +314,6 @@ class LibraryElement {
         if (fatalError) engine.errors.addError(new EngineError("The element: '${name}' did exist but its coresponding getter/setter was from another library.", source.source), true);
         return null;
       }
-    } else if (element is VariableElement) {
-      if (scope.containsKey(element.name) && 
-          scope[element.name].length == 1 && 
-          scope.containsKey(Name.SetterName(element.name)) && 
-          scope[Name.SetterName(element.name)].length == 1) {
-
-        return element;
-
-      } else {
-
-        return element;
-
-        if (fatalError) {
-          print(scope.containsKey(element.name));
-          if (scope.containsKey(element.name)) print(scope[element.name].length);
-          print(scope.containsKey(Name.SetterName(element.name)));
-          if (scope.containsKey(Name.SetterName(element.name))) print(scope[Name.SetterName(element.name)].length);
-        }
-
-        if (fatalError) engine.errors.addError(new EngineError("The variable element: '${name}' did exist but the coresponding getter/setter was not unique represented.", source.source), true);
-        return null;
-      }
     }else {
       return element;
     }
@@ -440,7 +417,7 @@ class ClassElement extends Block implements NamedElement {
     return "Class ${name}${extendsElement != null ? ' extends ${extendsElement.name}' : ''}";
   }
   
-  ClassMember lookup(Name name) {
+  List<ClassMember> lookup(Name name, {bool interfaces: false}) {
     List<ClassMember> res = <ClassMember>[];
     if (declaredFields.containsKey(name))
       res.add(declaredFields[name]);
@@ -451,12 +428,18 @@ class ClassElement extends Block implements NamedElement {
     if (declaredConstructors.containsKey(name))
       res.add(declaredConstructors[name]);
     
-    if (res.length == 1) 
-      return res[0];
-    else if (res.length == 0 && extendsElement != null)
-      return extendsElement.lookup(name);
-    else
-      return null;
+    if (extendsElement != null)
+      res.addAll(extendsElement.lookup(name));
+    
+    mixinElements.forEach((ClassElement mixin) => 
+      res.addAll(mixin.lookup(name)));
+    
+    if (interfaces){
+      implementElements.forEach((ClassElement implements) =>
+        res.addAll(implements.lookup(name)));
+    }
+    
+    return res;
   }
 }
 
@@ -577,6 +560,9 @@ abstract class ClassMember {
   ClassElement get classDecl;
   
   SourceElement get sourceElement => classDecl.sourceElement;
+  Set<ClassMember> overrides = new Set<ClassMember>();
+  Name get name;
+  Identifier get identifier;
 }
 
 /**
@@ -601,10 +587,12 @@ class FieldElement extends AnnotatedElement with ClassMember {
   FieldDeclaration ast;
   VariableDeclaration varDecl;
   ClassElement classDecl;
+  
   bool get isStatic => ast.isStatic;
   bool get isSynthetic => ast.isSynthetic;
   bool get isConst => varDecl.isConst;
   bool get isFinal => varDecl.isFinal;
+  bool get isInstantiated => varDecl.initializer != null;
   
   Name name;
   Identifier get identifier => this.varDecl.name;
@@ -698,6 +686,7 @@ class ConstructorElement extends Block with ClassMember implements NamedElement,
   bool get isSynthetic => ast.isSynthetic;
   bool get isFactory => ast.factoryKeyword != null;
   bool get isExternal => ast.externalKeyword != null;
+  bool get isNative => ast.body is NativeFunctionBody;
   TypeName _returnType;
   TypeName get returnType => _returnType;
   FormalParameterList get parameters => ast.parameters;
