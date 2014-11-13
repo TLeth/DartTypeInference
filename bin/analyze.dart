@@ -66,6 +66,8 @@ class CommandLineOptions {
   /** Whether to enable debug printing of element nodes. */
   final bool printElementNodes;
   
+  final bool analyzeSDK;
+  final bool analyzePackages;
 
   /**
    * Initialize options from the given parsed [args].
@@ -87,6 +89,8 @@ class CommandLineOptions {
       expectedRootPath = args['expected-basedir'],
       actualRootPath = args['actual-basedir'],
       emitJSON = args['json'],
+      analyzePackages = !args['skip-packages'],
+      analyzeSDK = !args['skip-sdk'],
       benchmarkRootPath = (new JavaFile(args['benchmarkdir'])).getAbsolutePath(),
       sourceFiles = args.rest;
   
@@ -107,6 +111,8 @@ class CommandLineOptions {
     String this.actualRootPath: null,
     String this.benchmarkRootPath: null,
     bool this.emitJSON: false,
+    bool this.analyzePackages: true,
+    bool this.analyzeSDK: true,
     List<String> this.sourceFiles: null}) {
     {
       var sdkPath = this.dartSdkPath;
@@ -178,7 +184,9 @@ class CommandLineOptions {
       ..addFlag('debug-constraint', defaultsTo: false, negatable: false, help: 'Debug print; prints the contraints.')
       ..addFlag('debug-name', defaultsTo: false, negatable: false, help: 'Debug print; prints a version of the program where the names are changed to show name resolving.')
       ..addFlag('debug-ast', defaultsTo: false, negatable: false, help: 'Debug print; prints the names of the AST nodes visited.')
-      ..addFlag('debug-element', defaultsTo: false, negatable: false, help: 'Debug print; prints the element hirarchy.');
+      ..addFlag('debug-element', defaultsTo: false, negatable: false, help: 'Debug print; prints the element hirarchy.')
+      ..addFlag('skip-sdk', defaultsTo: false, negatable: false, help: 'Skip analyzing SDK, only use annotation')
+      ..addFlag('skip-packages', defaultsTo: false, negatable: false, help: 'Skip analyzing packages, only use annotation');
 
 
     try {
