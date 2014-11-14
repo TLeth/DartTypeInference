@@ -416,11 +416,9 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     if (element.sourceElement.source.uriKind != UriKind.FILE_URI)
       return false;
     if (element is FieldElement)
-      return !element.isInstantiated;
+      return !element.isInitialized && element.classDecl.isAbstract;
     if (element is MethodElement)
-      return element.isAbstract;
-    if (element is ConstructorElement)
-      return false;
+      return element.isAbstract && element.classDecl.isAbstract;
     return false;
   }
   

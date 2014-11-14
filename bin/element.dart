@@ -592,7 +592,7 @@ class FieldElement extends AnnotatedElement with ClassMember {
   bool get isSynthetic => ast.isSynthetic;
   bool get isConst => varDecl.isConst;
   bool get isFinal => varDecl.isFinal;
-  bool get isInstantiated => varDecl.initializer != null;
+  bool get isInitialized => varDecl.initializer != null;
   
   Name name;
   Identifier get identifier => this.varDecl.name;
