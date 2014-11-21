@@ -256,16 +256,40 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
       return node.returns.fold(true, (bool res, ReturnElement r) => res && r.ast.expression == null);
   }
   
+  // Fix to accommondate: https://github.com/dart-lang/bleeding_edge/commit/7190ce054cd4477e4c48fc0ea68a1e7fabd6c914
+  TypeName _fixFutureMethodInCompleter(CallableElement node){
+    if (node is MethodElement && 
+       node.sourceElement.source.shortName == 'future.dart' && 
+       node.sourceElement.source.uriKind == UriKind.DART_URI &&
+       node.classDecl.identifier.toString() == 'Completer' && 
+       node.classDecl.typeParameters.length == 1 &&
+       node.identifier.toString() == 'future' && 
+       node.isGetter &&
+       node.returnType.name.toString() =='Future' &&
+       node.returnType.typeArguments == null){
+      Identifier typeName = node.returnType.name;
+      Identifier typeArgument = node.classDecl.typeParameters[0].ast.name;
+      TypeArgumentList typeArguments = new TypeArgumentList(new Token(TokenType.LT, typeName.end + 1), 
+          [new TypeName(typeArgument, null)], new Token(TokenType.GT, typeName.end + typeArgument.length + 2));
+      return new TypeName(typeName, typeArguments); 
+    }
+    return node.returnType;
+  }
+  
   TypeIdentifier typeReturn(CallableElement element, SourceElement source){
     TypeIdentifier ident = new ReturnTypeIdentifier(element);
+    TypeName returnType = element.returnType;
     AbstractType type;
+    
     
     types.create(ident);
     
-    type = resolveType(element.returnType, source);
-    if (type != null)
+    returnType = _fixFutureMethodInCompleter(element);
+    
+    type = resolveType(returnType, source);
+    if (type != null) {
       types.add(ident, type);
-    else if (returnsVoid(element))
+    } else if (returnsVoid(element))
       types.add(ident, new VoidType());
     
     return ident;
@@ -320,6 +344,9 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.identifier);
     
     TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
+    
+    
+    
     ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement, elementAnalysis);
     if (node.isGetter){
       equalConstraint(elementTypeIdent, returnIdent);
