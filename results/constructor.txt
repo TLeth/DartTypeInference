@@ -1,4 +1,0 @@
-4. nederste: instance creation uden funktioner. - med core constraints.
-3. nederste: instance creation som funktioner. - med core constraints.
-2. nederste: instance creation som funktioner - uden core constraints.
-1. nederste: instance creation uden funktioner. - uden core constraints.

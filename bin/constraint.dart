@@ -315,15 +315,29 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
       }
     }
 
-    // node.declaredElements.keys.forEach((Name n) {
-    //   if ((node.extendsElement != null && node.extendsElement.lookup(n) != null)) {
-    //     TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(node.extendsElement, true), n);
-    //     TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node, true), n);
-    //     subsetConstraint(thisTypeIdent, parentTypeIdent); //, filter: (e) => !e is ParameterType);
-    //   }
-    // });
-        
+    node.declaredElements.values.forEach((NamedElement n) {
+      if (n is MethodElement) {
+        n.overrides.forEach((p) {
+          if (p is MethodElement && p.isAbstract && p.ast.returnType == null) {
+            TypeIdentifier parentTypeIdent = new ReturnTypeIdentifier(p);
+            TypeIdentifier thisTypeIdent = new ReturnTypeIdentifier(n);
+            subsetConstraint(thisTypeIdent, parentTypeIdent, filter: (e) => !(e is ParameterType));
+          }
+        });
+      }
+
+      if (n is FieldElement) {
+        n.overrides.forEach((p) {
+          if (p is FieldElement && p.varDecl.initializer == null) {
+            TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(p.classDecl), n.name);
+            TypeIdentifier thisTypeIdent   = new PropertyTypeIdentifier(new NominalType(n.classDecl), n.name);            
+            subsetConstraint(thisTypeIdent, parentTypeIdent, filter: (e) => !(e is ParameterType));
+          }
+        });
+      }
     
+    });
+        
     super.visitClassElement(node);
     
     node.implementElements.forEach((ClassElement implementsElement){
@@ -772,6 +786,12 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
           constructorName = new PrefixedName.FromIdentifier(classElement.identifier, new Name.FromIdentifier(constructorIdentifier));
       
         TypeIdentifier constructorIdent = new PropertyTypeIdentifier(classType, constructorName);
+
+
+        // handle as function call
+        //functionCall(constructorIdent, n.argumentList.arguments, nodeIdent);
+
+        // simple way
         functionCall(constructorIdent, n.argumentList.arguments, null);
         types.add(nodeIdent, classType);
       }

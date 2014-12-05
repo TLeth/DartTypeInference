@@ -123,7 +123,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   visitClassDeclaration(ClassDeclaration node){
     _openNewScope(scope, (_) {
       Our.ClassElement c = this.declaredElements[node];
-
+  
       c.declaredElements.forEach((k, v) {
         this.scope[k.toString()] = v;
       });
@@ -180,6 +180,12 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     node.initializers.accept(this);
     node.safelyVisitChild(node.redirectedConstructor, this);
     node.safelyVisitChild(node.body, this);
+  }
+  
+  visitConstructorFieldInitializer(ConstructorFieldInitializer node){
+    super.visitConstructorFieldInitializer(node);
+    Our.ClassElement c = scope['this'];
+    references[node.fieldName] = c.declaredFields[new Our.Name.FromIdentifier(node.fieldName)];
   }
   
   visitFieldDeclaration(FieldDeclaration node) {
