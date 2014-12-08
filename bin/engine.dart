@@ -18,6 +18,7 @@ import 'annotate.dart';
 import 'name_resolver.dart';
 import 'element.dart';
 import 'constraint.dart';
+import 'restrict.dart';
 import 'resolver.dart' hide IdentifierResolver;
 import 'printer.dart';
 import 'generics.dart';
@@ -62,6 +63,8 @@ class ErrorCollector {
   List<EngineError> _errors = <EngineError>[];
   Engine _engine;
   
+  bool get isEmpty => _errors.isEmpty;
+  
   
   ErrorCollector(Engine this._engine);
   
@@ -94,6 +97,8 @@ class Engine {
   ElementAnalysis get elementAnalysis => _elementAnalysis;
   ConstraintAnalysis _constraintAnalysis;
   ConstraintAnalysis get constraintAnalysis => _constraintAnalysis;
+  UseAnalysis _useAnalysis;
+  UseAnalysis get useAnalysis => _useAnalysis;
   GenericMapGenerator _genericMapGenerator;
   GenericMapGenerator get genericMapGenerator => _genericMapGenerator;
   
@@ -121,8 +126,17 @@ class Engine {
     last = new UserTag('ElementAnalysis').makeCurrent();
         
     _makeElementAnalysis();
+    if (!errors.isEmpty)
+      print(errors);
+    errors.reset();
     
     
+    last.makeCurrent();
+    last = new UserTag('UseAnalysis').makeCurrent();
+    
+    _makeUseAnalysis();
+    if (!errors.isEmpty)
+      print(errors);
     errors.reset();
 
     last.makeCurrent();
@@ -130,7 +144,8 @@ class Engine {
     
     
     _makeConstraintAnalysis();
-    
+    if (!errors.isEmpty)
+      print(errors);
     errors.reset();
 
     last.makeCurrent();
@@ -138,6 +153,9 @@ class Engine {
     
     
     _makeAnnotatedSource();
+    
+    if (!errors.isEmpty)
+      print(errors);
     
     last.makeCurrent();
    
@@ -261,6 +279,14 @@ class Engine {
     //_elementAnalysis.accept(new PrintLibraryVisitor(scope: false, import: false, export: true, defined: false, depended_exports: true));
     if (this.options.printElementNodes)
       _elementAnalysis.accept(new PrintElementVisitor(entrySourceElement));
+  }
+  
+  _makeUseAnalysis() {
+    _useAnalysis = new UseAnalysis(this);
+    
+    if (this.options.printRestrictNodes){
+      print(_useAnalysis.restrictions[entrySource]);
+    }
   }
   
   _makeConstraintAnalysis(){
