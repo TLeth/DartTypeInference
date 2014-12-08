@@ -27,8 +27,9 @@ class ConstraintAnalysis {
 class TypeMap {
   Map<TypeIdentifier, TypeVariable> _typeMap = <TypeIdentifier, TypeVariable>{};
   
-  TypeVariable operator [](TypeIdentifier ident) => containsKey(ident) ? _typeMap[ident] : _typeMap[ident] = new TypeVariable();
-  
+  TypeVariable operator [](TypeIdentifier ident) {
+    return containsKey(ident) ? _typeMap[ident] : _typeMap[ident] = new TypeVariable();
+  }
   Iterable<TypeIdentifier> get keys => _typeMap.keys;
   
   bool containsKey(TypeIdentifier ident) => _typeMap.containsKey(ident);  
@@ -83,7 +84,7 @@ class TypeVariable {
   
   List<AbstractType> get types => new List.from(_types); 
   
-  Function onChange(NotifyFunc func) {
+  void onChange(NotifyFunc func) {
     
     /*
      *  TODO 
@@ -112,8 +113,6 @@ class TypeVariable {
         }
       }
     } while(reset);
-    
-    return (() => this.remove(func));
   }
   
   bool remove(void func(AbstractType)){
@@ -156,7 +155,7 @@ abstract class ConstraintHelper {
   FilterFunc _lastWhere = null;
   GenericMapGenerator get genericMapGenerator;
   TypeMap get types;
-  
+    
   ConstraintHelper foreach(dynamic ident) {
     _lastTypeIdentifier = TypeIdentifier.ConvertToTypeIdentifier(ident);
     return this;
@@ -167,17 +166,33 @@ abstract class ConstraintHelper {
     return this;
   }
   
+  
+  bool updating = false;
+  List<Function> rem = [];  
   void update(NotifyFunc func, [bool stop = false]){
+    
     if (_lastTypeIdentifier != null){
       TypeIdentifier identifier = _lastTypeIdentifier;
       FilterFunc filter = _lastWhere;
       
       _lastTypeIdentifier = null;
       _lastWhere = null;
-      types[identifier].onChange((AbstractType t) {
-        if (filter == null || filter(t))
-           func(t);
+      
+      rem.add((){
+        types[identifier].onChange((AbstractType t) {
+          if (filter == null || filter(t))
+             func(t);
+        });                    
       });
+      
+      if (!updating){
+         updating = true;
+         while(!rem.isEmpty){
+           Function f = rem.removeLast();
+           f();
+         }
+         updating = false;
+      }
     }
   }
   
@@ -186,9 +201,20 @@ abstract class ConstraintHelper {
     subsetConstraint(b, a);
   }
   
+  HashMap<TypeIdentifier, HashSet<TypeIdentifier>> checked = new HashMap<TypeIdentifier, HashSet<TypeIdentifier>>();
+  
   void subsetConstraint(TypeIdentifier a, TypeIdentifier b, {FilterFunc filter: null, Map<ParameterType, AbstractType> binds: null}) {
     if (a == b)
       return;
+    
+    if (checked.containsKey(a) && checked[a].contains(b))
+      return;
+    
+    if (!checked.containsKey(a))
+      checked[a] = new HashSet();
+    
+    checked[a].add(b);
+    
     
     // If the binds is bound, then the subset should first resolve the binding.
     Function bindFunction;

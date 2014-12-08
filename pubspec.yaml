@@ -2,3 +2,4 @@ name: DartTypeInference
 description: DartTypeInfernce
 dependencies:
   analyzer: any
+  stack_trace: any

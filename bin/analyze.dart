@@ -1,10 +1,13 @@
-import 'package:args/args.dart';
+  import 'package:args/args.dart';
 import 'dart:io';
 import 'package:analyzer/src/generated/engine.dart';
 import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/sdk_io.dart';
 import 'package:analyzer/src/generated/java_io.dart';
 import 'engine.dart';
+
+import 'package:stack_trace/stack_trace.dart';
+
 
 DartSdk sdk;
 const int _MAX_CACHE_SIZE = 512;

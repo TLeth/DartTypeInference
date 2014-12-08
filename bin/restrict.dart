@@ -5,7 +5,6 @@ import 'element.dart';
 import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/ast.dart';
 import 'util.dart';
-import '/Users/jstroem/Projects/DartTypeInference/inferred/StageXL/lib/src/geom/matrix_3d.dart';
 
 class UseAnalysis {
 
