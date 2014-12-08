@@ -243,8 +243,8 @@ class Engine {
     new ExportResolver(this, _elementAnalysis);
     new ImportResolver(this, _elementAnalysis);
     
-    new IdentifierResolver(this,  _elementAnalysis);
     new ClassHierarchyResolver(this, _elementAnalysis);
+    new IdentifierResolver(this,  _elementAnalysis);
 
     if (this.options.printAstNodes) {
       unit.accept(new PrintAstVisitor());
