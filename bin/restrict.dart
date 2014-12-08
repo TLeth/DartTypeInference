@@ -5,7 +5,7 @@ import 'element.dart';
 import 'package:analyzer/src/generated/source.dart';
 import 'package:analyzer/src/generated/ast.dart';
 import 'util.dart';
-//import '/Applications/dart/dart-sdk/lib/internal/iterable.dart';
+import '/Users/jstroem/Projects/DartTypeInference/inferred/StageXL/lib/src/geom/matrix_3d.dart';
 
 class UseAnalysis {
 
@@ -99,23 +99,35 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
   RestrictMapGenerator(Engine this.engine, SourceElement this.currentSourceElement);
   
   visitPrefixedIdentifier(PrefixedIdentifier node){
-    ActualRestrictMap lastPropertyMap = currentPropertyMap;
+    //If the identifier is written within a comment dont look into it.
+    if (node.parent != null && node.parent.runtimeType.toString() == 'CommentReference')
+      return;
     
-    RestrictMap property = lastPropertyMap == null ? new RestrictMap() : lastPropertyMap;
-    currentPropertyMap = new ActualRestrictMap();
-    currentPropertyMap[new FieldElement.FromIdentifier(node.identifier)] = property;
-    
-    node.prefix.accept(this);
-    
-    currentPropertyMap = lastPropertyMap;
+    if (resolvedIdentifiers[node] != null) {
+      map[resolvedIdentifiers[node]] = currentPropertyMap;
+    } else {
+      ActualRestrictMap lastPropertyMap = currentPropertyMap;
+      RestrictMap property = lastPropertyMap == null ? new RestrictMap() : lastPropertyMap;
+      currentPropertyMap = new ActualRestrictMap();
+      currentPropertyMap[new FieldElement.FromIdentifier(node.identifier)] = property;
+      
+      node.prefix.accept(this);
+      
+      currentPropertyMap = lastPropertyMap;
+    }
   }
   
   visitSimpleIdentifier(SimpleIdentifier node){
     if (currentPropertyMap == null)
       return;
     
-    if (resolvedIdentifiers[node] == null)
+    //If the identifier is written within a label, dont look into it.
+    if (node.parent != null && node.parent.runtimeType.toString() == 'Label')
+      return;
+    
+    if (resolvedIdentifiers[node] == null){
       engine.errors.addError(new EngineError("The identifier: ${node} could not be resolved in the restrict pre-fase.", currentSourceElement.source, node.offset, node.length));
+    }
     
     map[resolvedIdentifiers[node]] = currentPropertyMap;
     
@@ -133,12 +145,16 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
       
       map[resolvedIdentifiers[node.methodName]] = currentPropertyMap;
     } else {
-      ActualRestrictMap lastPropertyMap = currentPropertyMap;
-      RestrictMap property = lastPropertyMap == null ? new RestrictMap() : lastPropertyMap;
-      currentPropertyMap = new ActualRestrictMap();
-      currentPropertyMap[new MethodElement.FromIdentifier(node.methodName)] = property;
-      node.realTarget.accept(this);
-      currentPropertyMap = lastPropertyMap;
+      if (resolvedIdentifiers[node.methodName] != null){
+        map[resolvedIdentifiers[node.methodName]] = currentPropertyMap;
+      } else {
+        ActualRestrictMap lastPropertyMap = currentPropertyMap;
+        RestrictMap property = lastPropertyMap == null ? new RestrictMap() : lastPropertyMap;
+        currentPropertyMap = new ActualRestrictMap();
+        currentPropertyMap[new MethodElement.FromIdentifier(node.methodName)] = property;
+        node.realTarget.accept(this);
+        currentPropertyMap = lastPropertyMap;
+      }
     }
   }
   

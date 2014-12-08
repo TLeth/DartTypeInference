@@ -5,7 +5,6 @@ import 'dart:profiler';
 import 'package:analyzer/src/generated/engine.dart';
 import 'package:analyzer/src/generated/sdk.dart';
 import 'package:analyzer/src/generated/java_io.dart';
-import 'package:analyzer/src/generated/constant.dart';
 import 'package:analyzer/src/generated/source_io.dart';
 import 'package:analyzer/src/generated/parser.dart';
 import 'package:analyzer/src/generated/scanner.dart';
@@ -129,13 +128,13 @@ class Engine {
     errors.reset();
     
     
-    last.makeCurrent();
+   /* last.makeCurrent();
     last = new UserTag('UseAnalysis').makeCurrent();
     
     _makeUseAnalysis();
     if (!errors.isEmpty)
       print(errors);
-    errors.reset();
+    errors.reset();*/
 
     last.makeCurrent();
     last = new UserTag('ConstraintAnalysis').makeCurrent();

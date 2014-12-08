@@ -96,7 +96,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
 
   Map<AstNode, Our.NamedElement> declaredElements;
   Map<Identifier, Our.NamedElement> references = {};
-  Map<Expression, List<Our.LibraryElement>> libs = {};
+  Map<String, List<Our.LibraryElement>> libs = {};
   
   Map<String, dynamic> scope;
   
@@ -123,15 +123,21 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   visitClassDeclaration(ClassDeclaration node){
     _openNewScope(scope, (_) {
       Our.ClassElement c = this.declaredElements[node];
+      
 
+      c.implementElements.forEach((interface) {
+        interface.classElements.forEach((k, v) {
+          this.scope[k.toString()] = v;
+        });
+      });
+      
       if (c.extendsElement != null) {
-        c.extendsElement.declaredElements.forEach((k, v) {
+        c.extendsElement.classElements.forEach((k, v) {
           this.scope[k.toString()] = v;
         });
       }
-  
       c.mixinElements.forEach((mixin) {
-        mixin.declaredElements.forEach((k, v) {
+        mixin.classElements.forEach((k, v) {
           this.scope[k.toString()] = v;
         });
       });
@@ -157,6 +163,17 @@ class ScopeVisitor extends GeneralizingAstVisitor {
       this.scope[node.name.toString()] = c;
       super.visitClassTypeAlias(node);
     });
+  }
+  
+  visitDeclaredIdentifier(DeclaredIdentifier node) {
+    var namedElem = this.declaredElements[node];
+
+    if (namedElem != null) {
+      this.scope[node.identifier.toString()+'='] = namedElem;
+      this.scope[node.identifier.toString()] = namedElem;
+    }
+
+    node.safelyVisitChild(node.identifier, this);
   }
 
   visitVariableDeclaration(VariableDeclaration node) {
@@ -253,7 +270,7 @@ class ScopeVisitor extends GeneralizingAstVisitor {
     String name = node.name.toString();
 
     if (scope[name] is List) {
-      libs[node] = scope[name];
+      libs[node.name] = scope[name];
       return;
     }
  
@@ -292,30 +309,34 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   }
 
   visitMethodInvocation(MethodInvocation node) {
-    node.safelyVisitChild(node.target, this);
 
     if (node.target == null)
       node.safelyVisitChild(node.methodName, this);
-
+    else {
+      if (libs.containsKey(node.target.toString())){
+        libs[node.target.toString()].forEach((Our.LibraryElement lib) {
+          var lookup = lib.lookup(new Our.Name.FromIdentifier(node.methodName), false);
+            
+          if (lookup != null)
+            references[node.methodName] = lookup;
+        });
+      } else {
+        node.safelyVisitChild(node.target, this);
+      }
+      node.safelyVisitChild(node.target, this);
+    }
+    
     node.safelyVisitChild(node.argumentList, this);
   }
 
 
   //Only resolve the prefix.
-  //TODO handle library 'as ...' imports.
   visitPrefixedIdentifier(PrefixedIdentifier node) {
     node.safelyVisitChild(node.prefix, this);
     
-    if (libs.containsKey(node.prefix)) {
+    if (libs.containsKey(node.prefix.name)) {
       
-      // if (node.identifier.toString() == 'Variable') {
-      //   print(references[node.prefix].source.source);
-      //   print(source);
-      // }
-      
-      
-      
-      libs[node.prefix].forEach((Our.LibraryElement lib) {
+      libs[node.prefix.name].forEach((Our.LibraryElement lib) {
         var lookup = lib.lookup(new Our.Name.FromIdentifier(node.identifier), false);
         
         if (lookup != null) {

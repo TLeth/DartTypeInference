@@ -24,6 +24,24 @@ class GenericMap {
   int get hashCode => _hashCode();
   
   int _hashCode([int level = RECURSIVE_LEVEL]){
+    if (typeArguments == null)
+      return classElement.hashCode * 31;
+    else {
+      int res = classElement.hashCode * 31;
+      for(var i = 0; i < typeArguments.arguments.length; i++){
+        TypeName type = typeArguments.arguments[i];
+          if (type.name.toString() == 'void')
+            res += 37 * (i + 1);
+          else if (type.name.toString() == 'dynamic')
+            res += 41 * (i + 1);
+          else {
+            NamedElement e = source.resolvedIdentifiers[type.name];
+            res += e.hashCode * 29 * (i + 1);
+          }          
+        }
+      return res;
+    }
+    /*
     if (level <= 0)
       return classElement.hashCode;
     
@@ -39,7 +57,7 @@ class GenericMap {
       } else
         res += param.hashCode * 13 * type.hashCode * 31;
     }
-    return res;
+    return res;*/
   }
   
   operator ==(Object other) => other is GenericMap && other.hashCode == hashCode;

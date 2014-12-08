@@ -331,18 +331,25 @@ class ClassElement extends Block implements NamedElement {
   //List of the type parameters, matching the parameters sequence.
   List<TypeParameterElement> typeParameters = <TypeParameterElement>[];
   
-  
-  
-
   Map<Name, NamedElement> get declaredElements => [declaredFields, declaredMethods, declaredTypeParameters].reduce(MapUtil.union);
     
   ClassDeclaration _decl;
   
   SourceElement sourceElement;
   
-  Map<Name, NamedElement> get classElements => (extendsElement == null ? 
-                                                declaredElements : 
-                                                MapUtil.union(declaredElements, extendsElement.classElements));
+  Map<Name, NamedElement> get classElements => MapUtil.union(inheritedElements, declaredElements);
+  
+  Map<Name, NamedElement> get inheritedElements {
+    Map<Name, NamedElement> res = <Name, NamedElement>{};
+    
+    if (extendsElement != null)
+      res = MapUtil.union(res, extendsElement.classElements);
+    
+    mixinElements.forEach((ClassElement mixin) =>
+      res = MapUtil.union(res, mixin.classElements));
+    
+    return res;
+  }
   
   Name name;
   bool get isPrivate => name.isPrivate;
@@ -470,13 +477,14 @@ class ClassAliasElement extends ClassElement {
 class VariableElement extends AnnotatedElement {
   Block enclosingBlock = null;
   VariableDeclaration variableAst;
+  DeclaredIdentifier declaredAst;
   
-  dynamic get ast => variableAst;
-  bool get isSynthetic => variableAst.isSynthetic;
-  bool get isConst => variableAst.isConst;
-  bool get isFinal => variableAst.isFinal;
+  dynamic get ast => variableAst == null ? declaredAst : variableAst;
+  bool get isSynthetic => variableAst == null ? declaredAst.isSynthetic : variableAst.isSynthetic;
+  bool get isConst => variableAst == null ? declaredAst.isConst : variableAst.isConst;
+  bool get isFinal => variableAst == null ? declaredAst.isFinal : variableAst.isFinal;
   Name name;
-  Identifier get identifier => variableAst.name;
+  Identifier get identifier => variableAst == null ? declaredAst.identifier : variableAst.name;
   
   TypeName annotatedType;
   
@@ -487,6 +495,11 @@ class VariableElement extends AnnotatedElement {
   VariableElement(VariableDeclaration this.variableAst, Block this.enclosingBlock, TypeName this.annotatedType, SourceElement this.sourceElement) {
     if (variableAst != null)
       name = new Name.FromIdentifier(variableAst.name);
+  }
+  
+  VariableElement.FromDeclaredIdentifier(DeclaredIdentifier this.declaredAst, Block this.enclosingBlock, TypeName this.annotatedType, SourceElement this.sourceElement) {
+    if (declaredAst != null)
+      name = new Name.FromIdentifier(declaredAst.identifier);
   }
   
   String toString() {
@@ -1288,11 +1301,21 @@ class ElementGenerator extends GeneralizingAstVisitor {
     }
   }
   
+  visitDeclaredIdentifier(DeclaredIdentifier node){
+    if (_currentBlock != null) {
+        VariableElement variable = new VariableElement.FromDeclaredIdentifier(node, _currentBlock, _currentVariableType, element);
+        analysis.addElement(node, variable);
+        _currentBlock.addVariable(variable);
+        super.visitDeclaredIdentifier(node);
+      } else {
+        engine.errors.addError(new EngineError("The current block is not set, so the variable cannot be associated with any.", source, node.offset, node.length), true);
+      }
+  }
+  
   visitFunctionDeclaration(FunctionDeclaration node) {
     _lastSeenFunctionDeclaration = node;
     super.visitFunctionDeclaration(node);
   }
-    
   
 
   visitFunctionExpression(FunctionExpression node) {
