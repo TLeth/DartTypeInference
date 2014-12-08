@@ -10,6 +10,6 @@ class A {
         this.c = c;
 }
 
-void main () {
+void main() {
   A aa = new A(3);
 }
