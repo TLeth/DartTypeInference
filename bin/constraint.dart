@@ -10,7 +10,6 @@ import 'util.dart';
 import 'generics.dart';
 import 'dart:collection';
 
-num a;
 class ConstraintAnalysis {
   TypeMap typeMap;
   
