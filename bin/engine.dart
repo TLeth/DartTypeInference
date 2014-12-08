@@ -126,8 +126,6 @@ class Engine {
     last = new UserTag('ElementAnalysis').makeCurrent();
         
     _makeElementAnalysis();
-    if (!errors.isEmpty)
-      print(errors);
     errors.reset();
     
     
@@ -144,8 +142,6 @@ class Engine {
     
     
     _makeConstraintAnalysis();
-    if (!errors.isEmpty)
-      print(errors);
     errors.reset();
 
     last.makeCurrent();
