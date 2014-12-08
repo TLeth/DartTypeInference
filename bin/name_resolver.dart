@@ -123,7 +123,19 @@ class ScopeVisitor extends GeneralizingAstVisitor {
   visitClassDeclaration(ClassDeclaration node){
     _openNewScope(scope, (_) {
       Our.ClassElement c = this.declaredElements[node];
+
+      if (c.extendsElement != null) {
+        c.extendsElement.declaredElements.forEach((k, v) {
+          this.scope[k.toString()] = v;
+        });
+      }
   
+      c.mixinElements.forEach((mixin) {
+        mixin.declaredElements.forEach((k, v) {
+          this.scope[k.toString()] = v;
+        });
+      });
+
       c.declaredElements.forEach((k, v) {
         this.scope[k.toString()] = v;
       });
@@ -244,17 +256,14 @@ class ScopeVisitor extends GeneralizingAstVisitor {
       libs[node] = scope[name];
       return;
     }
-
-    
+ 
     Our.Name getter = new Our.Name(name);
     Our.Name setter = new Our.Name(name + '=');
 
     var local_getter_element = scope[name];
     var local_setter_element = scope[name + '='];
     var lib_getter_element = library.lookup(getter, false);
-    var lib_setter_element = library.lookup(setter, false);
-
-    
+    var lib_setter_element = library.lookup(setter, false);    
     
     if (local_getter_element != null) 
       {
