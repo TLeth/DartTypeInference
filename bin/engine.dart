@@ -128,14 +128,14 @@ class Engine {
     errors.reset();
     
     
-   /* last.makeCurrent();
+   last.makeCurrent();
     last = new UserTag('UseAnalysis').makeCurrent();
     
     _makeUseAnalysis();
     if (!errors.isEmpty)
       print(errors);
-    errors.reset();*/
-
+    errors.reset();
+  
     last.makeCurrent();
     last = new UserTag('ConstraintAnalysis').makeCurrent();
     

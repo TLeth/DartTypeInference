@@ -118,5 +118,6 @@ import 'generic_parentfield.dart';
 import 'future_then.dart';
 import 'var_multi.dart';
 import 'native.dart';
+import 'mixin_method.dart';
 
 void main() {}

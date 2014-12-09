@@ -125,24 +125,17 @@ class ScopeVisitor extends GeneralizingAstVisitor {
       Our.ClassElement c = this.declaredElements[node];
       
 
-      c.implementElements.forEach((interface) {
-        interface.classElements.forEach((k, v) {
-          this.scope[k.toString()] = v;
-        });
-      });
-      
-      if (c.extendsElement != null) {
-        c.extendsElement.classElements.forEach((k, v) {
-          this.scope[k.toString()] = v;
-        });
-      }
-      c.mixinElements.forEach((mixin) {
-        mixin.classElements.forEach((k, v) {
+      c.implementElements.forEach((Our.ClassElement interface) {
+        interface.classMembers.forEach((k, v) {
           this.scope[k.toString()] = v;
         });
       });
 
-      c.declaredElements.forEach((k, v) {
+      c.classMembers.forEach((k, v) {
+        this.scope[k.toString()] = v;
+      });
+      
+      c.declaredTypeParameters.forEach((k, v) {
         this.scope[k.toString()] = v;
       });
 

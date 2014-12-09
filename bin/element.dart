@@ -337,18 +337,36 @@ class ClassElement extends Block implements NamedElement {
   
   SourceElement sourceElement;
   
-  Map<Name, NamedElement> get classElements => MapUtil.union(inheritedElements, declaredElements);
+  Map<Name, ClassMember> _classMembers = null; 
+  Map<Name, ClassMember> get classMembers {
+    if (_classMembers != null)
+      return _classMembers;
+    
+    _classMembers = MapUtil.union(inheritedClassMembers, mixinClassMembers);
+    _classMembers = MapUtil.union(_classMembers, [declaredFields, declaredMethods].reduce(MapUtil.union));
+    return _classMembers;
+  }
   
-  Map<Name, NamedElement> get inheritedElements {
-    Map<Name, NamedElement> res = <Name, NamedElement>{};
-    
+  Map<Name, ClassMember> _inheritedClassMembers= null;
+  Map<Name, ClassMember> get inheritedClassMembers {
+    if (_inheritedClassMembers != null)
+      return _inheritedClassMembers;
     if (extendsElement != null)
-      res = MapUtil.union(res, extendsElement.classElements);
+      _inheritedClassMembers = extendsElement.classMembers;
+    else
+      _inheritedClassMembers = <Name, ClassMember>{};
+    return _inheritedClassMembers;  
+  }
+  
+  Map<Name, ClassMember> _mixinClassMembers = null;
+  Map<Name, ClassMember> get mixinClassMembers {
+    if (_mixinClassMembers != null)
+      return _mixinClassMembers;
     
+    _mixinClassMembers = <Name, ClassMember>{};
     mixinElements.forEach((ClassElement mixin) =>
-      res = MapUtil.union(res, mixin.classElements));
-    
-    return res;
+      _mixinClassMembers = MapUtil.union(_mixinClassMembers, mixin.classMembers));
+    return _mixinClassMembers;
   }
   
   Name name;

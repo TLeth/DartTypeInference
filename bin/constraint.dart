@@ -330,14 +330,13 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     types.add(elementTypeIdent, new NominalType(node));
     
     //Make inheritance
-    if (node.extendsElement != null) {
-      Map<Name, NamedElement> classElements = node.classElements;
-      List<Name> inheritedElements = ListUtil.complement(node.classElements.keys, node.declaredElements.keys);
-      for(Name n in inheritedElements){
-        TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(node.extendsElement, true), n);
-        TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node, true), n);
-        equalConstraint(parentTypeIdent, thisTypeIdent);
-      }
+    Map<Name, ClassMember> classMembers = node.classMembers;
+    List<Name> inheritedElements = ListUtil.complement(node.classMembers.keys, node.declaredElements.keys);
+    for(Name n in inheritedElements){
+      ClassMember member  = node.classMembers[n];
+      TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(member.classDecl, true), n);
+      TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node, true), n);
+      equalConstraint(parentTypeIdent, thisTypeIdent);
     }
 
     node.declaredElements.values.forEach((NamedElement n) {
