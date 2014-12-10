@@ -71,7 +71,7 @@ class CommandLineOptions {
   
   /** Whether to enable debug printing of restriction nodes. */
   final bool printRestrictNodes;
-  
+    
   final bool analyzeSDK;
   final bool analyzePackages;
 

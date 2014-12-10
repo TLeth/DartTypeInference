@@ -9,6 +9,7 @@ import 'types.dart';
 import 'util.dart';
 import 'generics.dart';
 import 'dart:collection';
+import 'restrict.dart';
 
 class ConstraintAnalysis {
   TypeMap typeMap;
@@ -60,6 +61,7 @@ class TypeMap {
 
 typedef bool FilterFunc(AbstractType t);
 typedef dynamic NotifyFunc(AbstractType t);
+typedef Iterable<AbstractType> ExpandFunc(AbstractType t);
 
 class TypeVariable {
   Set<AbstractType> _types = new Set<AbstractType>();
@@ -153,6 +155,7 @@ class TypeVariable {
 abstract class ConstraintHelper {
   TypeIdentifier _lastTypeIdentifier = null;
   FilterFunc _lastWhere = null;
+  ExpandFunc _expandFunc = null;
   GenericMapGenerator get genericMapGenerator;
   TypeMap get types;
     
@@ -166,6 +169,11 @@ abstract class ConstraintHelper {
     return this;
   }
   
+  ConstraintHelper expand(ExpandFunc func){
+    _expandFunc = func;
+    return this;
+  }
+  
   
   bool updating = false;
   List<Function> rem = [];  
@@ -174,16 +182,29 @@ abstract class ConstraintHelper {
     if (_lastTypeIdentifier != null){
       TypeIdentifier identifier = _lastTypeIdentifier;
       FilterFunc filter = _lastWhere;
+      ExpandFunc expand = _expandFunc;
       
       _lastTypeIdentifier = null;
       _lastWhere = null;
+      _expandFunc = null;
       
-      rem.add((){
-        types[identifier].onChange((AbstractType t) {
-          if (filter == null || filter(t))
-             func(t);
-        });                    
-      });
+      if (expand == null){
+        rem.add((){
+          types[identifier].onChange((AbstractType t) {
+            if (filter == null || filter(t))
+               func(t);
+          });                    
+        });
+      } else {
+        rem.add((){
+          types[identifier].onChange((AbstractType t) {
+            expand(t).forEach((AbstractType t) {
+              if (filter == null || filter(t))
+                func(t);  
+            });
+          });
+        });
+      }
       
       if (!updating){
          updating = true;
@@ -542,6 +563,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   SourceElement source;
   Engine get engine => constraintAnalysis.engine;
   GenericMapGenerator get genericMapGenerator => engine.genericMapGenerator;
+  Restriction get restrict => engine.restrict;
 
   ClassElement _currentClassElement = null;
   
@@ -845,10 +867,11 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       TypeIdentifier functionIdent = new ExpressionTypeIdentifier(node.methodName);
       functionCall(functionIdent, node.argumentList.arguments, returnIdent);
     } else {
-      //TODO (jln): Does this take library prefix into account?
+      Name property = new Name.FromIdentifier(node.methodName);
+      
       TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.realTarget);
-      foreach(targetIdent).update((AbstractType type) { 
-        TypeIdentifier functionIdent = new PropertyTypeIdentifier(type, new Name.FromIdentifier(node.methodName));
+      foreach(targetIdent).expand(propertyRestrict(property)).update((AbstractType type) { 
+        TypeIdentifier functionIdent = new PropertyTypeIdentifier(type, property);
         functionCall(functionIdent, node.argumentList.arguments, returnIdent);
       });
     }
@@ -1055,8 +1078,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   // \alpha \in [v] => [exp] \subseteq [\alpha.prop]
   assignmentPropertyAccess(PropertyAccess leftHandSide, TypeIdentifier expIdent){
     TypeIdentifier targetIdent = new ExpressionTypeIdentifier(leftHandSide.realTarget);
-    foreach(targetIdent).update((AbstractType alpha){
-      TypeIdentifier alphapropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.propertyName));
+    
+    Name property = new Name.FromIdentifier(leftHandSide.propertyName);
+    foreach(targetIdent).expand(propertyRestrict(property)).update((AbstractType alpha){
+      TypeIdentifier alphapropertyIdent = new PropertyTypeIdentifier(alpha, property);
       subsetConstraint(expIdent, alphapropertyIdent);
     });
   }
@@ -1066,8 +1091,9 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   assignmentPrefixedIdentifier(PrefixedIdentifier leftHandSide, TypeIdentifier expIdent){
     TypeIdentifier prefixIdent = new ExpressionTypeIdentifier(leftHandSide.prefix);
     
-    foreach(prefixIdent).update((AbstractType alpha){
-      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.identifier));
+    Name property = new Name.FromIdentifier(leftHandSide.identifier);
+    foreach(prefixIdent).expand(propertyRestrict(property)).update((AbstractType alpha){
+      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, property);
       subsetConstraint(expIdent, alphaPropertyIdent);
     });
 
@@ -1077,8 +1103,9 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   // \alpha \in [v] => (\beta => \gamma => void) \in [v.[]=] => [i] \subseteq [\beta] && [exp] \subseteq [\gamma]
   assignmentIndexExpression(IndexExpression leftHandSide, TypeIdentifier expIdent){
     TypeIdentifier targetIdent = new ExpressionTypeIdentifier(leftHandSide.realTarget);
-    foreach(targetIdent).update((AbstractType alpha) {
-      TypeIdentifier indexEqualMethodIdent = new PropertyTypeIdentifier(alpha, new Name("[]="));
+    Name property = new Name("[]=");
+    foreach(targetIdent).expand(propertyRestrict(property)).update((AbstractType alpha) {
+      TypeIdentifier indexEqualMethodIdent = new PropertyTypeIdentifier(alpha, property);
       functionCall(indexEqualMethodIdent, [leftHandSide.index, expIdent], null);
     });
   }
@@ -1116,6 +1143,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     }
   }
   
+  ExpandFunc propertyRestrict(Name property) {
+    return (AbstractType type) => restrict.restrict(type, property, source);
+  }
+  
   visitPrefixedIdentifier(PrefixedIdentifier n){
     if (source.resolvedIdentifiers[n] != null ){
       Identifier ident = source.resolvedIdentifiers[n].identifier;
@@ -1129,9 +1160,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
     TypeIdentifier prefixIdent = new ExpressionTypeIdentifier(n.prefix);
     
-    //TODO (jln): Does this take library prefix into account?
-    foreach(prefixIdent).update((AbstractType alpha) {
-      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.identifier));
+    Name property = new Name.FromIdentifier(n.identifier);
+    
+    foreach(prefixIdent).expand(propertyRestrict(property)).update((AbstractType alpha) {
+      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, property);
       
       if (alpha is NominalType)
         subsetConstraint(alphaPropertyIdent, nodeIdent, binds: alpha.getGenericTypeMap(genericMapGenerator)); 
@@ -1145,9 +1177,9 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
     TypeIdentifier targetIdent = new ExpressionTypeIdentifier(n.realTarget);
     
-    //TODO (jln): Does this take library prefix into account?
-    foreach(targetIdent).update((AbstractType alpha) {
-      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.propertyName));
+    Name property = new Name.FromIdentifier(n.propertyName);
+    foreach(targetIdent).expand(propertyRestrict(property)).update((AbstractType alpha) {
+      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, property);
       if (alpha is NominalType && alpha.genericMap != null)
         subsetConstraint(alphaPropertyIdent, nodeIdent, binds: alpha.getGenericTypeMap(genericMapGenerator)); 
       else
@@ -1159,10 +1191,12 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     super.visitIndexExpression(n);
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
     TypeIdentifier targetIdent = new ExpressionTypeIdentifier(n.realTarget);
+    
+    Name property = new Name("[]");
         
     //TODO (jln): Does this take library prefix into account?
-    foreach(targetIdent).update((AbstractType alpha) {
-      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name("[]"));
+    foreach(targetIdent).expand(propertyRestrict(property)).update((AbstractType alpha) {
+      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, property);
       functionCall(methodIdent, <Expression>[n.index], nodeIdent);
     });
   }
@@ -1289,8 +1323,11 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       //  \forall \gamma \in [exp1], 
       //  \forall (\alpha -> \beta) \in [ \gamma .op ] => 
       //      \alpha \in [exp2] && \beta \in [exp1 op exp2].
-      foreach(leftIdent).update((AbstractType gamma) {
-        TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(node.operator));
+      
+      Name operator = new Name.FromToken(node.operator);
+      
+      foreach(leftIdent).expand(propertyRestrict(operator)).update((AbstractType gamma) {
+        TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, operator);
         functionCall(methodIdent, [rightIdent], nodeIdent);
       });
     }
@@ -1334,7 +1371,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       
       TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.operand);
       TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
-      foreach(targetIdent).update((AbstractType type) { 
+      foreach(targetIdent).expand(propertyRestrict(operator)).update((AbstractType type) { 
         TypeIdentifier methodIdent = new PropertyTypeIdentifier(type, operator); 
         functionCall(methodIdent, [], nodeIdent);
       });
@@ -1345,11 +1382,11 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
    * Desugaring for prefix expressions using ++ or --.
    */
   incrementDecrementPrefixExpression(PrefixExpression node){
-    String operator = null;
+    Name operator = null;
     if (node.operator.type == TokenType.MINUS_MINUS)
-      operator = '-';
+      operator = new Name('-');
     else if (node.operator.type == TokenType.PLUS_PLUS)
-      operator = '+';
+      operator = new Name('+');
     
     if (operator == null)
       engine.errors.addError(new EngineError("incrementDecrementPrefixExpression was called but the operator was neither MINUS_MINUS or PLUS_PLUS.", source.source, node.offset, node.length), true);
@@ -1358,8 +1395,8 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
     
     //Make the operation
-    foreach(vIdent).update((AbstractType alpha) {
-      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name(operator));
+    foreach(vIdent).expand(propertyRestrict(operator)).update((AbstractType alpha) {
+      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, operator);
       TypeIdentifier returnIdent = new SyntheticTypeIdentifier(vIdent);
       functionCall(methodIdent, <Expression>[new IntegerLiteral(new StringToken(TokenType.INT, "1", 0), 1)], returnIdent);
       //Result of (leftHandSide op RightHandSide) should be the result of the hole node.

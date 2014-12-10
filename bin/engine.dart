@@ -15,9 +15,10 @@ import 'package:analyzer/src/analyzer_impl.dart';
 import 'analyze.dart';
 import 'annotate.dart';
 import 'name_resolver.dart';
+import 'restrict.dart';
 import 'element.dart';
 import 'constraint.dart';
-import 'restrict.dart';
+import 'use_analysis.dart';
 import 'resolver.dart' hide IdentifierResolver;
 import 'printer.dart';
 import 'generics.dart';
@@ -101,6 +102,10 @@ class Engine {
   GenericMapGenerator _genericMapGenerator;
   GenericMapGenerator get genericMapGenerator => _genericMapGenerator;
   
+  Restriction _restrict;
+  Restriction get restrict => _restrict;
+  
+  
   JavaFile get entryFile => _entryFile;
   Source get entrySource => _entrySource;
   
@@ -132,8 +137,6 @@ class Engine {
     last = new UserTag('UseAnalysis').makeCurrent();
     
     _makeUseAnalysis();
-    if (!errors.isEmpty)
-      print(errors);
     errors.reset();
   
     last.makeCurrent();
@@ -282,6 +285,8 @@ class Engine {
     if (this.options.printRestrictNodes){
       print(_useAnalysis.restrictions[entrySource]);
     }
+    
+    _restrict = new Restriction(this);
   }
   
   _makeConstraintAnalysis(){
