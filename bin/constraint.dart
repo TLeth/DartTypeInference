@@ -128,14 +128,7 @@ class TypeVariable {
    *
    */
   AbstractType getLeastUpperBound(Engine engine) {
-    if (_types.length == 0) return new DynamicType();
-    Queue<AbstractType> queue = new Queue<AbstractType>.from(_types);
-    AbstractType res = queue.removeFirst();
-    res = queue.fold(res, (AbstractType res, AbstractType t) => res.getLeastUpperBound(t, engine));
-    if (res == null)
-      return new DynamicType();
-    else 
-      return res;
+    return AbstractType.LeastUpperBound(_types, engine);
   }
   
   bool has_listener(void f(TypeVariable, AbstractType)) => _event_listeners.contains(f);
@@ -280,9 +273,9 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     NamedElement namedElement = source.resolvedIdentifiers[type.name];
     if (namedElement is ClassElement)
-      return new NominalType.makeInstance(namedElement, genericMapGenerator.create(namedElement, type.typeArguments, source), true);
+      return new NominalType.makeInstance(namedElement, genericMapGenerator.create(namedElement, type.typeArguments, source));
     if (namedElement is TypeParameterElement)
-      return new ParameterType(namedElement, true);
+      return new ParameterType(namedElement);
     
     engine.errors.addError(new EngineError("Unable to resolve type: ${type}.", source.source, type.offset, type.length),false);
     return null;
@@ -355,8 +348,8 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     List<Name> inheritedElements = ListUtil.complement(node.classMembers.keys, node.declaredElements.keys);
     for(Name n in inheritedElements){
       ClassMember member  = node.classMembers[n];
-      TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(member.classDecl, true), n);
-      TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node, true), n);
+      TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(member.classDecl), n);
+      TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node), n);
       equalConstraint(parentTypeIdent, thisTypeIdent);
     }
 
@@ -420,9 +413,9 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     //Class members needs to be bound to the class property as well.
     if (node.isSetter)
-      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl, true), node.getterName));
+      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.getterName));
     else
-      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl, true), node.name));
+      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.name));
   }
   
   visitNamedFunctionElement(NamedFunctionElement node) {
@@ -670,7 +663,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     FunctionParameterElement funcElement = parameterIdentifier.functionParameterElement;
     ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(funcElement, source.library, source, elementAnalysis);
     
-    FilterFunc isParameterTypeAndAnnotated = (AbstractType t) => t is ParameterType && t.annotatedType && binds.containsKey(t);
+    FilterFunc isParameterType = (AbstractType t) => t is ParameterType && binds.containsKey(t);
     
     foreach(argumentIdentifier)
     .where((AbstractType func) {
@@ -681,13 +674,13 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     .update((AbstractType func) {
         if (func is FunctionType) {
           for (var i = 0; i < paramIdents.normalParameterTypes.length;i++)
-            subsetConstraint(paramIdents.normalParameterTypes[i], func.normalParameterTypes[i], filter: isParameterTypeAndAnnotated, binds: binds);
+            subsetConstraint(paramIdents.normalParameterTypes[i], func.normalParameterTypes[i], filter: isParameterType, binds: binds);
             
           for (var i = 0; i < func.optionalParameterTypes.length;i++)
-            subsetConstraint(paramIdents.optionalParameterTypes[i], func.optionalParameterTypes[i], filter: isParameterTypeAndAnnotated, binds: binds);
+            subsetConstraint(paramIdents.optionalParameterTypes[i], func.optionalParameterTypes[i], filter: isParameterType, binds: binds);
           
           for(Name name in func.namedParameterTypes.keys)
-            subsetConstraint(paramIdents.namedParameterTypes[name], func.namedParameterTypes[name], filter: isParameterTypeAndAnnotated, binds: binds);
+            subsetConstraint(paramIdents.namedParameterTypes[name], func.namedParameterTypes[name], filter: isParameterType, binds: binds);
         }
      });
   }
@@ -1144,7 +1137,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   }
   
   ExpandFunc propertyRestrict(Name property) {
-    return (AbstractType type) => restrict.restrict(type, property, source);
+    return (AbstractType type) => restrict.restrict(type, property, source.source);
   }
   
   visitPrefixedIdentifier(PrefixedIdentifier n){
@@ -1310,7 +1303,6 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
         node.operator.type == TokenType.BAR_BAR)
       logicalBinaryExpression(node);
     else {
-      
       /*
        * Desugaring is made
        */
@@ -1325,6 +1317,8 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       //      \alpha \in [exp2] && \beta \in [exp1 op exp2].
       
       Name operator = new Name.FromToken(node.operator);
+      if (node.operator.type == TokenType.BANG_EQ)
+        operator = new Name("==");
       
       foreach(leftIdent).expand(propertyRestrict(operator)).update((AbstractType gamma) {
         TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, operator);

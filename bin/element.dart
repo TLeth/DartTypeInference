@@ -68,6 +68,9 @@ class ElementAnalysis {
     return null; 
   }
   
+  ClassElement get objectElement => resolveClassElement(new Name("Object"), dartCore, dartCore.source);
+  ClassElement get functionElement => resolveClassElement(new Name("Function"), dartCore, dartCore.source);
+  
   TypeParameterElement resolveTypeParameterElement(Identifier identifier, SourceElement source) {
       NamedElement element = source.resolvedIdentifiers[identifier];
       if (element is TypeParameterElement)
@@ -192,7 +195,7 @@ abstract class Element {
   dynamic accept(ElementVisitor visitor);
 }
 
-abstract class NamedElement extends Element {
+abstract class NamedElement extends Element with NamedMixin {
   Name get name;
   Identifier get identifier;
   bool get isPrivate => name.isPrivate;
@@ -201,7 +204,15 @@ abstract class NamedElement extends Element {
   Name get setterName => Name.SetterName(name);
 }
 
-abstract class AnnotatedElement extends NamedElement {
+abstract class NamedMixin {
+  Name get name;
+  bool get isPrivate => name.isPrivate;
+  
+  Name get getterName => name;
+  Name get setterName => Name.SetterName(name);
+}
+
+abstract class AnnotatedElement extends Element {
   AstNode get ast;
   TypeName get annotatedType => null;
 }
@@ -533,7 +544,7 @@ class ClassAliasElement extends ClassElement {
 /** 
  * Instance of a `VariableElement` is our abstract representation of a variable.
  **/
-class VariableElement extends AnnotatedElement {
+class VariableElement extends AnnotatedElement with NamedMixin implements NamedElement {
   Block enclosingBlock = null;
   VariableDeclaration variableAst;
   DeclaredIdentifier declaredAst;
@@ -566,6 +577,19 @@ class VariableElement extends AnnotatedElement {
             "${isFinal ? ' final ' : ''}"+
             "${isSynthetic ? ' synthetic ' : ''}] ${name}";
   }
+}
+
+class VariableElementList extends AnnotatedElement {
+  VariableDeclarationList ast;
+ 
+  SourceElement sourceElement;
+  TypeName annotatedType;
+  
+  VariableElementList(VariableDeclarationList this.ast, TypeName this.annotatedType, SourceElement this.sourceElement);
+  
+  dynamic accept(ElementVisitor visitor) => visitor.visitVariableElementList(this);
+  
+  
 }
 
 class TypeParameterElement extends NamedElement {
@@ -641,7 +665,7 @@ abstract class ClassMember {
 /**
  * instance of the class `Callable` is our abstraction of an element that can be invoked.
  */
-abstract class CallableElement extends Element {
+abstract class CallableElement extends Element implements AnnotatedElement {
   TypeName get returnType;
   FormalParameterList get parameters;
   List<ParameterElement> get parameterElements;
@@ -656,7 +680,7 @@ abstract class CallableElement extends Element {
 /**
  * Instances of a class`FieldElement` is a our abstract representation of fields
  **/
-class FieldElement extends AnnotatedElement with ClassMember {
+class FieldElement extends AnnotatedElement with ClassMember, NamedMixin implements NamedElement {
   FieldDeclaration ast;
   VariableDeclaration varDecl;
   ClassElement classDecl;
@@ -696,7 +720,7 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
   Name _name;
   Name get setterName => Name.SetterName(_name);
   Name get getterName => Name.GetterName(_name);
-
+  
   Name get name => _name;
   Identifier get identifier => this.ast.name;
   bool get isAbstract => ast.isAbstract;
@@ -711,6 +735,7 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
   
   
   TypeName get returnType => ast.returnType;
+  TypeName get annotatedType => returnType;
   FormalParameterList get parameters => ast.parameters;
   List<ReturnElement> _returns = <ReturnElement>[];
   List<ReturnElement> get returns => _returns;
@@ -746,7 +771,7 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
 /**
  * Instances of a class `ConstructorElement` is a our abstract representation of constructors
  **/
-class ConstructorElement extends Block with ClassMember implements NamedElement, CallableElement{
+class ConstructorElement extends Block with ClassMember implements NamedElement, CallableElement {
   ConstructorDeclaration ast;
   ClassElement classDecl;
   
@@ -763,6 +788,7 @@ class ConstructorElement extends Block with ClassMember implements NamedElement,
   bool get isStatic => true;
   TypeName _returnType;
   TypeName get returnType => _returnType;
+  TypeName get annotatedType => returnType;
   FormalParameterList get parameters => ast.parameters;
   
   List<ReturnElement> _returns = <ReturnElement>[];
@@ -801,6 +827,7 @@ class FunctionElement extends Block with Element implements CallableElement {
   
 
   TypeName get returnType => null;
+  TypeName get annotatedType => returnType;
   FormalParameterList get parameters => ast.parameters;
   List<ReturnElement> _returns = <ReturnElement>[];
   List<ReturnElement> get returns => _returns;
@@ -861,6 +888,7 @@ class FunctionAliasElement extends Block implements CallableElement, NamedElemen
   void addParameterElement(ParameterElement p) => _parameters.add(p);
   
   TypeName get returnType => ast.returnType;
+  TypeName get annotatedType => returnType;
   bool get isExternal => false;
   bool get isSynthetic => ast.isSynthetic;
   Name get name => _name;
@@ -934,6 +962,7 @@ abstract class ElementVisitor<R> {
   R visitFunctionAliasElement(FunctionAliasElement node);
   R visitNamedFunctionElement(NamedFunctionElement node);
   R visitVariableElement(VariableElement node);
+  R visitVariableElementList(VariableElementList node);
   R visitParameterElement(ParameterElement node);
   R visitFieldParameterElement(FieldParameterElement node);
   R visitFunctionParameterElement(FunctionParameterElement node);
@@ -1018,6 +1047,8 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   }
   
   A visitCallableElement(CallableElement node) {
+    if (node is! FunctionParameterElement) 
+      visitAnnotatedElement(node);
     node.returns.forEach(visit);
     node.parameterElements.forEach(visit);
     return null;
@@ -1046,7 +1077,6 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   }
   
   A visitAnnotatedElement(AnnotatedElement node) {
-    visitNamedElement(node);
     return null;
   }
   
@@ -1058,6 +1088,12 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   }
   
   A visitVariableElement(VariableElement node) {    
+    visitAnnotatedElement(node);
+    visitNamedElement(node);
+    return null;
+  }
+  
+  A visitVariableElementList(VariableElementList node){
     visitAnnotatedElement(node);
     return null;
   }

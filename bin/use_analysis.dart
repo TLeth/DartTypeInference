@@ -85,6 +85,8 @@ class RestrictMap {
         res[el] = RestrictMap.Union(aa[el], bb[el]));
     return res;
   }
+  
+  Set<Name> get properties => new Set<Name>();
 }
 
 class ActualRestrictMap extends RestrictMap {
@@ -94,6 +96,8 @@ class ActualRestrictMap extends RestrictMap {
   operator []=(RestrictElement n, RestrictMap m) => map[n] = m;
   
   Iterable<RestrictElement> get keys => map.keys;
+  
+  Set<Name> get properties => new Set<Name>.from(keys.map((RestrictElement element) => new Name(element.name)));
   
   String toString() {
     if (map.isEmpty) 

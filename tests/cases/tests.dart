@@ -121,5 +121,6 @@ import 'native.dart';
 import 'mixin_method.dart';
 import 'restrict_element.dart';
 import 'parent_field.dart';
+import 'fix_element.dart';
 
 void main() {}

@@ -6,6 +6,7 @@ import 'element.dart';
 import 'util.dart';
 import 'engine.dart';
 import 'generics.dart';
+import 'dart:collection';
 
 abstract class AbstractType {
   /**
@@ -30,16 +31,23 @@ abstract class AbstractType {
   bool isSubtypeOf(AbstractType type);
   
   /**
-   * Is `true` if the type spawns from a annotation. 
-   */
-  bool get annotatedType;
-
-  /**
    * Return `true` if this type is a supertype of the given type. A type <i>S</i> is a
    * supertype of <i>T</i>, written <i>S</i> :> <i>T</i>, iff <i>T</i> is a subtype of <i>S</i>.
    *
    */
   bool isSupertypeOf(AbstractType type) => type.isSubtypeOf(this);
+  
+  static AbstractType LeastUpperBound(Set<AbstractType> types, Engine engine, {AbstractType defaultValue: null}){
+    if (defaultValue == null) defaultValue = new DynamicType();
+    if (types.length == 0) return defaultValue;
+    Queue<AbstractType> queue = new Queue<AbstractType>.from(types);
+    AbstractType res = queue.removeFirst();
+    res = queue.fold(res, (AbstractType res, AbstractType t) => res.getLeastUpperBound(t, engine));
+    if (res == null)
+      return defaultValue;
+    else 
+      return res;
+  }
 }
 
 /*class FreeType extends AbstractType {
@@ -62,15 +70,14 @@ class FunctionType extends AbstractType {
   List<TypeIdentifier> optionalParameterTypes;
   Map<Name, TypeIdentifier> namedParameterTypes;
   TypeIdentifier returnType;
-  bool annotatedType;
   
   FunctionType(List<TypeIdentifier> this.normalParameterTypes, TypeIdentifier this.returnType, 
-              [List<TypeIdentifier> optionalParameterTypes = null, Map<Name, TypeIdentifier> namedParameterTypes = null, bool this.annotatedType = false ] ) :
+              [List<TypeIdentifier> optionalParameterTypes = null, Map<Name, TypeIdentifier> namedParameterTypes = null]) :
                 this.optionalParameterTypes = (optionalParameterTypes == null ? <TypeIdentifier>[] : optionalParameterTypes),
                 this.namedParameterTypes = (namedParameterTypes == null ? <Name, TypeIdentifier>{} : namedParameterTypes);
   
   factory FunctionType.FromIdentifiers(TypeIdentifier returnIdent, ParameterTypeIdentifiers paramIdents) =>
-    new FunctionType(paramIdents.normalParameterTypes, returnIdent, paramIdents.optionalParameterTypes, paramIdents.namedParameterTypes, true);
+    new FunctionType(paramIdents.normalParameterTypes, returnIdent, paramIdents.optionalParameterTypes, paramIdents.namedParameterTypes);
   
   String toString() {
     StringBuffer sb = new StringBuffer();
@@ -146,14 +153,13 @@ class NominalType extends AbstractType {
   ClassElement element;
   GenericMap _genericMap;
   GenericMapGenerator get _generator => element.sourceElement.engine.genericMapGenerator;
-  bool annotatedType;
   GenericMap get genericMap => _genericMap;
   
-  NominalType(ClassElement this.element, [ this.annotatedType = false ]) {
+  NominalType(ClassElement this.element) {
     _genericMap = _generator.create(element, null, element.sourceElement);
   }
   
-  NominalType.makeInstance(ClassElement this.element, GenericMap this._genericMap, [ this.annotatedType = false ] );
+  NominalType.makeInstance(ClassElement this.element, GenericMap this._genericMap);
   
   Map<ParameterType, AbstractType> getGenericTypeMap(GenericMapGenerator generator) {
     if (_genericMap == null)
@@ -161,7 +167,12 @@ class NominalType extends AbstractType {
     return _genericMap.get();
   }
   
-  String toString([int level = RECURSIVE_LEVEL]) => (_genericMap != null ? "${element.name.toString()}${_genericMap.toString(level)}" : element.name.toString());
+  String toString([int level = RECURSIVE_LEVEL]) {
+    if (_genericMap != null) 
+      return "${element.name.toString()}${_genericMap.toString(level)}";
+    else 
+      return element.name.toString();
+  }
   
   bool operator ==(Object other) => other is NominalType && other.element == this.element && other._genericMap == _genericMap;
   
@@ -182,8 +193,8 @@ class NominalType extends AbstractType {
     if (t is NominalType) {
       ClassElement leastUpperBound = element.getLeastUpperBound(t.element);
       if (leastUpperBound == null)
-        //In some cases the element cannot find the least upper bound, then return a dynamic type.
-        return new DynamicType();
+        //In some cases the element cannot find the least upper bound, then return a object type (all is a child of object).
+        return new NominalType(engine.elementAnalysis.objectElement);
       else {
         
         GenericMap genericMap = _genericMap.getLeastUpperBound(leastUpperBound, t, engine, level);
@@ -193,12 +204,12 @@ class NominalType extends AbstractType {
     }
    
     //If this type is Function and t is FunctionType, return Function.
-    ClassElement funcElement = engine.elementAnalysis.resolveClassElement(new Name('Function'), engine.elementAnalysis.dartCore, engine.elementAnalysis.dartCore.source);
+    ClassElement funcElement = engine.elementAnalysis.functionElement;
     if (funcElement == null)
       engine.errors.addError(new EngineError("Function could not be found in dart core library. Called from functionType getLeastUpperBound."), true);
-    if (t is FunctionType && this.element == funcElement)
-      return this;
-    
+    if (t is FunctionType && element.getLeastUpperBound(funcElement) == funcElement){
+      return new NominalType(funcElement);
+    }
     return new DynamicType();
   }
   
@@ -208,10 +219,9 @@ class NominalType extends AbstractType {
 class ParameterType extends AbstractType {
   TypeParameterElement parameter;
   
-  ParameterType(TypeParameterElement this.parameter, [this.annotatedType = true]);
+  ParameterType(TypeParameterElement this.parameter);
   
   bool isSubtypeOf(DynamicType t) => false;
-  bool annotatedType;
   
   /* 
    * This is called when trying to annotate variables, and by returning this, it ensures that the 
@@ -232,7 +242,6 @@ class DynamicType extends AbstractType {
   
   DynamicType._internal();
   
-  bool annotatedType = false;
   bool isSubtypeOf(DynamicType t) => true;
   
   AbstractType getLeastUpperBound(AbstractType t, Engine engine) {
@@ -269,7 +278,6 @@ class VoidType extends AbstractType {
   
   VoidType._internal();
   
-  bool annotatedType = false;
   bool isSubtypeOf(AbstractType t) => t is VoidType;
   
   AbstractType getLeastUpperBound(AbstractType t, Engine engine) => (t is DynamicType || t is ParameterType ? t.getLeastUpperBound(this, engine) : this);
