@@ -548,6 +548,7 @@ class VariableElement extends AnnotatedElement with NamedMixin implements NamedE
   Block enclosingBlock = null;
   VariableDeclaration variableAst;
   DeclaredIdentifier declaredAst;
+  TypeName ourAnnotatedType = null;
   
   dynamic get ast => variableAst == null ? declaredAst : variableAst;
   bool get isSynthetic => variableAst == null ? declaredAst.isSynthetic : variableAst.isSynthetic;
@@ -583,9 +584,10 @@ class VariableElementList extends AnnotatedElement {
   VariableDeclarationList ast;
  
   SourceElement sourceElement;
-  TypeName annotatedType;
+  TypeName ourAnnotatedType = null;
+  TypeName get annotatedType => ast.type;
   
-  VariableElementList(VariableDeclarationList this.ast, TypeName this.annotatedType, SourceElement this.sourceElement);
+  VariableElementList(VariableDeclarationList this.ast, SourceElement this.sourceElement);
   
   dynamic accept(ElementVisitor visitor) => visitor.visitVariableElementList(this);
   
@@ -670,6 +672,7 @@ abstract class CallableElement extends Element implements AnnotatedElement {
   FormalParameterList get parameters;
   List<ParameterElement> get parameterElements;
   List<ReturnElement> get returns;
+  TypeName ourAnnotatedType = null;
   bool get isSynthetic;
   bool get isExternal;
   void addReturn(ReturnElement);
@@ -716,6 +719,8 @@ class FieldElement extends AnnotatedElement with ClassMember, NamedMixin impleme
 class MethodElement extends Block with ClassMember implements CallableElement, NamedElement {
   MethodDeclaration ast;
   ClassElement classDecl;
+  
+  TypeName ourAnnotatedType = null;
   
   Name _name;
   Name get setterName => Name.SetterName(_name);
@@ -778,6 +783,8 @@ class ConstructorElement extends Block with ClassMember implements NamedElement,
   Name name; 
   bool get isPrivate => name.isPrivate;
   
+  TypeName ourAnnotatedType = null;
+  
   Name get getterName => name;
   Name get setterName => Name.SetterName(name);
   Identifier get identifier => (this.ast.name != null ? this.ast.name : this.ast.returnType);
@@ -824,7 +831,7 @@ class FunctionElement extends Block with Element implements CallableElement {
   FunctionExpression ast;
   SourceElement sourceElement;
   
-  
+  TypeName ourAnnotatedType = null;
 
   TypeName get returnType => null;
   TypeName get annotatedType => returnType;
@@ -853,6 +860,8 @@ class FunctionParameterElement extends ParameterElement implements CallableEleme
   List<ReturnElement> get returns => [];
   void addReturn(ReturnElement r) => null;
   
+  TypeName ourAnnotatedType = null;
+  
   dynamic accept(ElementVisitor visitor) => visitor.visitFunctionParameterElement(this);
 
   List<ParameterElement> _parameters = <ParameterElement>[];
@@ -873,6 +882,8 @@ class FunctionAliasElement extends Block implements CallableElement, NamedElemen
   FunctionTypeAlias ast;
   SourceElement sourceElement;
   Name _name;
+  
+  TypeName ourAnnotatedType = null;
 
   Map<Name, TypeParameterElement> declaredTypeParameters = <Name, TypeParameterElement>{};
   dynamic accept(ElementVisitor visitor) => visitor.visitFunctionAliasElement(this);
@@ -1374,6 +1385,8 @@ class ElementGenerator extends GeneralizingAstVisitor {
   
   visitVariableDeclarationList(VariableDeclarationList node){
     _currentVariableType = node.type;
+    VariableElementList variableElementList = new VariableElementList(node, element);
+    analysis.addElement(node, variableElementList);
     super.visitVariableDeclarationList(node);
     _currentVariableType = null;
   }

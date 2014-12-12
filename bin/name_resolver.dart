@@ -17,7 +17,6 @@ _openNewScope(scope, k) {
   return ret;
 }
 
-//TODO (jln): factories should be handled here. in ConstructorName there should be resolved what is a prefix of another library, and what is a factory call.
 class IdentifierResolver extends Our.RecursiveElementVisitor {
 
   Map<AstNode, Our.NamedElement> declaredElements = {};

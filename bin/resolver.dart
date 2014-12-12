@@ -296,8 +296,10 @@ class ClassHierarchyResolver {
     if (classElement.extendsElement == null){
       //They extendsClause is empty, so instead set Object as the extendedclass (implicit setup i Dart), except if it is the Object it self.
       if (classElement.superclass == null){
-        if (classElement != objectClassElement)
+        if (classElement != objectClassElement) {
           classElement.extendsElement = objectClassElement;
+          objectClassElement.extendsSubClasses.add(classElement);
+        }
       } else {
         ClassElement extendClass = analysis.resolveClassElement(new Name.FromIdentifier(classElement.superclass.name), libraryElement, sourceElement);
         if (extendClass == null)

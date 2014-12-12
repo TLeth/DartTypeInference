@@ -6,7 +6,7 @@ import 'element.dart';
 import 'dart:io';
 import 'package:analyzer/src/services/formatter_impl.dart';
 import 'package:analyzer/src/generated/source.dart';
-import 'package:analyzer/src/generated/ast.dart';
+import 'package:analyzer/src/generated/ast.dart' hide ClassMember;
 import 'package:analyzer/src/generated/scanner.dart';
 import 'types.dart';
 import 'result.dart';
@@ -92,8 +92,13 @@ class TypeAnnotator {
   }
   
   TypeName annotateWithRestrictions(Iterable<AbstractType> abstractTypes, Set<Name> properties, Source source, LibraryElement library, {bool canBeVoid: false, int offset: 0, List<TypeParameterElement> validTypeParameters: null}){
-    Set<AbstractType> focusedTypes = new Set<AbstractType>();
     if (abstractTypes == null) abstractTypes = [];
+    
+    Set<AbstractType> focusedTypes = new Set<AbstractType>();
+    
+    //TODO: (jln) This should be made in the fixpoint algorithm. 
+    if (abstractTypes.length == 0)
+      abstractTypes = [new NominalType(analysis.objectElement)];
     
     abstractTypes.forEach((AbstractType type) =>
         focusedTypes.addAll(restrict.focus(type, properties, source)));
@@ -222,7 +227,9 @@ class Annotator {
 
     typeAnnotator = new TypeAnnotator(engine.constraintAnalysis.typeMap, engine);
     
-    elementAnalysis.sources.values.forEach(annotateSource); 
+    elementAnalysis.sources.values.forEach(findSourceAnnotations);
+    elementAnalysis.sources.values.forEach(fixVoideOverride);
+    elementAnalysis.sources.values.forEach(annotateSource);
     
     if (engine.options.compareTypes) {
       stdout.writeln(res);
@@ -233,14 +240,33 @@ class Annotator {
     }
   }
   
+  findSourceAnnotations(SourceElement sourceElement){
+    if (sourceElement.source.uriKind == UriKind.FILE_URI) {
+      
+      var selection = null;
+
+      SourceVisitor visitor = new FindAnnotationsVisitor(this, sourceElement, new FormatterOptions(), sourceElement.ast.lineInfo, sourceElement.sourceContent, selection);
+      sourceElement.ast.accept(visitor);
+    }
+  }
+  
+  fixVoideOverride(SourceElement sourceElement){
+    if (sourceElement.source.uriKind == UriKind.FILE_URI) {
+      var selection = null;
+      
+      SourceVisitor visitor = new FixVoidVisitor(engine, sourceElement, new FormatterOptions(), sourceElement.ast.lineInfo, sourceElement.sourceContent, selection);
+      sourceElement.ast.accept(visitor);
+    }
+  }
+  
   annotateSource(SourceElement sourceElement){
     if (sourceElement.source.uriKind == UriKind.FILE_URI) {
       
       var selection = null;
 
-      var annotateVisitor = new AnnotateSourceVisitor(this, sourceElement, new FormatterOptions(), sourceElement.ast.lineInfo, sourceElement.sourceContent, selection);
-      sourceElement.ast.accept(annotateVisitor);
-      String annotatedSource = annotateVisitor.writer.toString();
+      SourceVisitor visitor = new AnnotateSourceVisitor(engine, sourceElement, new FormatterOptions(), sourceElement.ast.lineInfo, sourceElement.sourceContent, selection);
+      sourceElement.ast.accept(visitor);
+      String annotatedSource = visitor.writer.toString();
       
       FormattedSource formattedSource = new FormattedSource(annotatedSource, selection);
       FormattedSource finalSource;
@@ -270,8 +296,7 @@ class Annotator {
   }
 }
 
-//This should be a visitor making all the visits the strip visitor does.
-class AnnotateSourceVisitor extends SourceVisitor {
+class FindAnnotationsVisitor extends SourceVisitor {
   Annotator annotator;
   ElementAnalysis get elementAnalysis => annotator.elementAnalysis;
   ConstraintAnalysis get constraintAnalysis => annotator.constraintAnalysis;
@@ -280,35 +305,20 @@ class AnnotateSourceVisitor extends SourceVisitor {
   SourceElement sourceElement;
   List<TypeParameterElement> typeableParameterElements;
   
-  AnnotateSourceVisitor(this.annotator, this.sourceElement, options, lineInfo, source, preSelection): super(options, lineInfo, source, preSelection);
+  FindAnnotationsVisitor(this.annotator, this.sourceElement, options, lineInfo, source, preSelection): super(options, lineInfo, source, preSelection);
   
   static final bool ANNOTATE_GENERIC_TYPES = false;
   static final bool ANNOTATE_METHOD_TYPES = true;
   
   visitSimpleFormalParameter(SimpleFormalParameter node) {
-
-    visitMemberMetadata(node.metadata);
-
-    if (node.keyword is KeywordToken) {
-      KeywordToken keyword = node.keyword;
-      if (keyword.keyword != Keyword.VAR)
-        modifier(node.keyword);
-    } else
-      modifier(node.keyword);
-   
+    super.visitSimpleFormalParameter(node);
    Element parameterElement = elementAnalysis.elements[node];
    if (parameterElement is ParameterElement) {
-     visitNode(typeAnnotator.annotateNamedElement(parameterElement, sourceElement.library, offset: node.offset, validTypeParameters: typeableParameterElements), followedBy: nonBreakingSpace);
+     parameterElement.ourAnnotatedType = typeAnnotator.annotateNamedElement(parameterElement, sourceElement.library, offset: node.offset, validTypeParameters: typeableParameterElements);
    } else {
      engine.errors.addError(new EngineError("A SimpleFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
    }
-    
-   visit(node.identifier);
  }
-  
-  visitTypeArgumentList(TypeArgumentList node){
-    super.visitTypeArgumentList(node);
-  }
   
   visitClassDeclaration(ClassDeclaration node){
     ClassElement classElement = elementAnalysis.elements[node];
@@ -332,11 +342,122 @@ class AnnotateSourceVisitor extends SourceVisitor {
   }
   
   visitFieldFormalParameter(FieldFormalParameter node) {
+    super.visitFieldFormalParameter(node);
+    Element parameterElement = elementAnalysis.elements[node];
+    if (parameterElement is ParameterElement) {
+      parameterElement.ourAnnotatedType = typeAnnotator.annotateNamedElement(parameterElement, sourceElement.library, offset: node.offset, validTypeParameters: typeableParameterElements);
+    } else {
+      engine.errors.addError(new EngineError("A FieldFormalParameter was not mapped to a) ParameterElement", sourceElement.source, node.offset, node.length), false);
+    }
+   }
+  
+  visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node) {
+    super.visitFunctionTypedFormalParameter(node);
+    Element functionParameterElement = elementAnalysis.elements[node];
+    if (functionParameterElement is CallableElement) {
+      functionParameterElement.ourAnnotatedType = typeAnnotator.annotateCallableElement(functionParameterElement, sourceElement.library, canBeVoid: true, offset: node.offset, validTypeParameters: typeableParameterElements);
+    } else {
+      engine.errors.addError(new EngineError("A SimpleFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
+    }
+  }
+
+  visitFunctionDeclaration(FunctionDeclaration node) {
+    super.visitFunctionDeclaration(node);
+    Element functionElement = elementAnalysis.elements[node];
+    
+    if (functionElement is FunctionElement) {
+      functionElement.ourAnnotatedType = typeAnnotator.annotateCallableElement(functionElement, sourceElement.library, canBeVoid: true, offset: node.offset, validTypeParameters: typeableParameterElements);
+    } else {
+      engine.errors.addError(new EngineError("A FunctionDeclaration was not mapped to a FunctionElement", sourceElement.source, node.offset, node.length), false);     
+    }
+  }
+
+  visitVariableDeclarationList(VariableDeclarationList node) {
+    super.visitVariableDeclarationList(node);
+    Element variableElementList = elementAnalysis.elements[node];
+        
+    if (variableElementList is VariableElementList) {
+      variableElementList.ourAnnotatedType = typeAnnotator.annotateVariableDeclarationList(node, sourceElement, sourceElement.library, offset: node.offset, validTypeParameters: typeableParameterElements);
+    } else {
+      engine.errors.addError(new EngineError("A VariableDeclarationList was not mapped to a VariableElementList", sourceElement.source, node.offset, node.length), false);     
+    }
+  }
+  
+  visitMethodDeclaration(MethodDeclaration node) { 
+    super.visitMethodDeclaration(node);
+    Element methodElement = elementAnalysis.elements[node];
+    if (methodElement is MethodElement) {
+      methodElement.ourAnnotatedType = typeAnnotator.annotateCallableElement(methodElement, sourceElement.library, canBeVoid: true, offset: node.offset, validTypeParameters: typeableParameterElements);
+    } else {
+      engine.errors.addError(new EngineError("A MethodDeclaration was not mapped to a MethodElement", sourceElement.source, node.offset, node.length), false);
+    }
+  }
+}
+
+class FixVoidVisitor extends SourceVisitor {
+  ElementAnalysis get elementAnalysis => engine.elementAnalysis;
+  Engine engine;
+  SourceElement sourceElement;
+  
+  bool isVoid(TypeName t) => t == null || t.name == null || t.name.toString() == 'void';
+  
+  FixVoidVisitor(this.engine, this.sourceElement, options, lineInfo, source, preSelection): super(options, lineInfo, source, preSelection);
+  visitMethodDeclaration(MethodDeclaration node) { 
+    super.visitMethodDeclaration(node);
+    Element methodElement = elementAnalysis.elements[node];
+    if (methodElement is MethodElement) {
+      if (methodElement.ourAnnotatedType != null){
+        if (methodElement.ourAnnotatedType.name == null)
+          print(methodElement.ourAnnotatedType);
+        if (isVoid(methodElement.ourAnnotatedType)){
+          bool canBeVoid = methodElement.overrides.fold(true, (bool canBeVoid, ClassMember member) => canBeVoid && member is MethodElement && isVoid(member.ourAnnotatedType));
+          if (!canBeVoid)
+            methodElement.ourAnnotatedType = null; //new TypeName(new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, methodElement.ourAnnotatedType.offset)), null);
+        }
+      }
+    } else {
+      engine.errors.addError(new EngineError("A MethodDeclaration was not mapped to a MethodElement", sourceElement.source, node.offset, node.length), false);
+    }
+  }
+}
+
+class AnnotateSourceVisitor extends SourceVisitor {
+  ElementAnalysis get elementAnalysis => engine.elementAnalysis;
+  Engine engine;
+  SourceElement sourceElement;
+    
+  AnnotateSourceVisitor(this.engine, this.sourceElement, options, lineInfo, source, preSelection): super(options, lineInfo, source, preSelection);
+  
+  static final bool ANNOTATE_GENERIC_TYPES = false;
+  static final bool ANNOTATE_METHOD_TYPES = true;
+  
+  visitSimpleFormalParameter(SimpleFormalParameter node) {
+
+    visitMemberMetadata(node.metadata);
+
+    if (node.keyword is KeywordToken) {
+      KeywordToken keyword = node.keyword;
+      if (keyword.keyword != Keyword.VAR)
+        modifier(node.keyword);
+    } else
+      modifier(node.keyword);
+   
+   Element parameterElement = elementAnalysis.elements[node];
+   if (parameterElement is ParameterElement) {
+     visitNode(parameterElement.ourAnnotatedType, followedBy: nonBreakingSpace);
+   } else {
+     engine.errors.addError(new EngineError("A SimpleFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
+   }
+    
+   visit(node.identifier);
+ }
+  
+  visitFieldFormalParameter(FieldFormalParameter node) {
      token(node.keyword, followedBy: space);
      
       Element parameterElement = elementAnalysis.elements[node];
       if (parameterElement is ParameterElement) {
-        visitNode(typeAnnotator.annotateNamedElement(parameterElement, sourceElement.library, offset: node.offset, validTypeParameters: typeableParameterElements), followedBy: space);
+        visitNode(parameterElement.ourAnnotatedType, followedBy: space);
       } else {
         engine.errors.addError(new EngineError("A FieldFormalParameter was not mapped to a) ParameterElement", sourceElement.source, node.offset, node.length), false);
       }
@@ -350,7 +471,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
   visitFunctionTypedFormalParameter(FunctionTypedFormalParameter node) {
     Element functionParameterElement = elementAnalysis.elements[node];
     if (functionParameterElement is CallableElement) {
-      visitNode(typeAnnotator.annotateCallableElement(functionParameterElement, sourceElement.library, canBeVoid: true, offset: node.offset, validTypeParameters: typeableParameterElements), followedBy: space);
+      visitNode(functionParameterElement.ourAnnotatedType, followedBy: space);
     } else {
       engine.errors.addError(new EngineError("A SimpleFormalParameter was not mapped to a ParameterElement", sourceElement.source, node.offset, node.length), false);
     }
@@ -366,7 +487,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
     Element functionElement = elementAnalysis.elements[node];
     
     if (functionElement is FunctionElement) {
-      visitNode(typeAnnotator.annotateCallableElement(functionElement, sourceElement.library, canBeVoid: true, offset: node.name.offset, validTypeParameters: typeableParameterElements), followedBy: space);
+      visitNode(functionElement.ourAnnotatedType, followedBy: space);
     } else {
       engine.errors.addError(new EngineError("A FunctionDeclaration was not mapped to a FunctionElement", sourceElement.source, node.offset, node.length), false);     
     }
@@ -377,8 +498,6 @@ class AnnotateSourceVisitor extends SourceVisitor {
     visit(node.functionExpression);
   }
 
-  
-  //TODO (jln): variable declarations from the benchmarks can for now only contain one variable but should be able to contain more.
   visitVariableDeclarationList(VariableDeclarationList node) {
     
     visitMemberMetadata(node.metadata);
@@ -391,8 +510,12 @@ class AnnotateSourceVisitor extends SourceVisitor {
     } else
       modifier(node.keyword);
 
-
-    visitNode(typeAnnotator.annotateVariableDeclarationList(node, sourceElement, sourceElement.library, offset: node.offset, validTypeParameters: typeableParameterElements), followedBy: space);
+    Element variableElementList = elementAnalysis.elements[node];
+    if (variableElementList is VariableElementList) {
+      visitNode(variableElementList.ourAnnotatedType, followedBy: space);
+    } else {
+      engine.errors.addError(new EngineError("A MethodDeclaration was not mapped to a MethodElement", sourceElement.source, node.offset, node.length), false);
+    }
 
     var variables = node.variables;
     // Decls with initializers get their own lines (dartbug.com/16849)
@@ -428,7 +551,7 @@ class AnnotateSourceVisitor extends SourceVisitor {
       
       Element methodElement = elementAnalysis.elements[node];
       if (methodElement is MethodElement) {
-        visitNode(typeAnnotator.annotateCallableElement(methodElement, sourceElement.library, canBeVoid: true, offset: node.offset, validTypeParameters: typeableParameterElements), followedBy: space);
+        visitNode(methodElement.ourAnnotatedType, followedBy: space);
       } else {
         engine.errors.addError(new EngineError("A MethodDeclaration was not mapped to a MethodElement", sourceElement.source, node.offset, node.length), false);
       }

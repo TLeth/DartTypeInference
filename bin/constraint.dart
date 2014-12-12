@@ -121,7 +121,6 @@ class TypeVariable {
     return _event_listeners.remove(func);
   }
   
-  //TODO (jln): returning dynamic is maybe not the best solution.
   /**
    * Return the least upper bound of this type and the given type, or `dynamic` if there is no
    * least upper bound.
@@ -1187,7 +1186,6 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     
     Name property = new Name("[]");
         
-    //TODO (jln): Does this take library prefix into account?
     foreach(targetIdent).expand(propertyRestrict(property)).update((AbstractType alpha) {
       TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, property);
       functionCall(methodIdent, <Expression>[n.index], nodeIdent);

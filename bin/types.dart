@@ -61,7 +61,6 @@ abstract class AbstractType {
   
   bool isSubtypeOf(AbstractType type) => type is FreeType;
   
-  //TODO (jln): a free type is equal to any free type right?
   //bool operator ==(Object other) => other is FreeType;
 }*/
 
@@ -106,7 +105,6 @@ class FunctionType extends AbstractType {
   
   bool isSubtypeOf(AbstractType t){
     //TODO (jln): If t is a NominalType with classELement function it should be OK.
-    //TODO (jln): Implement this.
     
     return false;
   }
@@ -115,7 +113,7 @@ class FunctionType extends AbstractType {
     if (t is DynamicType || t is VoidType || t is ParameterType)
           return t.getLeastUpperBound(this, engine);
     
-    ClassElement funcElement = engine.elementAnalysis.resolveClassElement(new Name('Function'), engine.elementAnalysis.dartCore, engine.elementAnalysis.dartCore.source);
+    ClassElement funcElement = engine.elementAnalysis.functionElement;
     if (funcElement == null)
       engine.errors.addError(new EngineError("Function could not be found in dart core library. Called from functionType getLeastUpperBound."), true);
     

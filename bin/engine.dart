@@ -282,9 +282,8 @@ class Engine {
   _makeUseAnalysis() {
     _useAnalysis = new UseAnalysis(this);
     
-    if (this.options.printRestrictNodes){
+    if (this.options.printUseAnalysisNodes)
       print(_useAnalysis.restrictions[entrySource]);
-    }
     
     _restrict = new Restriction(this);
   }

@@ -139,7 +139,6 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
       RestrictMap property = lastPropertyMap == null ? new RestrictMap() : lastPropertyMap;
       currentPropertyMap = new ActualRestrictMap();
       currentPropertyMap[new FieldElement.FromIdentifier(node.identifier)] = property;
-      
       node.prefix.accept(this);
       
       currentPropertyMap = lastPropertyMap;
@@ -164,9 +163,14 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
     currentPropertyMap = null;
     
     super.visitSimpleIdentifier(node);
-  }
+  }  
   
   visitMethodInvocation(MethodInvocation node){
+    ActualRestrictMap lastPropertyMap = currentPropertyMap;
+    currentPropertyMap = null;
+    node.argumentList.visitChildren(this);
+    currentPropertyMap = lastPropertyMap;
+    
     if (node.realTarget == null){
       if (currentPropertyMap == null)
         return;
@@ -181,7 +185,6 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
         map[resolvedIdentifiers[node.methodName]] = RestrictMap.Union(map[resolvedIdentifiers[node.methodName]], currentPropertyMap);
         currentPropertyMap = null;
       } else {
-        ActualRestrictMap lastPropertyMap = currentPropertyMap;
         RestrictMap property = lastPropertyMap == null ? new RestrictMap() : lastPropertyMap;
         currentPropertyMap = new ActualRestrictMap();
         currentPropertyMap[new MethodElement.FromIdentifier(node.methodName)] = property;
@@ -201,7 +204,7 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
   
   visitInstanceCreationExpression(InstanceCreationExpression node){
     currentPropertyMap = null;
-    return null;
+    node.argumentList.visitChildren(this);
   }
   
   visitFunctionExpression(FunctionExpression node){
@@ -213,6 +216,13 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
   
   visitAssignmentExpression(AssignmentExpression node){
     bool prevAssignmentBracket = _assignmentBracket;
+    ActualRestrictMap lastPropertyMap = currentPropertyMap;
+    _assignmentBracket = false;
+    currentPropertyMap = null;
+    node.rightHandSide.accept(this);
+    
+    currentPropertyMap = lastPropertyMap; 
+    
     if (node.leftHandSide is IndexExpression)
       _assignmentBracket = true;
     node.leftHandSide.accept(this);
@@ -242,6 +252,10 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
     }
     
     ActualRestrictMap lastPropertyMap = currentPropertyMap;
+    
+    currentPropertyMap = null;
+    node.rightOperand.accept(this);
+    currentPropertyMap = lastPropertyMap;
         
     RestrictMap property = lastPropertyMap == null ? new RestrictMap() : lastPropertyMap;
     currentPropertyMap = new ActualRestrictMap();
@@ -264,7 +278,6 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
     currentPropertyMap[new MethodElement(node.operator.type.lexeme[0])] = property;
     node.operand.accept(this);
     currentPropertyMap = lastPropertyMap;
-    
   }
   
   visitPrefixExpression(PrefixExpression node){
