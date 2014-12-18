@@ -14,7 +14,8 @@ class UseAnalysis {
   Map<Source, ElementRestrictionMap> restrictions = <Source, ElementRestrictionMap>{};
   
   UseAnalysis(Engine this.engine) {
-    elementAnalysis.sources.forEach(_generateUseMap);
+    if (engine.options.iteration >= 5)
+      elementAnalysis.sources.forEach(_generateUseMap);
   }
   
   void _generateUseMap(Source source, SourceElement sourceElement){
@@ -87,6 +88,7 @@ class RestrictMap {
   }
   
   Set<Name> get properties => new Set<Name>();
+  Set<Name> getAttrProperties(String attr) => new Set<Name>();
 }
 
 class ActualRestrictMap extends RestrictMap {
@@ -96,6 +98,16 @@ class ActualRestrictMap extends RestrictMap {
   operator []=(RestrictElement n, RestrictMap m) => map[n] = m;
   
   Iterable<RestrictElement> get keys => map.keys;
+  
+  Set<Name> getAttrProperties(String attr) {
+    Set<Name> properties = new Set<Name>();
+    RestrictMap attrMap = null;
+    attrMap = map[new MethodElement(attr)];
+    if (attrMap != null) properties.addAll(attrMap.properties);
+    attrMap = map[new FieldElement(attr)];
+    if (attrMap != null) properties.addAll(attrMap.properties);
+    return properties;
+  }
   
   Set<Name> get properties => new Set<Name>.from(keys.map((RestrictElement element) => new Name(element.name)));
   
@@ -116,6 +128,7 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
   
   ElementRestrictionMap map = new ElementRestrictionMap();
   ActualRestrictMap currentPropertyMap = null;
+  ClassElement currentClassElement = null;
   Engine engine;
   ElementAnalysis get elementAnalysis => engine.elementAnalysis;
   SourceElement currentSourceElement;
@@ -124,6 +137,20 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
   bool _assignmentBracket = false;
   
   RestrictMapGenerator(Engine this.engine, SourceElement this.currentSourceElement);
+  
+  visitClassDeclaration(ClassDeclaration node){
+    
+    Element element = elementAnalysis.elements[node];
+
+    if (element is ClassElement){
+      currentClassElement = element;
+    } else {
+      engine.errors.addError(new EngineError("The class delcaration: ${node} was visited in the use_analysis but didn't have a related class element.", currentSourceElement.source, node.offset, node.length));
+    }
+    
+    super.visitClassDeclaration(node);
+    currentClassElement = null;
+  }
   
   visitPrefixedIdentifier(PrefixedIdentifier node){
     //If the identifier is written within a comment dont look into it.
@@ -144,6 +171,17 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
       currentPropertyMap = lastPropertyMap;
     }
   }
+  
+  visitThisExpression(ThisExpression node){
+    map[currentClassElement] = currentPropertyMap;
+    currentPropertyMap = null;
+  }
+  
+  visitSuperExpression(SuperExpression node){
+    map[currentClassElement.extendsElement] = currentPropertyMap;
+    currentPropertyMap = null;
+  }
+  
   
   visitSimpleIdentifier(SimpleIdentifier node){
     if (currentPropertyMap == null)
@@ -192,6 +230,16 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
         currentPropertyMap = lastPropertyMap;
       }
     }
+  }
+  
+  visitConditionalExpression(ConditionalExpression node){
+    ActualRestrictMap lastPropertyMap = currentPropertyMap;
+    node.thenExpression.visitChildren(this);
+    currentPropertyMap = lastPropertyMap;
+    node.elseExpression.visitChildren(this);
+    currentPropertyMap = null;
+    node.condition.visitChildren(this);
+    currentPropertyMap = null;
   }
   
   visitIsExpression(IsExpression node){
@@ -294,16 +342,22 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
     currentPropertyMap[new MethodElement(node.operator.type.lexeme[0])] = property;
     node.operand.accept(this);
     currentPropertyMap = lastPropertyMap;
+    
   }
   
   visitLiteral(Literal node){
     currentPropertyMap = null;
-    return;
   }
   
   
   visitIndexExpression(IndexExpression node){
+    bool prevAssignmentBracket = _assignmentBracket;
     ActualRestrictMap lastPropertyMap = currentPropertyMap;
+    currentPropertyMap = null;
+    _assignmentBracket = false;
+    node.index.accept(this);
+    _assignmentBracket = prevAssignmentBracket;
+    
     RestrictMap property = lastPropertyMap == null ? new RestrictMap() : lastPropertyMap;
     currentPropertyMap = new ActualRestrictMap();
     if (_assignmentBracket){

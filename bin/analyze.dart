@@ -75,9 +75,12 @@ class CommandLineOptions {
   /** Whether to enable debug printing of use analysis nodes. */
   final bool printUseAnalysisNodes;
   
+  /** What iteration there is about to be runned */ 
+  final int iteration;
+  
     
-  final bool analyzeSDK;
-  final bool analyzePackages;
+  bool analyzeSDK;
+  bool analyzePackages;
 
   /**
    * Initialize options from the given parsed [args].
@@ -89,6 +92,7 @@ class CommandLineOptions {
       enableAsync = args['enable-async'],
       enableEnum = args['enable-enum'],
       dartSdkPath = args['dart-sdk'],
+      iteration = (args['iteration'] != null ? int.parse(args['iteration']) : 9999),
       log = args['log'],
       packageRootPath = args['package-root'],
       printBlock = args['debug-block'],
@@ -104,7 +108,20 @@ class CommandLineOptions {
       analyzePackages = !args['skip-packages'],
       analyzeSDK = !args['skip-sdk'],
       benchmarkRootPath = (new JavaFile(args['benchmarkdir'])).getAbsolutePath(),
-      sourceFiles = args.rest;
+      sourceFiles = args.rest {
+    if (args['iteration'] != null){
+      if (this.iteration < 3){
+        analyzeSDK = true;
+        analyzePackages = true;
+      } else {
+        analyzeSDK = false;
+        analyzePackages = false;  
+      }
+    } else {
+      
+    }
+  
+  }
   
   CommandLineOptions({bool this.overrideFiles: false,
     bool this.disableHints: false,
@@ -114,6 +131,7 @@ class CommandLineOptions {
     String this.dartSdkPath: null, 
     bool this.log: false,
     String this.packageRootPath: null,
+    int this.iteration: null,
     bool this.printBlock: false,
     bool this.printNameResolving: false,
     bool this.printConstraints: false,
@@ -140,9 +158,17 @@ class CommandLineOptions {
         print('Usage: $_BINARY_NAME: invalid Dart SDK path: $sdkPath');
         exit(15);
       }
+      
+      if (this.iteration < 4 && this.iteration != null){
+        analyzeSDK = true;
+        analyzePackages = true;
+      } else {
+        analyzeSDK = false;
+        analyzePackages = false;
+      }
     }
   }
-  
+
   /**
    * Parse [args] into [CommandLineOptions] describing the specified
    * analyzer options. In case of a format error, prints error and exists.
@@ -177,6 +203,7 @@ class CommandLineOptions {
       ..addOption('expected-basedir', help: 'Path to expected output')
       ..addOption('actual-basedir', help: 'Basedir, used to find correct expected files')
       ..addOption('benchmarkdir', help: 'Benchmark dir, only used when together with json.')
+      ..addOption('iteration', help: 'Overrules all flags to setup for the given iteration')
       ..addFlag('json', help: 'Emit JSON formatted results', negatable: false)
       ..addFlag('version', help: 'Print the analyzer version',
           defaultsTo: false, negatable: false)

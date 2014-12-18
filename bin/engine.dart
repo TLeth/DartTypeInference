@@ -160,7 +160,6 @@ class Engine {
     
     _printErrorsAndReset();
   }
-
   
   static List<Source> GetDependencies(CommandLineOptions options, DartSdk sdk, Uri uri, JavaFile sourceFile) {
    Engine engine = new Engine(options, sdk);
@@ -302,11 +301,6 @@ class Engine {
     new Annotator(this);
   }
 
-  /*
-  _makeInstrumentedTypeAnalysis() {
-    new Convert
-  }*/
-  
   Source resolveUri(Source entrySource, String uri) {
     return _sourceFactory.resolveUri(entrySource, uri);
   }

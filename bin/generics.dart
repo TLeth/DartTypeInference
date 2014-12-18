@@ -262,7 +262,12 @@ class GenericMapGenerator {
     return res;
   }
   
-  GenericMap create(ClassElement classElement, TypeArgumentList typeArguments, SourceElement source) =>
-    new GenericMap._create(classElement, typeArguments, source, this);
+  GenericMap create(ClassElement classElement, TypeArgumentList typeArguments, SourceElement source) {
+    if (engine.options.iteration >= 2)
+      return new GenericMap._create(classElement, typeArguments, source, this);
+    else
+      return null;
+  }
+    
   
 }

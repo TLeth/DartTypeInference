@@ -62,10 +62,17 @@ class TypeAnnotator {
     
     TypeIdentifier typeIdent = new ExpressionTypeIdentifier(variable.identifier);
     TypeVariable typeVariable = typemap[typeIdent];
-    RestrictMap map = useAnalysis.restrictions[variable.sourceElement.source][variable];
+    RestrictMap map = null;
+    if (engine.options.iteration >= 5)
+      useAnalysis.restrictions[variable.sourceElement.source][variable];
     if (map == null) map = new RestrictMap();
     
-    return annotateWithRestrictions(typeVariable.types, map.properties, variable.sourceElement.source, library, canBeVoid: canBeVoid, offset: offset, validTypeParameters: validTypeParameters);
+    Set<Name> properties = map.properties;
+    if (variable is ClassMember)
+      properties.addAll(getClassMemberProperties(variable as ClassMember));
+    
+    
+    return annotateWithRestrictions(typeVariable.types, properties, variable.sourceElement.source, library, canBeVoid: canBeVoid, offset: offset, validTypeParameters: validTypeParameters);
   }
   
   TypeName annotateVariableDeclarationList(VariableDeclarationList variables, SourceElement sourceElement, LibraryElement library, {bool canBeVoid: false, int offset: 0, List<TypeParameterElement> validTypeParameters: null}){
@@ -74,14 +81,22 @@ class TypeAnnotator {
     TypeIdentifier typeIdent = new ExpressionTypeIdentifier(variables);
     TypeVariable typeVariable = typemap[typeIdent];
     
+    
     Set<Name> properties = new Set<Name>();
     if (variables.variables != null){
       variables.variables.forEach((VariableDeclaration variable) {
         Element variableElement = analysis.elements[variable];
+        
          if (variableElement is VariableElement || variableElement is FieldElement) {
-           RestrictMap map = useAnalysis.restrictions[sourceElement.source][variableElement];
+           RestrictMap map = null;
+           if (engine.options.iteration >= 5)
+            map = useAnalysis.restrictions[sourceElement.source][variableElement];
+           
            if (map == null) map = new RestrictMap();
+           
            properties.addAll(map.properties);
+           if (variableElement is ClassMember)
+              properties.addAll(getClassMemberProperties(variableElement as ClassMember));
          } else {
            engine.errors.addError(new EngineError("A VariableDeclaration was not mapped to a VariableElement or a FieldElement", sourceElement.source, variable.offset, variable.length), false);
          }
@@ -91,34 +106,24 @@ class TypeAnnotator {
     return annotateWithRestrictions(typeVariable.types, properties, sourceElement.source, library, canBeVoid: canBeVoid, offset: offset, validTypeParameters: validTypeParameters);
   }
   
-  TypeName annotateWithRestrictions(Iterable<AbstractType> abstractTypes, Set<Name> properties, Source source, LibraryElement library, {bool canBeVoid: false, int offset: 0, List<TypeParameterElement> validTypeParameters: null}){
-    if (abstractTypes == null) abstractTypes = [];
-    
-    Set<AbstractType> focusedTypes = new Set<AbstractType>();
-    
-    //TODO: (jln) This should be made in the fixpoint algorithm. 
-    if (abstractTypes.length == 0)
-      abstractTypes = [new NominalType(analysis.objectElement)];
-    
-    abstractTypes.forEach((AbstractType type) =>
-        focusedTypes.addAll(restrict.focus(type, properties, source)));
-    
-    AbstractType type = AbstractType.LeastUpperBound(focusedTypes, engine, defaultValue: new NominalType(objectElement));
-    
-    type = fixRequirements(type, properties);
-    
-    if (type is VoidType && !canBeVoid)
-      type = new DynamicType();
-    
-    return AbstractTypeToTypeName(type, library, offset: offset, validTypeParameters: validTypeParameters);
-  }
-  
   TypeName annotateCallableElement(CallableElement callableElement, LibraryElement library, {bool canBeVoid: false, int offset: 0, List<TypeParameterElement> validTypeParameters: null}){
     if (checkAnnotatedElement(callableElement) != null)
       return checkAnnotatedElement(callableElement);
     
     ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(callableElement);
     TypeVariable typeVariable = typemap[typeIdent];
+    RestrictMap map = null;
+    
+    if (engine.options.iteration >= 5)
+      map = useAnalysis.restrictions[callableElement.sourceElement.source][callableElement];
+    if (map == null) map = new RestrictMap();
+    
+    Set<Name> properties = map.properties;
+    if (callableElement is ClassMember)
+      properties.addAll(getClassMemberProperties(callableElement as ClassMember));
+    
+    return annotateWithRestrictions(typeVariable.types, properties, callableElement.sourceElement.source, library, canBeVoid: canBeVoid, offset: offset, validTypeParameters: validTypeParameters);
+    /*
     if (typeVariable == null)
       return new TypeName(new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset)), null);
     
@@ -126,7 +131,45 @@ class TypeAnnotator {
     if (type is VoidType && !canBeVoid)
       return new TypeName(new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset)), null);
     else
-      return AbstractTypeToTypeName(type, library, offset: offset, validTypeParameters: validTypeParameters);    
+      return AbstractTypeToTypeName(type, library, offset: offset, validTypeParameters: validTypeParameters);    */
+  }
+  
+  Set<Name> getClassMemberProperties(ClassMember member){
+    if (engine.options.iteration < 5)
+      return new Set<Name>();
+    
+    RestrictMap classMap = useAnalysis.restrictions[member.sourceElement.source][member.classDecl];
+    if (classMap == null)
+      return new Set<Name>();
+    else
+      return classMap.getAttrProperties(member.identifier.toString());
+  }
+  
+  TypeName annotateWithRestrictions(Iterable<AbstractType> abstractTypes, Set<Name> properties, Source source, LibraryElement library, {bool canBeVoid: false, int offset: 0, List<TypeParameterElement> validTypeParameters: null}){
+    if (abstractTypes == null) abstractTypes = [];
+    
+    Set<AbstractType> focusedTypes = new Set<AbstractType>();
+    
+    //TODO: (jln) This should be made in the fixpoint algorithm. 
+    if (engine.options.iteration >= 5){
+      if (abstractTypes.length == 0)
+        abstractTypes = [new NominalType(analysis.objectElement)];
+      
+      abstractTypes.forEach((AbstractType type) =>
+          focusedTypes.addAll(restrict.focus(type, properties, source)));
+    } else {
+      focusedTypes.addAll(abstractTypes);
+    }
+    
+    AbstractType type = AbstractType.LeastUpperBound(focusedTypes, engine, defaultValue: new NominalType(objectElement));
+    
+    if (engine.options.iteration >= 5)
+      type = fixRequirements(type, properties);
+    
+    if (type is VoidType && !canBeVoid)
+      type = new DynamicType();
+    
+    return AbstractTypeToTypeName(type, library, offset: offset, validTypeParameters: validTypeParameters);
   }
   
   TypeName AbstractTypeToTypeName(AbstractType t, LibraryElement library, {int offset: 0, List<TypeParameterElement> validTypeParameters: null}){
@@ -228,7 +271,8 @@ class Annotator {
     typeAnnotator = new TypeAnnotator(engine.constraintAnalysis.typeMap, engine);
     
     elementAnalysis.sources.values.forEach(findSourceAnnotations);
-    elementAnalysis.sources.values.forEach(fixVoideOverride);
+    if (engine.options.iteration >= 5)
+      elementAnalysis.sources.values.forEach(fixVoidOverride);
     elementAnalysis.sources.values.forEach(annotateSource);
     
     if (engine.options.compareTypes) {
@@ -250,7 +294,7 @@ class Annotator {
     }
   }
   
-  fixVoideOverride(SourceElement sourceElement){
+  fixVoidOverride(SourceElement sourceElement){
     if (sourceElement.source.uriKind == UriKind.FILE_URI) {
       var selection = null;
       

@@ -160,6 +160,9 @@ class NominalType extends AbstractType {
   NominalType.makeInstance(ClassElement this.element, GenericMap this._genericMap);
   
   Map<ParameterType, AbstractType> getGenericTypeMap(GenericMapGenerator generator) {
+    if (generator.engine.options.iteration < 2)
+      return null;
+    
     if (_genericMap == null)
       _genericMap = generator.create(element, null, element.sourceElement);
     return _genericMap.get();
@@ -194,10 +197,13 @@ class NominalType extends AbstractType {
         //In some cases the element cannot find the least upper bound, then return a object type (all is a child of object).
         return new NominalType(engine.elementAnalysis.objectElement);
       else {
+        if (engine.options.iteration >= 2){
+          GenericMap genericMap = _genericMap.getLeastUpperBound(leastUpperBound, t, engine, level);
         
-        GenericMap genericMap = _genericMap.getLeastUpperBound(leastUpperBound, t, engine, level);
-        
-        return new NominalType.makeInstance(leastUpperBound, genericMap);
+          return new NominalType.makeInstance(leastUpperBound, genericMap);
+        } else {
+          return new NominalType(leastUpperBound);
+        }
       }   
     }
    

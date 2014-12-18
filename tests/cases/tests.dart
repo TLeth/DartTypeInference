@@ -122,5 +122,8 @@ import 'mixin_method.dart';
 import 'restrict_element.dart';
 import 'parent_field.dart';
 import 'fix_element.dart';
+import 'restrict_getters.dart';
+import 'restrict_field.dart';
+import 'constructor_check.dart';
 
 void main() {}

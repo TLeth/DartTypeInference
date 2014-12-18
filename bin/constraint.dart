@@ -150,6 +150,7 @@ abstract class ConstraintHelper {
   ExpandFunc _expandFunc = null;
   GenericMapGenerator get genericMapGenerator;
   TypeMap get types;
+  Engine get engine;
     
   ConstraintHelper foreach(dynamic ident) {
     _lastTypeIdentifier = TypeIdentifier.ConvertToTypeIdentifier(ident);
@@ -231,7 +232,7 @@ abstract class ConstraintHelper {
     
     // If the binds is bound, then the subset should first resolve the binding.
     Function bindFunction;
-    if (binds != null && !binds.isEmpty){
+    if (binds != null && !binds.isEmpty && engine.options.iteration >= 2){
       bindFunction = (AbstractType type) {
         if (type is ParameterType){
           if (binds.containsKey(type))
@@ -271,9 +272,12 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
       return null;
     
     NamedElement namedElement = source.resolvedIdentifiers[type.name];
-    if (namedElement is ClassElement)
-      return new NominalType.makeInstance(namedElement, genericMapGenerator.create(namedElement, type.typeArguments, source));
-    if (namedElement is TypeParameterElement)
+    if (namedElement is ClassElement) {
+      if (engine.options.iteration >= 2)
+        return new NominalType.makeInstance(namedElement, genericMapGenerator.create(namedElement, type.typeArguments, source));
+      else
+        return new NominalType(namedElement);
+    } else if (namedElement is TypeParameterElement)
       return new ParameterType(namedElement);
     
     engine.errors.addError(new EngineError("Unable to resolve type: ${type}.", source.source, type.offset, type.length),false);
@@ -304,7 +308,8 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
        node.identifier.toString() == 'future' && 
        node.isGetter &&
        node.returnType.name.toString() =='Future' &&
-       node.returnType.typeArguments == null){
+       node.returnType.typeArguments == null &&
+       engine.options.iteration >= 3){
       Identifier typeName = node.returnType.name;
       Identifier typeArgument = node.classDecl.typeParameters[0].ast.name;
       TypeArgumentList typeArguments = new TypeArgumentList(new Token(TokenType.LT, typeName.end + 1), 
@@ -437,7 +442,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
       types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));  
     }
     
-    if (node.name.toString() == 'main' && node.decl.parent is CompilationUnit && paramIdents.normalParameterTypes.length == 1){
+    if (node.name.toString() == 'main' && node.decl.parent is CompilationUnit && paramIdents.normalParameterTypes.length == 1 && engine.options.iteration >= 2){
       ClassElement listClass = elementAnalysis.resolveClassElement(new Name("List"), constraintAnalysis.dartCore, node.sourceElement);
       ClassElement stringClass = elementAnalysis.resolveClassElement(new Name("String"), constraintAnalysis.dartCore, node.sourceElement);
       NominalType listStringType = genericMapGenerator.createInstanceWithBinds(new NominalType(listClass), {new ParameterType(listClass.typeParameters[0]): new NominalType(stringClass)});
@@ -638,8 +643,8 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
           if (func is FunctionType) {
             for (var i = 0; i < arguments.length;i++){
               TypeIdentifier parameter = (i < func.normalParameterTypes.length ? func.normalParameterTypes[i] : func.optionalParameterTypes[i - func.normalParameterTypes.length]);
-              if (parameter.functionParameterElement != null)
-               bindFunctionParameterElement(parameter, arguments[i], genericTypeMap); 
+              if (parameter.functionParameterElement != null && engine.options.iteration >= 3)
+               bindFunctionParameterElement(parameter, arguments[i], genericTypeMap);
                
               subsetConstraint(arguments[i], parameter);
             }
@@ -767,7 +772,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     ClassElement listClass = elementAnalysis.resolveClassElement(new Name("List"), constraintAnalysis.dartCore, source); 
     if (listClass == null)
       engine.errors.addError(new EngineError("A list literal was used, but could not find List in the dartCore.", source.source, n.offset, n.length ), true);
-    types.add(n, new NominalType.makeInstance(listClass, genericMapGenerator.create(listClass, n.typeArguments, source)));
+    if (engine.options.iteration >= 2)
+      types.add(n, new NominalType.makeInstance(listClass, genericMapGenerator.create(listClass, n.typeArguments, source)));
+    else
+      types.add(n, new NominalType(listClass));
   }
   
   visitMapLiteral(MapLiteral n){
@@ -776,7 +784,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     ClassElement mapClass = elementAnalysis.resolveClassElement(new Name("Map"), constraintAnalysis.dartCore, source);
     if (mapClass == null)
       engine.errors.addError(new EngineError("A map literal was used, but could not find Map in the dartCore.", source.source, n.offset, n.length ), true);
-    types.add(n, new NominalType.makeInstance(mapClass, genericMapGenerator.create(mapClass, n.typeArguments, source)));
+    if (engine.options.iteration >= 2)
+      types.add(n, new NominalType.makeInstance(mapClass, genericMapGenerator.create(mapClass, n.typeArguments, source)));
+    else
+      types.add(n, new NominalType(mapClass));
   }
   
   visitExpressionFunctionBody(ExpressionFunctionBody node){
@@ -827,11 +838,12 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
 
 
         // handle as function call
-        //functionCall(constructorIdent, n.argumentList.arguments, nodeIdent);
-
-        // simple way
-        functionCall(constructorIdent, n.argumentList.arguments, null);
-        types.add(nodeIdent, classType);
+        if (engine.options.iteration >= 4){
+          functionCall(constructorIdent, n.argumentList.arguments, null);
+          types.add(nodeIdent, classType);
+        } else {
+          functionCall(constructorIdent, n.argumentList.arguments, nodeIdent);
+        }
       }
     } else {
       engine.errors.addError(new EngineError("Unable to find the class the instance creation: ${n}, was referencing", source.source, n.offset, n.length), false);
@@ -1136,7 +1148,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   }
   
   ExpandFunc propertyRestrict(Name property) {
-    return (AbstractType type) => restrict.restrict(type, property, source.source);
+    if (engine.options.iteration < 5)
+      return (AbstractType type) => <AbstractType>[type];
+    else
+      return (AbstractType type) => restrict.restrict(type, property, source.source);
   }
   
   visitPrefixedIdentifier(PrefixedIdentifier n){

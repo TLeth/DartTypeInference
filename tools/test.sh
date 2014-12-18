@@ -34,7 +34,7 @@ cp tests/.stripped/*.dart tests/output/
 
 if [ $# -eq 0 ]; then
 
-    dart -c ./bin/analyze.dart --dart-sdk ${dartDir%bin/dart} -w tests/output/tests.dart
+    dart -c ./bin/analyze.dart --iteration 5 --dart-sdk ${dartDir%bin/dart} -w tests/output/tests.dart
     
     (for f in $(ls tests/cases/); do
         
@@ -64,7 +64,7 @@ if [ $# -eq 0 ]; then
         
         if [ -f tests/cases/$arg.dart ]; then
         
-            dart -c ./bin/analyze.dart --dart-sdk ${dartDir%bin/dart} -w tests/output/$arg.dart
+            dart -c ./bin/analyze.dart --iteration 5 --dart-sdk ${dartDir%bin/dart} -w tests/output/$arg.dart
             dartfmt -w tests/output/$arg.dart
             
             if [ $(diff <(cat tests/cases/$arg.dart) <(cat tests/output/$arg.dart) | wc -l) -eq 0 ]; then

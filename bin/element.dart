@@ -1297,20 +1297,21 @@ class ElementGenerator extends GeneralizingAstVisitor {
   }
   
   visitTypeParameter(TypeParameter node){
-    
-    if (_currentClassElement != null){
-      TypeParameterElement param = new TypeParameterElement.FromClassElement(node, _currentClassElement, element);
-      _currentClassElement.addTypeParameter(param.name, param);
-      element.addTypeParameter(param);
-    } else if (_currentCallableElement != null && _currentCallableElement is FunctionAliasElement){
-      FunctionAliasElement funcAlias = _currentCallableElement;
-      TypeParameterElement param = new TypeParameterElement.FromFunctionAliasElement(node, funcAlias, element);
-      element.addTypeParameter(param);
-      funcAlias.addTypeParameter(param.name, param);
-    } else {
-      engine.errors.addError(new EngineError("Visited type parameter, but currentClass was null and _currentCallableElement was not a functionAlias.", source, node.offset, node.length), true);
-    }    
-    analysis.addElement(node, _currentClassElement);
+    if (engine.options.iteration >= 2){
+      if (_currentClassElement != null){
+        TypeParameterElement param = new TypeParameterElement.FromClassElement(node, _currentClassElement, element);
+        _currentClassElement.addTypeParameter(param.name, param);
+        element.addTypeParameter(param);
+      } else if (_currentCallableElement != null && _currentCallableElement is FunctionAliasElement){
+        FunctionAliasElement funcAlias = _currentCallableElement;
+        TypeParameterElement param = new TypeParameterElement.FromFunctionAliasElement(node, funcAlias, element);
+        element.addTypeParameter(param);
+        funcAlias.addTypeParameter(param.name, param);
+      } else {
+        engine.errors.addError(new EngineError("Visited type parameter, but currentClass was null and _currentCallableElement was not a functionAlias.", source, node.offset, node.length), true);
+      }    
+      analysis.addElement(node, _currentClassElement);
+    }
     super.visitTypeParameter(node);
   }
   
