@@ -72,6 +72,10 @@ class CommandLineOptions {
   /** Whether to enable debug printing of restriction nodes. */
   final bool printRestrictNodes;
   
+  /** Whether to enable debug printing of use analysis nodes. */
+  final bool printUseAnalysisNodes;
+  
+    
   final bool analyzeSDK;
   final bool analyzePackages;
 
@@ -93,6 +97,7 @@ class CommandLineOptions {
       printAstNodes = args['debug-ast'],
       printElementNodes = args['debug-element'],
       printRestrictNodes = args['debug-restrict'],
+      printUseAnalysisNodes = args['debug-use'],
       expectedRootPath = args['expected-basedir'],
       actualRootPath = args['actual-basedir'],
       emitJSON = args['json'],
@@ -114,6 +119,7 @@ class CommandLineOptions {
     bool this.printConstraints: false,
     bool this.printAstNodes: false,
     bool this.printRestrictNodes: false,
+    bool this.printUseAnalysisNodes: false,
     bool this.printElementNodes: false,
     String this.expectedRootPath: null,
     String this.actualRootPath: null,
@@ -194,6 +200,7 @@ class CommandLineOptions {
       ..addFlag('debug-ast', defaultsTo: false, negatable: false, help: 'Debug print; prints the names of the AST nodes visited.')
       ..addFlag('debug-element', defaultsTo: false, negatable: false, help: 'Debug print; prints the element hirarchy.')
       ..addFlag('debug-restrict', defaultsTo: false, negatable: false, help: 'Debug print; prints the restrict nodes.')
+      ..addFlag('debug-use', defaultsTo: false, negatable: false, help: 'Debug print; prints the use analysis nodes.')
       ..addFlag('skip-sdk', defaultsTo: false, negatable: false, help: 'Skip analyzing SDK, only use annotation')
       ..addFlag('skip-packages', defaultsTo: false, negatable: false, help: 'Skip analyzing packages, only use annotation');
 

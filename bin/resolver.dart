@@ -276,6 +276,7 @@ class ClassHierarchyResolver {
     });
     analysis.sources.values.forEach((SourceElement source) {
       source.declaredClasses.values.forEach(_createOverridesHierarchy);
+      source.declaredTypeParameters.forEach(_createTypeParameterBound);
     });
   }
   
@@ -295,29 +296,57 @@ class ClassHierarchyResolver {
     if (classElement.extendsElement == null){
       //They extendsClause is empty, so instead set Object as the extendedclass (implicit setup i Dart), except if it is the Object it self.
       if (classElement.superclass == null){
-        if (classElement != objectClassElement)
+        if (classElement != objectClassElement) {
           classElement.extendsElement = objectClassElement;
+          objectClassElement.extendsSubClasses.add(classElement);
+        }
       } else {
         ClassElement extendClass = analysis.resolveClassElement(new Name.FromIdentifier(classElement.superclass.name), libraryElement, sourceElement);
         if (extendClass == null)
           engine.errors.addError(new EngineError("`${classElement.superclass.name.toString()}` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", sourceElement.source, sourceElement.ast.offset, sourceElement.ast.length), true);
-        else
+        else {
           classElement.extendsElement = extendClass;
+          extendClass.extendsSubClasses.add(classElement);
+        }
       }
     }
     
     classElement.implementElements = classElement.implements.fold([], (List a, TypeName implementsType) {
       ClassElement implementsElement = analysis.resolveClassElement(new Name.FromIdentifier(implementsType.name), libraryElement, sourceElement);
-      if (implementsElement == null) engine.errors.addError(new EngineError("`${implementsType.name.toString()}` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", sourceElement.source, sourceElement.ast.offset, sourceElement.ast.length), true);
-      else a.add(implementsElement);
+      if (implementsElement == null) 
+        engine.errors.addError(new EngineError("`${implementsType.name.toString()}` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", sourceElement.source, sourceElement.ast.offset, sourceElement.ast.length), true);
+      else {
+        a.add(implementsElement);
+        implementsElement.interfaceSubClasses.add(classElement);
+      }
       return a;
     });
 
     classElement.mixinElements = classElement.mixins.fold([], (List a, TypeName mixinType) {
       ClassElement mixinElement = analysis.resolveClassElement(new Name.FromIdentifier(mixinType.name), libraryElement, sourceElement);
-      if (mixinElement == null) engine.errors.addError(new EngineError("`${mixinType.name.toString()}` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", sourceElement.source, sourceElement.ast.offset, sourceElement.ast.length), true);
-      else a.add(mixinElement);
+      if (mixinElement == null) 
+        engine.errors.addError(new EngineError("`${mixinType.name.toString()}` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", sourceElement.source, sourceElement.ast.offset, sourceElement.ast.length), true);
+      else { 
+        a.add(mixinElement);
+        mixinElement.mixinSubClasses.add(classElement);
+      }
       return a;
     });
+  }
+  
+  void _createTypeParameterBound(TypeParameterElement paramElement){
+    SourceElement sourceElement = paramElement.sourceElement;
+    LibraryElement libraryElement = sourceElement.library;
+    if (paramElement.boundElement == null){
+      if (paramElement.ast.bound == null){
+        paramElement.boundElement = objectClassElement;
+      } else {
+        ClassElement boundClass = analysis.resolveClassElement(new Name.FromIdentifier(paramElement.ast.bound.name), libraryElement, sourceElement);
+        if (boundClass == null)
+            engine.errors.addError(new EngineError("`${paramElement.ast.bound.name}` ClassElement could not be resolved, therefore the implicit extends couldnt be made.", sourceElement.source, sourceElement.ast.offset, sourceElement.ast.length), true);
+        else
+          paramElement.boundElement= boundClass; 
+      }
+    }
   }
 }

@@ -9,6 +9,7 @@ import 'types.dart';
 import 'util.dart';
 import 'generics.dart';
 import 'dart:collection';
+import 'restrict.dart';
 
 class ConstraintAnalysis {
   TypeMap typeMap;
@@ -60,6 +61,7 @@ class TypeMap {
 
 typedef bool FilterFunc(AbstractType t);
 typedef dynamic NotifyFunc(AbstractType t);
+typedef Iterable<AbstractType> ExpandFunc(AbstractType t);
 
 class TypeVariable {
   Set<AbstractType> _types = new Set<AbstractType>();
@@ -119,21 +121,13 @@ class TypeVariable {
     return _event_listeners.remove(func);
   }
   
-  //TODO (jln): returning dynamic is maybe not the best solution.
   /**
    * Return the least upper bound of this type and the given type, or `dynamic` if there is no
    * least upper bound.
    *
    */
   AbstractType getLeastUpperBound(Engine engine) {
-    if (_types.length == 0) return new DynamicType();
-    Queue<AbstractType> queue = new Queue<AbstractType>.from(_types);
-    AbstractType res = queue.removeFirst();
-    res = queue.fold(res, (AbstractType res, AbstractType t) => res.getLeastUpperBound(t, engine));
-    if (res == null)
-      return new DynamicType();
-    else 
-      return res;
+    return AbstractType.LeastUpperBound(_types, engine);
   }
   
   bool has_listener(void f(TypeVariable, AbstractType)) => _event_listeners.contains(f);
@@ -153,6 +147,7 @@ class TypeVariable {
 abstract class ConstraintHelper {
   TypeIdentifier _lastTypeIdentifier = null;
   FilterFunc _lastWhere = null;
+  ExpandFunc _expandFunc = null;
   GenericMapGenerator get genericMapGenerator;
   TypeMap get types;
     
@@ -166,6 +161,11 @@ abstract class ConstraintHelper {
     return this;
   }
   
+  ConstraintHelper expand(ExpandFunc func){
+    _expandFunc = func;
+    return this;
+  }
+  
   
   bool updating = false;
   List<Function> rem = [];  
@@ -174,16 +174,29 @@ abstract class ConstraintHelper {
     if (_lastTypeIdentifier != null){
       TypeIdentifier identifier = _lastTypeIdentifier;
       FilterFunc filter = _lastWhere;
+      ExpandFunc expand = _expandFunc;
       
       _lastTypeIdentifier = null;
       _lastWhere = null;
+      _expandFunc = null;
       
-      rem.add((){
-        types[identifier].onChange((AbstractType t) {
-          if (filter == null || filter(t))
-             func(t);
-        });                    
-      });
+      if (expand == null){
+        rem.add((){
+          types[identifier].onChange((AbstractType t) {
+            if (filter == null || filter(t))
+               func(t);
+          });                    
+        });
+      } else {
+        rem.add((){
+          types[identifier].onChange((AbstractType t) {
+            expand(t).forEach((AbstractType t) {
+              if (filter == null || filter(t))
+                func(t);  
+            });
+          });
+        });
+      }
       
       if (!updating){
          updating = true;
@@ -259,9 +272,9 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     NamedElement namedElement = source.resolvedIdentifiers[type.name];
     if (namedElement is ClassElement)
-      return new NominalType.makeInstance(namedElement, genericMapGenerator.create(namedElement, type.typeArguments, source), true);
+      return new NominalType.makeInstance(namedElement, genericMapGenerator.create(namedElement, type.typeArguments, source));
     if (namedElement is TypeParameterElement)
-      return new ParameterType(namedElement, true);
+      return new ParameterType(namedElement);
     
     engine.errors.addError(new EngineError("Unable to resolve type: ${type}.", source.source, type.offset, type.length),false);
     return null;
@@ -330,14 +343,13 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     types.add(elementTypeIdent, new NominalType(node));
     
     //Make inheritance
-    if (node.extendsElement != null) {
-      Map<Name, NamedElement> classElements = node.classElements;
-      List<Name> inheritedElements = ListUtil.complement(node.classElements.keys, node.declaredElements.keys);
-      for(Name n in inheritedElements){
-        TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(node.extendsElement, true), n);
-        TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node, true), n);
-        equalConstraint(parentTypeIdent, thisTypeIdent);
-      }
+    Map<Name, ClassMember> classMembers = node.classMembers;
+    List<Name> inheritedElements = ListUtil.complement(node.classMembers.keys, node.declaredElements.keys);
+    for(Name n in inheritedElements){
+      ClassMember member  = node.classMembers[n];
+      TypeIdentifier parentTypeIdent = new PropertyTypeIdentifier(new NominalType(member.classDecl), n);
+      TypeIdentifier thisTypeIdent = new PropertyTypeIdentifier(new NominalType(node), n);
+      equalConstraint(parentTypeIdent, thisTypeIdent);
     }
 
     node.declaredElements.values.forEach((NamedElement n) {
@@ -400,9 +412,9 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     
     //Class members needs to be bound to the class property as well.
     if (node.isSetter)
-      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl, true), node.getterName));
+      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.getterName));
     else
-      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl, true), node.name));
+      equalConstraint(elementTypeIdent, new PropertyTypeIdentifier(new NominalType(node.classDecl), node.name));
   }
   
   visitNamedFunctionElement(NamedFunctionElement node) {
@@ -543,6 +555,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   SourceElement source;
   Engine get engine => constraintAnalysis.engine;
   GenericMapGenerator get genericMapGenerator => engine.genericMapGenerator;
+  Restriction get restrict => engine.restrict;
 
   ClassElement _currentClassElement = null;
   
@@ -649,7 +662,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     FunctionParameterElement funcElement = parameterIdentifier.functionParameterElement;
     ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(funcElement, source.library, source, elementAnalysis);
     
-    FilterFunc isParameterTypeAndAnnotated = (AbstractType t) => t is ParameterType && t.annotatedType && binds.containsKey(t);
+    FilterFunc isParameterType = (AbstractType t) => t is ParameterType && binds.containsKey(t);
     
     foreach(argumentIdentifier)
     .where((AbstractType func) {
@@ -660,13 +673,13 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     .update((AbstractType func) {
         if (func is FunctionType) {
           for (var i = 0; i < paramIdents.normalParameterTypes.length;i++)
-            subsetConstraint(paramIdents.normalParameterTypes[i], func.normalParameterTypes[i], filter: isParameterTypeAndAnnotated, binds: binds);
+            subsetConstraint(paramIdents.normalParameterTypes[i], func.normalParameterTypes[i], filter: isParameterType, binds: binds);
             
           for (var i = 0; i < func.optionalParameterTypes.length;i++)
-            subsetConstraint(paramIdents.optionalParameterTypes[i], func.optionalParameterTypes[i], filter: isParameterTypeAndAnnotated, binds: binds);
+            subsetConstraint(paramIdents.optionalParameterTypes[i], func.optionalParameterTypes[i], filter: isParameterType, binds: binds);
           
           for(Name name in func.namedParameterTypes.keys)
-            subsetConstraint(paramIdents.namedParameterTypes[name], func.namedParameterTypes[name], filter: isParameterTypeAndAnnotated, binds: binds);
+            subsetConstraint(paramIdents.namedParameterTypes[name], func.namedParameterTypes[name], filter: isParameterType, binds: binds);
         }
      });
   }
@@ -846,10 +859,11 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       TypeIdentifier functionIdent = new ExpressionTypeIdentifier(node.methodName);
       functionCall(functionIdent, node.argumentList.arguments, returnIdent);
     } else {
-      //TODO (jln): Does this take library prefix into account?
+      Name property = new Name.FromIdentifier(node.methodName);
+      
       TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.realTarget);
-      foreach(targetIdent).update((AbstractType type) { 
-        TypeIdentifier functionIdent = new PropertyTypeIdentifier(type, new Name.FromIdentifier(node.methodName));
+      foreach(targetIdent).expand(propertyRestrict(property)).update((AbstractType type) { 
+        TypeIdentifier functionIdent = new PropertyTypeIdentifier(type, property);
         functionCall(functionIdent, node.argumentList.arguments, returnIdent);
       });
     }
@@ -1056,8 +1070,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   // \alpha \in [v] => [exp] \subseteq [\alpha.prop]
   assignmentPropertyAccess(PropertyAccess leftHandSide, TypeIdentifier expIdent){
     TypeIdentifier targetIdent = new ExpressionTypeIdentifier(leftHandSide.realTarget);
-    foreach(targetIdent).update((AbstractType alpha){
-      TypeIdentifier alphapropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.propertyName));
+    
+    Name property = new Name.FromIdentifier(leftHandSide.propertyName);
+    foreach(targetIdent).expand(propertyRestrict(property)).update((AbstractType alpha){
+      TypeIdentifier alphapropertyIdent = new PropertyTypeIdentifier(alpha, property);
       subsetConstraint(expIdent, alphapropertyIdent);
     });
   }
@@ -1067,8 +1083,9 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   assignmentPrefixedIdentifier(PrefixedIdentifier leftHandSide, TypeIdentifier expIdent){
     TypeIdentifier prefixIdent = new ExpressionTypeIdentifier(leftHandSide.prefix);
     
-    foreach(prefixIdent).update((AbstractType alpha){
-      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(leftHandSide.identifier));
+    Name property = new Name.FromIdentifier(leftHandSide.identifier);
+    foreach(prefixIdent).expand(propertyRestrict(property)).update((AbstractType alpha){
+      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, property);
       subsetConstraint(expIdent, alphaPropertyIdent);
     });
 
@@ -1078,8 +1095,9 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
   // \alpha \in [v] => (\beta => \gamma => void) \in [v.[]=] => [i] \subseteq [\beta] && [exp] \subseteq [\gamma]
   assignmentIndexExpression(IndexExpression leftHandSide, TypeIdentifier expIdent){
     TypeIdentifier targetIdent = new ExpressionTypeIdentifier(leftHandSide.realTarget);
-    foreach(targetIdent).update((AbstractType alpha) {
-      TypeIdentifier indexEqualMethodIdent = new PropertyTypeIdentifier(alpha, new Name("[]="));
+    Name property = new Name("[]=");
+    foreach(targetIdent).expand(propertyRestrict(property)).update((AbstractType alpha) {
+      TypeIdentifier indexEqualMethodIdent = new PropertyTypeIdentifier(alpha, property);
       functionCall(indexEqualMethodIdent, [leftHandSide.index, expIdent], null);
     });
   }
@@ -1117,6 +1135,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     }
   }
   
+  ExpandFunc propertyRestrict(Name property) {
+    return (AbstractType type) => restrict.restrict(type, property, source.source);
+  }
+  
   visitPrefixedIdentifier(PrefixedIdentifier n){
     if (source.resolvedIdentifiers[n] != null ){
       Identifier ident = source.resolvedIdentifiers[n].identifier;
@@ -1130,9 +1152,10 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
     TypeIdentifier prefixIdent = new ExpressionTypeIdentifier(n.prefix);
     
-    //TODO (jln): Does this take library prefix into account?
-    foreach(prefixIdent).update((AbstractType alpha) {
-      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.identifier));
+    Name property = new Name.FromIdentifier(n.identifier);
+    
+    foreach(prefixIdent).expand(propertyRestrict(property)).update((AbstractType alpha) {
+      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, property);
       
       if (alpha is NominalType)
         subsetConstraint(alphaPropertyIdent, nodeIdent, binds: alpha.getGenericTypeMap(genericMapGenerator)); 
@@ -1146,9 +1169,9 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
     TypeIdentifier targetIdent = new ExpressionTypeIdentifier(n.realTarget);
     
-    //TODO (jln): Does this take library prefix into account?
-    foreach(targetIdent).update((AbstractType alpha) {
-      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, new Name.FromIdentifier(n.propertyName));
+    Name property = new Name.FromIdentifier(n.propertyName);
+    foreach(targetIdent).expand(propertyRestrict(property)).update((AbstractType alpha) {
+      TypeIdentifier alphaPropertyIdent = new PropertyTypeIdentifier(alpha, property);
       if (alpha is NominalType && alpha.genericMap != null)
         subsetConstraint(alphaPropertyIdent, nodeIdent, binds: alpha.getGenericTypeMap(genericMapGenerator)); 
       else
@@ -1160,10 +1183,11 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     super.visitIndexExpression(n);
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(n);
     TypeIdentifier targetIdent = new ExpressionTypeIdentifier(n.realTarget);
+    
+    Name property = new Name("[]");
         
-    //TODO (jln): Does this take library prefix into account?
-    foreach(targetIdent).update((AbstractType alpha) {
-      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name("[]"));
+    foreach(targetIdent).expand(propertyRestrict(property)).update((AbstractType alpha) {
+      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, property);
       functionCall(methodIdent, <Expression>[n.index], nodeIdent);
     });
   }
@@ -1277,7 +1301,6 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
         node.operator.type == TokenType.BAR_BAR)
       logicalBinaryExpression(node);
     else {
-      
       /*
        * Desugaring is made
        */
@@ -1290,8 +1313,13 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       //  \forall \gamma \in [exp1], 
       //  \forall (\alpha -> \beta) \in [ \gamma .op ] => 
       //      \alpha \in [exp2] && \beta \in [exp1 op exp2].
-      foreach(leftIdent).update((AbstractType gamma) {
-        TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, new Name.FromToken(node.operator));
+      
+      Name operator = new Name.FromToken(node.operator);
+      if (node.operator.type == TokenType.BANG_EQ)
+        operator = new Name("==");
+      
+      foreach(leftIdent).expand(propertyRestrict(operator)).update((AbstractType gamma) {
+        TypeIdentifier methodIdent = new PropertyTypeIdentifier(gamma, operator);
         functionCall(methodIdent, [rightIdent], nodeIdent);
       });
     }
@@ -1335,7 +1363,7 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
       
       TypeIdentifier targetIdent = new ExpressionTypeIdentifier(node.operand);
       TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
-      foreach(targetIdent).update((AbstractType type) { 
+      foreach(targetIdent).expand(propertyRestrict(operator)).update((AbstractType type) { 
         TypeIdentifier methodIdent = new PropertyTypeIdentifier(type, operator); 
         functionCall(methodIdent, [], nodeIdent);
       });
@@ -1346,11 +1374,11 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
    * Desugaring for prefix expressions using ++ or --.
    */
   incrementDecrementPrefixExpression(PrefixExpression node){
-    String operator = null;
+    Name operator = null;
     if (node.operator.type == TokenType.MINUS_MINUS)
-      operator = '-';
+      operator = new Name('-');
     else if (node.operator.type == TokenType.PLUS_PLUS)
-      operator = '+';
+      operator = new Name('+');
     
     if (operator == null)
       engine.errors.addError(new EngineError("incrementDecrementPrefixExpression was called but the operator was neither MINUS_MINUS or PLUS_PLUS.", source.source, node.offset, node.length), true);
@@ -1359,8 +1387,8 @@ class ConstraintGenerator extends GeneralizingAstVisitor with ConstraintHelper {
     TypeIdentifier nodeIdent = new ExpressionTypeIdentifier(node);
     
     //Make the operation
-    foreach(vIdent).update((AbstractType alpha) {
-      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, new Name(operator));
+    foreach(vIdent).expand(propertyRestrict(operator)).update((AbstractType alpha) {
+      TypeIdentifier methodIdent = new PropertyTypeIdentifier(alpha, operator);
       TypeIdentifier returnIdent = new SyntheticTypeIdentifier(vIdent);
       functionCall(methodIdent, <Expression>[new IntegerLiteral(new StringToken(TokenType.INT, "1", 0), 1)], returnIdent);
       //Result of (leftHandSide op RightHandSide) should be the result of the hole node.

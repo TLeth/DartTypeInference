@@ -68,6 +68,9 @@ class ElementAnalysis {
     return null; 
   }
   
+  ClassElement get objectElement => resolveClassElement(new Name("Object"), dartCore, dartCore.source);
+  ClassElement get functionElement => resolveClassElement(new Name("Function"), dartCore, dartCore.source);
+  
   TypeParameterElement resolveTypeParameterElement(Identifier identifier, SourceElement source) {
       NamedElement element = source.resolvedIdentifiers[identifier];
       if (element is TypeParameterElement)
@@ -112,9 +115,10 @@ class Name {
   
   String toString() => name;
   
+  static final List<Name> NonSetterNames = <Name>[new Name("[]="), new Name("<="), new Name(">="), new Name("==")];
   static Name SetterName(Name name) => IsSetterName(name) ? name : new Name(name.name + "=");
   static Name UnaryMinusName() => new Name('unary-');
-  static bool IsSetterName(Name name) => name._name[name._name.length - 1] == "=";
+  static bool IsSetterName(Name name) => name._name[name._name.length - 1] == "=" && !NonSetterNames.contains(name);
   static Name GetterName(Name name) => IsSetterName(name) ? new Name(name._name.substring(0, name._name.length - 1) ) : name;
   bool get isSetterName => IsSetterName(this); 
   
@@ -191,7 +195,7 @@ abstract class Element {
   dynamic accept(ElementVisitor visitor);
 }
 
-abstract class NamedElement extends Element {
+abstract class NamedElement extends Element with NamedMixin {
   Name get name;
   Identifier get identifier;
   bool get isPrivate => name.isPrivate;
@@ -200,7 +204,15 @@ abstract class NamedElement extends Element {
   Name get setterName => Name.SetterName(name);
 }
 
-abstract class AnnotatedElement extends NamedElement {
+abstract class NamedMixin {
+  Name get name;
+  bool get isPrivate => name.isPrivate;
+  
+  Name get getterName => name;
+  Name get setterName => Name.SetterName(name);
+}
+
+abstract class AnnotatedElement extends Element {
   AstNode get ast;
   TypeName get annotatedType => null;
 }
@@ -230,6 +242,8 @@ class SourceElement extends Block {
   Map<Name, FunctionAliasElement> declaredFunctionAlias = <Name, FunctionAliasElement>{};
   Map<Identifier, NamedElement> resolvedIdentifiers = <Identifier, NamedElement>{};
   
+  List<TypeParameterElement> declaredTypeParameters = <TypeParameterElement>[];
+  
   bool implicitImportedDartCore = false;
   
   LibraryElement library = null;
@@ -240,6 +254,7 @@ class SourceElement extends Block {
   Source addExport(Source source, ExportDirective directive) => exports[directive] = source;
   void addPart(Source source, SourceElement element){ parts[source] = element; }
   ClassElement addClass(ClassElement classDecl) => declaredClasses[classDecl.name] = classDecl;
+  void addTypeParameter(TypeParameterElement typeParam) => declaredTypeParameters.add(typeParam);
   FunctionAliasElement addFunctionAlias(FunctionAliasElement funcAlias) => declaredFunctionAlias[funcAlias.name] = funcAlias;
   dynamic accept(ElementVisitor visitor) => visitor.visitSourceElement(this);
   
@@ -337,18 +352,73 @@ class ClassElement extends Block implements NamedElement {
   
   SourceElement sourceElement;
   
-  Map<Name, NamedElement> get classElements => MapUtil.union(inheritedElements, declaredElements);
+  Set<ClassElement> extendsSubClasses = new Set<ClassElement>();
+  Set<ClassElement> interfaceSubClasses = new Set<ClassElement>();
+  Set<ClassElement> mixinSubClasses = new Set<ClassElement>();
   
-  Map<Name, NamedElement> get inheritedElements {
-    Map<Name, NamedElement> res = <Name, NamedElement>{};
+  Set<Name> _nonstatic_properties = null;
+  Set<Name> _properties = null;
+  Set<Name> properties({bool static: true}) {    
+    if (_properties != null && _nonstatic_properties != null)
+      return static ? _properties : _nonstatic_properties; 
     
+    _nonstatic_properties = new Set<Name>();
+    
+    if (extendsElement != null){
+      _nonstatic_properties.addAll(extendsElement.properties(static: false));
+    }
+    
+    mixinElements.forEach((ClassElement element) =>
+        _nonstatic_properties.addAll(element.properties(static: false)));
+    
+    implementElements.forEach((ClassElement element) => 
+        _nonstatic_properties.addAll(element.properties(static: false)));
+    
+    _properties = new Set<Name>.from(_nonstatic_properties);
+    
+    declaredElements.forEach((Name name, NamedElement member) {
+      if (name.isSetterName)
+        name = Name.GetterName(name);
+      if (member is ClassMember){
+        _properties.add(name);
+        if (!(member as ClassMember).isStatic)
+          _nonstatic_properties.add(name);
+      }
+    });
+    
+    return static ? _properties : _nonstatic_properties;   
+  }
+  
+  Map<Name, ClassMember> _classMembers = null; 
+  Map<Name, ClassMember> get classMembers {
+    if (_classMembers != null)
+      return _classMembers;
+    
+    _classMembers = MapUtil.union(inheritedClassMembers, mixinClassMembers);
+    _classMembers = MapUtil.union(_classMembers, [declaredFields, declaredMethods].reduce(MapUtil.union));
+    return _classMembers;
+  }
+  
+  Map<Name, ClassMember> _inheritedClassMembers= null;
+  Map<Name, ClassMember> get inheritedClassMembers {
+    if (_inheritedClassMembers != null)
+      return _inheritedClassMembers;
     if (extendsElement != null)
-      res = MapUtil.union(res, extendsElement.classElements);
+      _inheritedClassMembers = extendsElement.classMembers;
+    else
+      _inheritedClassMembers = <Name, ClassMember>{};
+    return _inheritedClassMembers;  
+  }
+  
+  Map<Name, ClassMember> _mixinClassMembers = null;
+  Map<Name, ClassMember> get mixinClassMembers {
+    if (_mixinClassMembers != null)
+      return _mixinClassMembers;
     
+    _mixinClassMembers = <Name, ClassMember>{};
     mixinElements.forEach((ClassElement mixin) =>
-      res = MapUtil.union(res, mixin.classElements));
-    
-    return res;
+      _mixinClassMembers = MapUtil.union(_mixinClassMembers, mixin.classMembers));
+    return _mixinClassMembers;
   }
   
   Name name;
@@ -474,10 +544,11 @@ class ClassAliasElement extends ClassElement {
 /** 
  * Instance of a `VariableElement` is our abstract representation of a variable.
  **/
-class VariableElement extends AnnotatedElement {
+class VariableElement extends AnnotatedElement with NamedMixin implements NamedElement {
   Block enclosingBlock = null;
   VariableDeclaration variableAst;
   DeclaredIdentifier declaredAst;
+  TypeName ourAnnotatedType = null;
   
   dynamic get ast => variableAst == null ? declaredAst : variableAst;
   bool get isSynthetic => variableAst == null ? declaredAst.isSynthetic : variableAst.isSynthetic;
@@ -509,6 +580,20 @@ class VariableElement extends AnnotatedElement {
   }
 }
 
+class VariableElementList extends AnnotatedElement {
+  VariableDeclarationList ast;
+ 
+  SourceElement sourceElement;
+  TypeName ourAnnotatedType = null;
+  TypeName get annotatedType => ast.type;
+  
+  VariableElementList(VariableDeclarationList this.ast, SourceElement this.sourceElement);
+  
+  dynamic accept(ElementVisitor visitor) => visitor.visitVariableElementList(this);
+  
+  
+}
+
 class TypeParameterElement extends NamedElement {
   Name name;
   TypeParameter ast;
@@ -517,7 +602,7 @@ class TypeParameterElement extends NamedElement {
   Identifier get identifier => ast.name;
   SourceElement sourceElement;
   ClassElement classElement = null;
-  ClassElement extendsElement = null;
+  ClassElement boundElement = null;
   FunctionAliasElement functionAliasElement = null;
   
   dynamic accept(ElementVisitor visitor) => visitor.visitTypeParameterElement(this);
@@ -576,16 +661,18 @@ abstract class ClassMember {
   Set<ClassMember> overrides = new Set<ClassMember>();
   Name get name;
   Identifier get identifier;
+  bool get isStatic;
 }
 
 /**
  * instance of the class `Callable` is our abstraction of an element that can be invoked.
  */
-abstract class CallableElement extends Element {
+abstract class CallableElement extends Element implements AnnotatedElement {
   TypeName get returnType;
   FormalParameterList get parameters;
   List<ParameterElement> get parameterElements;
   List<ReturnElement> get returns;
+  TypeName ourAnnotatedType = null;
   bool get isSynthetic;
   bool get isExternal;
   void addReturn(ReturnElement);
@@ -596,7 +683,7 @@ abstract class CallableElement extends Element {
 /**
  * Instances of a class`FieldElement` is a our abstract representation of fields
  **/
-class FieldElement extends AnnotatedElement with ClassMember {
+class FieldElement extends AnnotatedElement with ClassMember, NamedMixin implements NamedElement {
   FieldDeclaration ast;
   VariableDeclaration varDecl;
   ClassElement classDecl;
@@ -633,10 +720,12 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
   MethodDeclaration ast;
   ClassElement classDecl;
   
+  TypeName ourAnnotatedType = null;
+  
   Name _name;
   Name get setterName => Name.SetterName(_name);
   Name get getterName => Name.GetterName(_name);
-
+  
   Name get name => _name;
   Identifier get identifier => this.ast.name;
   bool get isAbstract => ast.isAbstract;
@@ -651,6 +740,7 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
   
   
   TypeName get returnType => ast.returnType;
+  TypeName get annotatedType => returnType;
   FormalParameterList get parameters => ast.parameters;
   List<ReturnElement> _returns = <ReturnElement>[];
   List<ReturnElement> get returns => _returns;
@@ -686,12 +776,14 @@ class MethodElement extends Block with ClassMember implements CallableElement, N
 /**
  * Instances of a class `ConstructorElement` is a our abstract representation of constructors
  **/
-class ConstructorElement extends Block with ClassMember implements NamedElement, CallableElement{
+class ConstructorElement extends Block with ClassMember implements NamedElement, CallableElement {
   ConstructorDeclaration ast;
   ClassElement classDecl;
   
   Name name; 
   bool get isPrivate => name.isPrivate;
+  
+  TypeName ourAnnotatedType = null;
   
   Name get getterName => name;
   Name get setterName => Name.SetterName(name);
@@ -700,8 +792,10 @@ class ConstructorElement extends Block with ClassMember implements NamedElement,
   bool get isFactory => ast.factoryKeyword != null;
   bool get isExternal => ast.externalKeyword != null;
   bool get isNative => ast.body is NativeFunctionBody;
+  bool get isStatic => true;
   TypeName _returnType;
   TypeName get returnType => _returnType;
+  TypeName get annotatedType => returnType;
   FormalParameterList get parameters => ast.parameters;
   
   List<ReturnElement> _returns = <ReturnElement>[];
@@ -737,9 +831,10 @@ class FunctionElement extends Block with Element implements CallableElement {
   FunctionExpression ast;
   SourceElement sourceElement;
   
-  
+  TypeName ourAnnotatedType = null;
 
   TypeName get returnType => null;
+  TypeName get annotatedType => returnType;
   FormalParameterList get parameters => ast.parameters;
   List<ReturnElement> _returns = <ReturnElement>[];
   List<ReturnElement> get returns => _returns;
@@ -765,6 +860,8 @@ class FunctionParameterElement extends ParameterElement implements CallableEleme
   List<ReturnElement> get returns => [];
   void addReturn(ReturnElement r) => null;
   
+  TypeName ourAnnotatedType = null;
+  
   dynamic accept(ElementVisitor visitor) => visitor.visitFunctionParameterElement(this);
 
   List<ParameterElement> _parameters = <ParameterElement>[];
@@ -785,6 +882,8 @@ class FunctionAliasElement extends Block implements CallableElement, NamedElemen
   FunctionTypeAlias ast;
   SourceElement sourceElement;
   Name _name;
+  
+  TypeName ourAnnotatedType = null;
 
   Map<Name, TypeParameterElement> declaredTypeParameters = <Name, TypeParameterElement>{};
   dynamic accept(ElementVisitor visitor) => visitor.visitFunctionAliasElement(this);
@@ -800,6 +899,7 @@ class FunctionAliasElement extends Block implements CallableElement, NamedElemen
   void addParameterElement(ParameterElement p) => _parameters.add(p);
   
   TypeName get returnType => ast.returnType;
+  TypeName get annotatedType => returnType;
   bool get isExternal => false;
   bool get isSynthetic => ast.isSynthetic;
   Name get name => _name;
@@ -873,6 +973,7 @@ abstract class ElementVisitor<R> {
   R visitFunctionAliasElement(FunctionAliasElement node);
   R visitNamedFunctionElement(NamedFunctionElement node);
   R visitVariableElement(VariableElement node);
+  R visitVariableElementList(VariableElementList node);
   R visitParameterElement(ParameterElement node);
   R visitFieldParameterElement(FieldParameterElement node);
   R visitFunctionParameterElement(FunctionParameterElement node);
@@ -957,6 +1058,8 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   }
   
   A visitCallableElement(CallableElement node) {
+    if (node is! FunctionParameterElement) 
+      visitAnnotatedElement(node);
     node.returns.forEach(visit);
     node.parameterElements.forEach(visit);
     return null;
@@ -985,7 +1088,6 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   }
   
   A visitAnnotatedElement(AnnotatedElement node) {
-    visitNamedElement(node);
     return null;
   }
   
@@ -997,6 +1099,12 @@ class RecursiveElementVisitor<A> implements ElementVisitor<A> {
   }
   
   A visitVariableElement(VariableElement node) {    
+    visitAnnotatedElement(node);
+    visitNamedElement(node);
+    return null;
+  }
+  
+  A visitVariableElementList(VariableElementList node){
     visitAnnotatedElement(node);
     return null;
   }
@@ -1193,9 +1301,11 @@ class ElementGenerator extends GeneralizingAstVisitor {
     if (_currentClassElement != null){
       TypeParameterElement param = new TypeParameterElement.FromClassElement(node, _currentClassElement, element);
       _currentClassElement.addTypeParameter(param.name, param);
+      element.addTypeParameter(param);
     } else if (_currentCallableElement != null && _currentCallableElement is FunctionAliasElement){
       FunctionAliasElement funcAlias = _currentCallableElement;
       TypeParameterElement param = new TypeParameterElement.FromFunctionAliasElement(node, funcAlias, element);
+      element.addTypeParameter(param);
       funcAlias.addTypeParameter(param.name, param);
     } else {
       engine.errors.addError(new EngineError("Visited type parameter, but currentClass was null and _currentCallableElement was not a functionAlias.", source, node.offset, node.length), true);
@@ -1275,6 +1385,8 @@ class ElementGenerator extends GeneralizingAstVisitor {
   
   visitVariableDeclarationList(VariableDeclarationList node){
     _currentVariableType = node.type;
+    VariableElementList variableElementList = new VariableElementList(node, element);
+    analysis.addElement(node, variableElementList);
     super.visitVariableDeclarationList(node);
     _currentVariableType = null;
   }

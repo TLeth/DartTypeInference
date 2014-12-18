@@ -2,177 +2,89 @@ library typeanalysis.restrict;
 
 import 'engine.dart';
 import 'element.dart';
+import 'types.dart';
+import 'use_analysis.dart';
 import 'package:analyzer/src/generated/source.dart';
-import 'package:analyzer/src/generated/ast.dart';
-import 'util.dart';
 
-class UseAnalysis {
-
+class Restriction {
+  
   Engine engine;
-  ElementAnalysis get elementAnalysis => engine.elementAnalysis;
-  Map<Source, ElementRestrictionMap> restrictions = <Source, ElementRestrictionMap>{};
+  UseAnalysis get useAnalysis => engine.useAnalysis;
   
-  UseAnalysis(Engine this.engine) {
-    elementAnalysis.sources.forEach(_generateUseMap);
-  }
   
-  void _generateUseMap(Source source, SourceElement sourceElement){
-    RestrictMapGenerator generator = new RestrictMapGenerator(engine, sourceElement);
-    sourceElement.ast.accept(generator);
-    restrictions[source] = generator.map;
-  }
-}
-
-class ElementRestrictionMap {
-  Map<NamedElement, RestrictMap> map = <NamedElement, RestrictMap>{};
+  Restriction(Engine this.engine);
   
-  RestrictMap operator [](NamedElement n) => map[n];
-  operator []=(NamedElement n, RestrictMap m) => map[n] = m;
-  
-  String toString() {
-    if (map.isEmpty) 
-      return "{}";
-    String res = "{\n";
-    res += MapUtil.join(map, "\n");
-    res += "\n}";
-    return res;
-  }
-}
-
-class FieldElement extends RestrictElement {
-  FieldElement(String name) : super(name);
-  FieldElement.FromIdentifier(SimpleIdentifier ident) : super(ident.name);
-  String toString() => name;
-  
-  bool operator ==(Object other) => other is FieldElement && name == other.name;
-  int get hashCode => name.hashCode;
-}
-
-class MethodElement extends RestrictElement {
-  MethodElement(String name) : super(name);
-  MethodElement.FromIdentifier(SimpleIdentifier ident) : super(ident.name);
-  String toString() => name + "()";
-  
-  bool operator ==(Object other) => other is MethodElement && name == other.name;
-  int get hashCode => name.hashCode * 31; 
-}
-
-class RestrictElement {
-  String name;
-  
-  RestrictElement(String this.name);
-}
-
-class RestrictMap {
-  static int _printIdent = 0;
-  String toString() => "?";
-}
-
-class ActualRestrictMap extends RestrictMap {
-  Map<RestrictElement, RestrictMap> map = <RestrictElement, RestrictMap>{};
-  
-  RestrictMap operator [](RestrictElement n) => map[n];
-  operator []=(RestrictElement n, RestrictMap m) => map[n] = m;
-  
-  String toString() {
-    if (map.isEmpty) 
-      return "{}";
-    String res = "{\n";
-    RestrictMap._printIdent++;
-    res += (" " * RestrictMap._printIdent);
-    res += MapUtil.join(map, "\n" + (" " * RestrictMap._printIdent));
-    RestrictMap._printIdent--;
-    res += "\n" +(" " * RestrictMap._printIdent) + "}";
-    return res;
-  }
-}
-
-class RestrictMapGenerator extends GeneralizingAstVisitor {
-  
-  ElementRestrictionMap map = new ElementRestrictionMap();
-  ActualRestrictMap currentPropertyMap = null;
-  Engine engine;
-  SourceElement currentSourceElement;
-  Map<Identifier, NamedElement> get resolvedIdentifiers => currentSourceElement.resolvedIdentifiers;
-  
-  RestrictMapGenerator(Engine this.engine, SourceElement this.currentSourceElement);
-  
-  visitPrefixedIdentifier(PrefixedIdentifier node){
-    //If the identifier is written within a comment dont look into it.
-    if (node.parent != null && node.parent.runtimeType.toString() == 'CommentReference')
-      return;
+  Set<AbstractType> restrict(AbstractType abstractType, Name property, Source source){
+    Set<AbstractType> res = new Set<AbstractType>();
     
-    if (resolvedIdentifiers[node] != null) {
-      map[resolvedIdentifiers[node]] = currentPropertyMap;
-    } else {
-      ActualRestrictMap lastPropertyMap = currentPropertyMap;
-      RestrictMap property = lastPropertyMap == null ? new RestrictMap() : lastPropertyMap;
-      currentPropertyMap = new ActualRestrictMap();
-      currentPropertyMap[new FieldElement.FromIdentifier(node.identifier)] = property;
-      
-      node.prefix.accept(this);
-      
-      currentPropertyMap = lastPropertyMap;
-    }
-  }
-  
-  visitSimpleIdentifier(SimpleIdentifier node){
-    if (currentPropertyMap == null)
-      return;
-    
-    //If the identifier is written within a label, dont look into it.
-    if (node.parent != null && node.parent.runtimeType.toString() == 'Label')
-      return;
-    
-    if (resolvedIdentifiers[node] == null){
-      engine.errors.addError(new EngineError("The identifier: ${node} could not be resolved in the restrict pre-fase.", currentSourceElement.source, node.offset, node.length));
+    if (abstractType is! NominalType){
+      res.add(abstractType);
+      return res;
     }
     
-    map[resolvedIdentifiers[node]] = currentPropertyMap;
+    NominalType type = abstractType as NominalType;
+    if (type.element.properties().contains(property)){
+      res.add(type);
+      return res;
+    }
     
-    super.visitSimpleIdentifier(node);
+    res.addAll(restrictNominalType(type, <Name>[property], source));
+    return res;
   }
   
-  visitMethodInvocation(MethodInvocation node){
+  Set<NominalType> restrictNominalType(NominalType nominalType, Iterable<Name> properties, Source source){
+    ClassElement element = nominalType.element; 
+    if (source == engine.entrySource && engine.options.printRestrictNodes)
+      print("Type: ${element} - looking for properties: ${properties}");
     
-    if (node.realTarget == null){
-      if (currentPropertyMap == null)
-        return;
-      
-      if (resolvedIdentifiers[node.methodName] == null)
-        engine.errors.addError(new EngineError("The identifier: ${node.methodName} could not be resolved in the restrict pre-fase.", currentSourceElement.source, node.methodName.offset, node.methodName.length));
-      
-      map[resolvedIdentifiers[node.methodName]] = currentPropertyMap;
-    } else {
-      if (resolvedIdentifiers[node.methodName] != null){
-        map[resolvedIdentifiers[node.methodName]] = currentPropertyMap;
-      } else {
-        ActualRestrictMap lastPropertyMap = currentPropertyMap;
-        RestrictMap property = lastPropertyMap == null ? new RestrictMap() : lastPropertyMap;
-        currentPropertyMap = new ActualRestrictMap();
-        currentPropertyMap[new MethodElement.FromIdentifier(node.methodName)] = property;
-        node.realTarget.accept(this);
-        currentPropertyMap = lastPropertyMap;
+    Set<NominalType> res = new Set<NominalType>();
+    if (element.properties().containsAll(properties)){
+      if (source == engine.entrySource && engine.options.printRestrictNodes)
+        print("Found on the exact element");
+      res.add(nominalType);
+      return res;
+    }
+    
+    Set<ClassElement> next_queue = new Set<ClassElement>();
+    next_queue.addAll(element.extendsSubClasses);
+    
+    while(!next_queue.isEmpty){
+      Set<ClassElement> queue = next_queue;
+      next_queue = new Set<ClassElement>();
+      for(ClassElement classElement in queue){
+        if (classElement.properties().containsAll(properties))
+          res.add(new NominalType(classElement));
+        else {
+          next_queue.addAll(classElement.extendsSubClasses); 
+        }
       }
+      
+      if (!res.isEmpty)
+        break;
     }
-  }
-  
-  visitPropertyAccess(PropertyAccess node) {
-    ActualRestrictMap lastPropertyMap = currentPropertyMap;
     
-    RestrictMap property = lastPropertyMap == null ? new RestrictMap() : lastPropertyMap;
-    currentPropertyMap = new ActualRestrictMap();
-    currentPropertyMap[new FieldElement.FromIdentifier(node.propertyName)] = property;
-    node.realTarget.accept(this);
-    currentPropertyMap = lastPropertyMap;
+    if (source == engine.entrySource && engine.options.printRestrictNodes)
+      print("Found on: ${res}");
+    return res;
   }
   
-  visitIndexExpression(IndexExpression node){
-    ActualRestrictMap lastPropertyMap = currentPropertyMap;
-    RestrictMap property = lastPropertyMap == null ? new RestrictMap() : lastPropertyMap;
-    currentPropertyMap = new ActualRestrictMap();
-    currentPropertyMap[new MethodElement("[]")] = property;
-    node.realTarget.accept(this);
-    currentPropertyMap = lastPropertyMap; 
+  Set<AbstractType> focus(AbstractType abstractType, Set<Name> properties, Source source) {
+    Set<AbstractType> res = new Set<AbstractType>();
+    
+    if (abstractType is! NominalType){
+      if (abstractType is VoidType && !properties.isEmpty)
+        res.add(new DynamicType());
+      else
+        res.add(abstractType);
+      return res;
+    }
+    
+    NominalType type = abstractType as NominalType;
+    
+    res.addAll(restrictNominalType(type, properties, source));
+    if (res.isEmpty)
+      res.add(abstractType);
+    return res;
   }
+  
 }

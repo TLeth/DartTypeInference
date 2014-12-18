@@ -1,4 +1,4 @@
-library test.list_return;
+library tests.list_return;
 
 
 List<bool> f() {

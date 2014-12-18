@@ -17,7 +17,6 @@ _openNewScope(scope, k) {
   return ret;
 }
 
-//TODO (jln): factories should be handled here. in ConstructorName there should be resolved what is a prefix of another library, and what is a factory call.
 class IdentifierResolver extends Our.RecursiveElementVisitor {
 
   Map<AstNode, Our.NamedElement> declaredElements = {};
@@ -125,24 +124,17 @@ class ScopeVisitor extends GeneralizingAstVisitor {
       Our.ClassElement c = this.declaredElements[node];
       
 
-      c.implementElements.forEach((interface) {
-        interface.classElements.forEach((k, v) {
-          this.scope[k.toString()] = v;
-        });
-      });
-      
-      if (c.extendsElement != null) {
-        c.extendsElement.classElements.forEach((k, v) {
-          this.scope[k.toString()] = v;
-        });
-      }
-      c.mixinElements.forEach((mixin) {
-        mixin.classElements.forEach((k, v) {
+      c.implementElements.forEach((Our.ClassElement interface) {
+        interface.classMembers.forEach((k, v) {
           this.scope[k.toString()] = v;
         });
       });
 
-      c.declaredElements.forEach((k, v) {
+      c.classMembers.forEach((k, v) {
+        this.scope[k.toString()] = v;
+      });
+      
+      c.declaredTypeParameters.forEach((k, v) {
         this.scope[k.toString()] = v;
       });
 

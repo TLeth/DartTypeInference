@@ -118,5 +118,9 @@ import 'generic_parentfield.dart';
 import 'future_then.dart';
 import 'var_multi.dart';
 import 'native.dart';
+import 'mixin_method.dart';
+import 'restrict_element.dart';
+import 'parent_field.dart';
+import 'fix_element.dart';
 
 void main() {}
