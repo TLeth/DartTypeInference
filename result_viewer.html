@@ -256,7 +256,27 @@
                 }
                 console.log(res);
             }
-        }
+        };
+
+        window.printTimes = function() {
+            for(var i = 0 ; i < $scope.results.length; i++){
+                console.log($scope.results[i].date);
+                var res = "";
+                
+                $scope.results[i].suite.forEach(function(benchmark) {
+                    var res_bench = [];
+                    
+                    res_bench.push(benchmark.benchmark);
+                    res_bench.push(benchmark.infos);
+                    res_bench.push(benchmark.warnings);
+                    res_bench.push(benchmark.time);
+                    res += res_bench.join(' & ') + ' \\\\\n';
+                });
+                
+                console.log(res);
+            }
+            
+        };
         
       }]);
 
