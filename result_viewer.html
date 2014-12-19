@@ -234,7 +234,7 @@
                 var res = "";
                 for(var j = 0; j < $scope.results[i].suite.length; j++){
                     var resa = [];
-                    resa.push($scope.results[i].suite[j].benchmark);
+                    resa.push($scope.results[i].suite[j].benchmark.replace('_package','').replace(/\_/g, '\\_'));
                     var num = Math.round($scope.results[i].suite[j].data.preciseAnnotations.length / $scope.results[i].suite[j].data.expectedFileAnnotations * 10000) / 100;
                     resa.push(parseFloat(num).toFixed(2) + '\\%');
                     for(var k = 0; k < $scope.errors.length-1; k++){
@@ -254,28 +254,56 @@
                     res += resa.join(' & ') + ' \\\\\n';
 
                 }
+
+                res += '\\midrule\n';
+
+
+                (['Average', 'Total']).forEach(function(name, idx) {
+                    var resa = [name];
+                    
+                    for(var k = -1; k < $scope.errors.length-1; k++){
+                        var total_expected = 0;
+                        var total_category = 0;
+
+                        for(var j = 0; j < $scope.results[i].suite.length; j++){
+                            if (k == -1) total_category += $scope.results[i].suite[j].data.preciseAnnotations.length;
+                            else         total_category += $scope.results[i].suite[j].data[$scope.errors[k]].length;
+                            total_expected += $scope.results[i].suite[j].data.expectedFileAnnotations;
+                        }
+                        
+                        if (name === 'Average') resa.push(parseFloat((total_category / total_expected)*100).toFixed(2) + '\\%');
+                        else resa.push(total_category);
+                    }
+                    
+                    res += resa.join(' & ') + ' \\\\\n';
+                });
+
                 console.log(res);
             }
         };
 
         window.printTimes = function() {
-            for(var i = 0 ; i < $scope.results.length; i++){
-                console.log($scope.results[i].date);
-                var res = "";
+
+            console.log($scope.results[0].date);
+            var res = "";
                 
-                $scope.results[i].suite.forEach(function(benchmark) {
-                    var res_bench = [];
-                    
-                    res_bench.push(benchmark.benchmark);
-                    res_bench.push(benchmark.infos);
-                    res_bench.push(benchmark.warnings);
-                    res_bench.push(benchmark.time);
-                    res += res_bench.join(' & ') + ' \\\\\n';
-                });
+            $scope.results[0].suite.forEach(function(benchmark, j) {
+                var res_bench = [];
                 
-                console.log(res);
-            }
+                res_bench.push(benchmark.benchmark);
+                res_bench.push(benchmark.infos);
+                res_bench.push(benchmark.warnings);
+                
+                var total_time = 0;
+                for(var i = 0 ; i < $scope.results.length; i++){
+                    total_time += $scope.results[i].suite[j].time;
+                }
+
+                res_bench.push(Math.floor(total_time / $scope.results.length));
+                res += res_bench.join(' & ') + ' \\\\\n';
+            });
             
+            console.log(res);
         };
         
       }]);
