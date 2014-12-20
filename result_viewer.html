@@ -296,7 +296,7 @@
                 
                 var total_time = 0;
                 for(var i = 0 ; i < $scope.results.length; i++){
-                    total_time += $scope.results[i].suite[j].time;
+                    total_time += 1 * $scope.results[i].suite[j].time;
                 }
 
                 res_bench.push(Math.floor(total_time / $scope.results.length));
