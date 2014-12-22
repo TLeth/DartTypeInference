@@ -72,7 +72,7 @@ for benchmark in $benchmarks; do
 
 
             start=$(php -r 'echo microtime(TRUE);')
-            dart --old_gen_heap_size=4000m bin/analyze.dart --iteration 1 -w --json --actual-basedir inferred --expected-basedir benchmarks --benchmarkdir inferred/$benchmark --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfiledir
+            dart --old_gen_heap_size=4000m bin/analyze.dart --iteration 4 -w --json --actual-basedir inferred --expected-basedir benchmarks --benchmarkdir inferred/$benchmark --dart-sdk ${dartDir%bin/dart} inferred/$benchmark/$entryfiledir
             end=$(php -r 'echo microtime(TRUE);')
 
             IFS='.';

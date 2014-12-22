@@ -290,7 +290,7 @@
             $scope.results[0].suite.forEach(function(benchmark, j) {
                 var res_bench = [];
                 
-                res_bench.push(benchmark.benchmark);
+                res_bench.push(benchmark.benchmark.replace('_package','').replace(/\_/g, '\\_'));
                 res_bench.push(benchmark.infos);
                 res_bench.push(benchmark.warnings);
                 
