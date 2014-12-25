@@ -286,6 +286,8 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
   
   
   bool returnsVoid(CallableElement node) {
+    if ((node is MethodElement && node.isSetter) || (node is NamedFunctionElement && node.isSetter))
+      return true;
     if (node.isExternal)
       return false;
     else if (node is MethodElement && (node.isAbstract || node.isGetter || node.isNative))
@@ -330,9 +332,10 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     returnType = _fixFutureMethodInCompleter(element);
     
     type = resolveType(returnType, source);
-    if (type != null) {
+    
+    if (type != null)
       types.add(ident, type);
-    } else if (returnsVoid(element))
+    else if (returnsVoid(element))
       types.add(ident, new VoidType());
     
     return ident;
@@ -478,6 +481,7 @@ class RichTypeGenerator extends RecursiveElementVisitor with ConstraintHelper {
     TypeIdentifier elementTypeIdent = new ExpressionTypeIdentifier(node.ast);
     TypeIdentifier returnIdent = typeReturn(node, node.sourceElement);
     ParameterTypeIdentifiers paramIdents = new ParameterTypeIdentifiers.FromCallableElement(node, node.sourceElement.library, node.sourceElement, elementAnalysis);
+    
     
     types.add(elementTypeIdent, new FunctionType.FromIdentifiers(returnIdent, paramIdents));
   }

@@ -64,7 +64,7 @@ class TypeAnnotator {
     TypeVariable typeVariable = typemap[typeIdent];
     RestrictMap map = null;
     if (engine.options.iteration >= 5)
-      useAnalysis.restrictions[variable.sourceElement.source][variable];
+      map = useAnalysis.restrictions[variable.sourceElement.source][variable];
     if (map == null) map = new RestrictMap();
     
     Set<Name> properties = map.properties;
@@ -123,15 +123,6 @@ class TypeAnnotator {
       properties.addAll(getClassMemberProperties(callableElement as ClassMember));
     
     return annotateWithRestrictions(typeVariable.types, properties, callableElement.sourceElement.source, library, canBeVoid: canBeVoid, offset: offset, validTypeParameters: validTypeParameters);
-    /*
-    if (typeVariable == null)
-      return new TypeName(new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset)), null);
-    
-    AbstractType type = typeVariable.getLeastUpperBound(engine);
-    if (type is VoidType && !canBeVoid)
-      return new TypeName(new SimpleIdentifier(new KeywordToken(Keyword.DYNAMIC, offset)), null);
-    else
-      return AbstractTypeToTypeName(type, library, offset: offset, validTypeParameters: validTypeParameters);    */
   }
   
   Set<Name> getClassMemberProperties(ClassMember member){
