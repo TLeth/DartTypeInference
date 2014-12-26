@@ -74,6 +74,8 @@ class Restriction {
     if (abstractType is! NominalType){
       if (abstractType is VoidType && !properties.isEmpty)
         res.add(new DynamicType());
+      else if (abstractType is ParameterType && !properties.isEmpty)
+        res.add(new DynamicType());
       else
         res.add(abstractType);
       return res;
