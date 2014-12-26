@@ -173,12 +173,12 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
   }
   
   visitThisExpression(ThisExpression node){
-    map[currentClassElement] = currentPropertyMap;
+    map[currentClassElement] = RestrictMap.Union(map[currentClassElement], currentPropertyMap);
     currentPropertyMap = null;
   }
   
   visitSuperExpression(SuperExpression node){
-    map[currentClassElement.extendsElement] = currentPropertyMap;
+    map[currentClassElement.extendsElement] = RestrictMap.Union(map[currentClassElement.extendsElement], currentPropertyMap);
     currentPropertyMap = null;
   }
   

@@ -104,7 +104,7 @@ class TypeAnnotator {
     }
      
     return annotateWithRestrictions(typeVariable.types, properties, sourceElement.source, library, canBeVoid: canBeVoid, offset: offset, validTypeParameters: validTypeParameters);
-  }
+  } 
   
   TypeName annotateCallableElement(CallableElement callableElement, LibraryElement library, {bool canBeVoid: false, int offset: 0, List<TypeParameterElement> validTypeParameters: null}){
     if (checkAnnotatedElement(callableElement) != null)
@@ -113,6 +113,9 @@ class TypeAnnotator {
     ReturnTypeIdentifier typeIdent = new ReturnTypeIdentifier(callableElement);
     TypeVariable typeVariable = typemap[typeIdent];
     RestrictMap map = null;
+    
+    if ((callableElement is MethodElement && callableElement.isSetter) || (callableElement is NamedFunctionElement && callableElement.isSetter))
+      return new TypeName(new SimpleIdentifier(new KeywordToken(Keyword.VOID, offset)), null);
     
     if (engine.options.iteration >= 5)
       map = useAnalysis.restrictions[callableElement.sourceElement.source][callableElement];
@@ -442,8 +445,6 @@ class FixVoidVisitor extends SourceVisitor {
     Element methodElement = elementAnalysis.elements[node];
     if (methodElement is MethodElement) {
       if (methodElement.ourAnnotatedType != null){
-        if (methodElement.ourAnnotatedType.name == null)
-          print(methodElement.ourAnnotatedType);
         if (isVoid(methodElement.ourAnnotatedType)){
           bool canBeVoid = methodElement.overrides.fold(true, (bool canBeVoid, ClassMember member) => canBeVoid && member is MethodElement && isVoid(member.ourAnnotatedType));
           if (!canBeVoid)
