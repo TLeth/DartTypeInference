@@ -76,7 +76,7 @@ class CommandLineOptions {
   final bool printUseAnalysisNodes;
   
   /** What iteration there is about to be runned */ 
-  final int iteration;
+  int iteration;
   
     
   bool analyzeSDK;
@@ -158,8 +158,11 @@ class CommandLineOptions {
         print('Usage: $_BINARY_NAME: invalid Dart SDK path: $sdkPath');
         exit(15);
       }
+
+      if (this.iteration == null)
+        this.iteration = 99;
       
-      if (this.iteration < 4 && this.iteration != null){
+      if (this.iteration < 4){
         analyzeSDK = true;
         analyzePackages = true;
       } else {

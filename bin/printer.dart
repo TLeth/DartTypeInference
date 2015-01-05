@@ -1251,8 +1251,8 @@ class PrintConstraintVisitor extends GeneralizingAstVisitor {
   PrintConstraintVisitor(ConstraintAnalysis this.constraintAnalaysis, [Source this.source = null]) {
     if (source == null){
       elementAnalysis.sources.values.forEach((analysis.SourceElement sourceElement){
-          this.sourceElement = sourceElement;
-          this.sourceElement.ast.visitChildren(this);
+        this.sourceElement = sourceElement;
+        this.sourceElement.ast.visitChildren(this);
       });
     } else {
       this.sourceElement = elementAnalysis.sources[source];

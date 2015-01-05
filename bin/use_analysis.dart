@@ -250,6 +250,10 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
     node.expression.accept(this);
   }
   
+  visitInterpolationExpression(InterpolationExpression node){
+    super.visitInterpolationExpression(node);
+  }
+  
   visitInstanceCreationExpression(InstanceCreationExpression node){
     currentPropertyMap = null;
     node.argumentList.visitChildren(this);
@@ -296,6 +300,10 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
                                            TokenType.CARET, TokenType.AMPERSAND, TokenType.LT_LT, TokenType.GT_GT];
     if (!overriableOperators.contains(node.operator.type)){
       currentPropertyMap = null;
+      node.leftOperand.accept(this);
+      currentPropertyMap = null;
+      node.rightOperand.accept(this);
+      currentPropertyMap = null;
       return;
     }
     
@@ -316,6 +324,8 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
     List<TokenType> overriableOperators = [TokenType.PLUS_PLUS, TokenType.MINUS_MINUS];
     if (!overriableOperators.contains(node.operator.type)){
       currentPropertyMap = null;
+      node.operand.accept(this);
+      currentPropertyMap = null;
       return;
     }
     
@@ -332,6 +342,8 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
     List<TokenType> overriableOperators = [TokenType.PLUS_PLUS, TokenType.MINUS_MINUS];
     if (!overriableOperators.contains(node.operator.type)){
       currentPropertyMap = null;
+      node.operand.accept(this);
+      currentPropertyMap = null;
       return;
     }
     
@@ -341,11 +353,14 @@ class RestrictMapGenerator extends GeneralizingAstVisitor {
     currentPropertyMap = new ActualRestrictMap();
     currentPropertyMap[new MethodElement(node.operator.type.lexeme[0])] = property;
     node.operand.accept(this);
+    
     currentPropertyMap = lastPropertyMap;
     
   }
   
   visitLiteral(Literal node){
+    currentPropertyMap = null;
+    super.visitLiteral(node);
     currentPropertyMap = null;
   }
   
